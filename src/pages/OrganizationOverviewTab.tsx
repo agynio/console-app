@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { organizationsClient, runnersClient, secretsClient } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationOverviewTab() {
   const { id } = useParams();
@@ -14,7 +15,7 @@ export function OrganizationOverviewTab() {
       organizationsClient.listMembers({
         organizationId,
         status: MembershipStatus.ACTIVE,
-        pageSize: 200,
+        pageSize: MAX_PAGE_SIZE,
         pageToken: '',
       }),
     enabled: Boolean(organizationId),
@@ -24,7 +25,7 @@ export function OrganizationOverviewTab() {
 
   const providersQuery = useQuery({
     queryKey: ['secrets', organizationId, 'providers', 'overview'],
-    queryFn: () => secretsClient.listSecretProviders({ organizationId, pageSize: 200, pageToken: '' }),
+    queryFn: () => secretsClient.listSecretProviders({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
@@ -35,7 +36,7 @@ export function OrganizationOverviewTab() {
     queryFn: () =>
       secretsClient.listSecrets({
         organizationId,
-        pageSize: 200,
+        pageSize: MAX_PAGE_SIZE,
         pageToken: '',
         secretProviderId: '',
       }),
@@ -46,7 +47,7 @@ export function OrganizationOverviewTab() {
 
   const runnersQuery = useQuery({
     queryKey: ['runners', organizationId, 'list', 'overview'],
-    queryFn: () => runnersClient.listRunners({ organizationId, pageSize: 200, pageToken: '' }),
+    queryFn: () => runnersClient.listRunners({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,

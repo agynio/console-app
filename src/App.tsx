@@ -13,6 +13,12 @@ import { UserDetailPage } from '@/pages/UserDetailPage';
 import { RunnersListPage } from '@/pages/RunnersListPage';
 import { RunnerDetailPage } from '@/pages/RunnerDetailPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { AgentsPage } from '@/pages/AgentsPage';
+import { AppsPage } from '@/pages/AppsPage';
+import { LlmPage } from '@/pages/LlmPage';
+import { MonitoringPage } from '@/pages/MonitoringPage';
+import { VolumesPage } from '@/pages/VolumesPage';
+import { ApiTokensPage } from '@/pages/ApiTokensPage';
 
 export default function App() {
   return (
@@ -45,6 +51,54 @@ export default function App() {
           element={
             <RequireClusterAdmin>
               <UsersListPage />
+            </RequireClusterAdmin>
+          }
+        />
+        <Route
+          path="agents"
+          element={
+            <RequireClusterAdmin>
+              <AgentsPage />
+            </RequireClusterAdmin>
+          }
+        />
+        <Route
+          path="apps"
+          element={
+            <RequireClusterAdmin>
+              <AppsPage />
+            </RequireClusterAdmin>
+          }
+        />
+        <Route
+          path="llm"
+          element={
+            <RequireClusterAdmin>
+              <LlmPage />
+            </RequireClusterAdmin>
+          }
+        />
+        <Route
+          path="monitoring"
+          element={
+            <RequireClusterAdmin>
+              <MonitoringPage />
+            </RequireClusterAdmin>
+          }
+        />
+        <Route
+          path="volumes"
+          element={
+            <RequireClusterAdmin>
+              <VolumesPage />
+            </RequireClusterAdmin>
+          }
+        />
+        <Route
+          path="api-tokens"
+          element={
+            <RequireClusterAdmin>
+              <ApiTokensPage />
             </RequireClusterAdmin>
           }
         />

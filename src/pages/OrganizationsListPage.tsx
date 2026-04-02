@@ -5,13 +5,12 @@ import { Button } from '@/components/Button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
-import { MembershipRole } from '@/gen/agynio/api/organizations/v1/organizations_pb';
-import { formatDateOnly } from '@/lib/format';
+import type { MembershipRole } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { formatDateOnly, formatMembershipRole } from '@/lib/format';
 
 function describeRole(role?: MembershipRole, isClusterAdmin?: boolean): string {
-  if (role === MembershipRole.OWNER) return 'Owner';
-  if (role === MembershipRole.MEMBER) return 'Member';
-  return isClusterAdmin ? 'Admin' : '—';
+  if (!role) return isClusterAdmin ? 'Admin' : '—';
+  return formatMembershipRole(role);
 }
 
 export function OrganizationsListPage() {

@@ -30,9 +30,10 @@ type UserContextValue = {
 const UserContext = createContext<UserContextValue | null>(null);
 
 function buildCurrentUser(user?: User): CurrentUser | null {
-  if (!user) return null;
+  const id = user?.meta?.id;
+  if (!user || !id) return null;
   return {
-    id: user.meta?.id ?? '',
+    id,
     name: user.name,
     email: user.email,
     nickname: user.nickname,
@@ -56,7 +57,9 @@ function OidcUserProvider({ children }: { children: ReactNode }) {
 
   const authError = auth.error ? new Error(auth.error.message) : null;
   const error = authError ?? meQuery.error ?? null;
-  const status: UserContextValue['status'] = auth.isLoading || meQuery.isPending
+  const isAuthLoading = auth.isLoading;
+  const isQueryLoading = meQuery.isPending;
+  const status: UserContextValue['status'] = isAuthLoading || isQueryLoading
     ? 'loading'
     : error
       ? 'error'

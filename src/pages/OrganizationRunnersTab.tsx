@@ -3,15 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { RunnerStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
-import { formatLabelPairs } from '@/lib/format';
-
-function formatRunnerStatus(status: RunnerStatus): string {
-  if (status === RunnerStatus.ENROLLED) return 'Enrolled';
-  if (status === RunnerStatus.PENDING) return 'Pending';
-  if (status === RunnerStatus.OFFLINE) return 'Offline';
-  return 'Unspecified';
-}
+import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationRunnersTab() {
   const { id } = useParams();
@@ -19,7 +12,7 @@ export function OrganizationRunnersTab() {
 
   const runnersQuery = useQuery({
     queryKey: ['runners', organizationId, 'list'],
-    queryFn: () => runnersClient.listRunners({ organizationId, pageSize: 200, pageToken: '' }),
+    queryFn: () => runnersClient.listRunners({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,

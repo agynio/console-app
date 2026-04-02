@@ -4,20 +4,13 @@ import { runnersClient } from '@/api/client';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { RunnerStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
-import { formatLabelPairs } from '@/lib/format';
-
-function formatRunnerStatus(status: RunnerStatus): string {
-  if (status === RunnerStatus.ENROLLED) return 'Enrolled';
-  if (status === RunnerStatus.PENDING) return 'Pending';
-  if (status === RunnerStatus.OFFLINE) return 'Offline';
-  return 'Unspecified';
-}
+import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function RunnersListPage() {
   const runnersQuery = useQuery({
     queryKey: ['runners', 'list'],
-    queryFn: () => runnersClient.listRunners({ pageSize: 200, pageToken: '' }),
+    queryFn: () => runnersClient.listRunners({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });

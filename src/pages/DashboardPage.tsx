@@ -1,25 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
 import { organizationsClient, runnersClient, usersClient } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function DashboardPage() {
   const usersQuery = useQuery({
     queryKey: ['users', 'list', 'dashboard'],
-    queryFn: () => usersClient.listUsers({ pageSize: 200, pageToken: '' }),
+    queryFn: () => usersClient.listUsers({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
   const orgsQuery = useQuery({
     queryKey: ['organizations', 'list', 'dashboard'],
-    queryFn: () => organizationsClient.listOrganizations({ pageSize: 200, pageToken: '' }),
+    queryFn: () => organizationsClient.listOrganizations({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
   const runnersQuery = useQuery({
     queryKey: ['runners', 'list', 'dashboard'],
-    queryFn: () => runnersClient.listRunners({ pageSize: 200, pageToken: '' }),
+    queryFn: () => runnersClient.listRunners({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });

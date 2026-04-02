@@ -6,19 +6,9 @@ import { organizationsClient, usersClient } from '@/api/client';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
-
-function formatRole(role: MembershipRole): string {
-  if (role === MembershipRole.OWNER) return 'Owner';
-  if (role === MembershipRole.MEMBER) return 'Member';
-  return 'Unspecified';
-}
-
-function formatStatus(status: MembershipStatus): string {
-  if (status === MembershipStatus.ACTIVE) return 'Active';
-  if (status === MembershipStatus.PENDING) return 'Pending';
-  return 'Unspecified';
-}
+import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { formatMembershipRole, formatMembershipStatus } from '@/lib/format';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationMembersTab() {
   const { id } = useParams();
@@ -30,7 +20,7 @@ export function OrganizationMembersTab() {
       organizationsClient.listMembers({
         organizationId,
         status: MembershipStatus.ACTIVE,
-        pageSize: 200,
+        pageSize: MAX_PAGE_SIZE,
         pageToken: '',
       }),
     enabled: Boolean(organizationId),
@@ -44,7 +34,7 @@ export function OrganizationMembersTab() {
       organizationsClient.listMembers({
         organizationId,
         status: MembershipStatus.PENDING,
-        pageSize: 200,
+        pageSize: MAX_PAGE_SIZE,
         pageToken: '',
       }),
     enabled: Boolean(organizationId),
@@ -121,8 +111,8 @@ export function OrganizationMembersTab() {
                       <div className="font-medium">{user?.name ?? membership.identityId}</div>
                       <div className="text-xs text-[var(--agyn-gray)]">{user?.email ?? 'Unknown email'}</div>
                     </div>
-                    <Badge variant="secondary">{formatRole(membership.role)}</Badge>
-                    <Badge variant="outline">{formatStatus(membership.status)}</Badge>
+                    <Badge variant="secondary">{formatMembershipRole(membership.role)}</Badge>
+                    <Badge variant="outline">{formatMembershipStatus(membership.status)}</Badge>
                     <div className="text-right text-xs text-[var(--agyn-gray)]">Manage</div>
                   </div>
                 );

@@ -1,4 +1,7 @@
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { RunnerStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
+import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
 
 function toDate(timestamp: Timestamp): Date {
   const millis = Number(timestamp.seconds) * 1000 + Math.floor(timestamp.nanos / 1_000_000);
@@ -26,4 +29,30 @@ export function formatLabelPairs(labels: Record<string, string>): string {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${key}=${value}`)
     .join(', ');
+}
+
+export function formatRunnerStatus(status: RunnerStatus): string {
+  if (status === RunnerStatus.ENROLLED) return 'Enrolled';
+  if (status === RunnerStatus.PENDING) return 'Pending';
+  if (status === RunnerStatus.OFFLINE) return 'Offline';
+  return 'Unspecified';
+}
+
+export function formatClusterRole(role?: ClusterRole): string {
+  if (role === ClusterRole.ADMIN) return 'Admin';
+  if (role === ClusterRole.UNSPECIFIED) return 'None';
+  return 'Unknown';
+}
+
+export function formatMembershipRole(role?: MembershipRole): string {
+  if (role === MembershipRole.OWNER) return 'Owner';
+  if (role === MembershipRole.MEMBER) return 'Member';
+  return 'Unspecified';
+}
+
+export function formatMembershipStatus(status?: MembershipStatus): string {
+  if (status === MembershipStatus.ACTIVE) return 'Active';
+  if (status === MembershipStatus.PENDING) return 'Pending';
+  if (status === MembershipStatus.UNSPECIFIED) return 'Unspecified';
+  return 'Unspecified';
 }

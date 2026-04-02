@@ -1,5 +1,18 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { BuildingIcon, HomeIcon, SettingsIcon, ShieldIcon, ServerIcon, UsersIcon } from 'lucide-react';
+import {
+  ActivityIcon,
+  BotIcon,
+  BoxesIcon,
+  BrainIcon,
+  BuildingIcon,
+  HardDriveIcon,
+  HomeIcon,
+  KeyIcon,
+  SettingsIcon,
+  ShieldIcon,
+  ServerIcon,
+  UsersIcon,
+} from 'lucide-react';
 import { Toaster } from 'sonner';
 import { Button } from '@/components/Button';
 import { useOrganizationContext } from '@/context/OrganizationContext';
@@ -48,12 +61,9 @@ export function AppLayout() {
     );
   }
 
-  const chatUrl = typeof window !== 'undefined'
-    ? window.location.origin.replace('console.', 'chat.')
-    : 'https://chat.agyn.dev';
-  const tracingUrl = typeof window !== 'undefined'
-    ? window.location.origin.replace('console.', 'tracing.')
-    : 'https://tracing.agyn.dev';
+  const origin = window.location.origin;
+  const chatUrl = origin.replace('console.', 'chat.');
+  const tracingUrl = origin.replace('console.', 'tracing.');
 
   return (
     <div className="flex min-h-screen bg-[var(--agyn-bg-light)]">
@@ -69,6 +79,30 @@ export function AppLayout() {
               <NavLink to="/users" className={navLinkClass}>
                 <UsersIcon className="h-4 w-4" />
                 Users
+              </NavLink>
+              <NavLink to="/agents" className={navLinkClass}>
+                <BotIcon className="h-4 w-4" />
+                Agents
+              </NavLink>
+              <NavLink to="/apps" className={navLinkClass}>
+                <BoxesIcon className="h-4 w-4" />
+                Apps
+              </NavLink>
+              <NavLink to="/llm" className={navLinkClass}>
+                <BrainIcon className="h-4 w-4" />
+                LLM Providers
+              </NavLink>
+              <NavLink to="/monitoring" className={navLinkClass}>
+                <ActivityIcon className="h-4 w-4" />
+                Monitoring
+              </NavLink>
+              <NavLink to="/volumes" className={navLinkClass}>
+                <HardDriveIcon className="h-4 w-4" />
+                Volumes
+              </NavLink>
+              <NavLink to="/api-tokens" className={navLinkClass}>
+                <KeyIcon className="h-4 w-4" />
+                API Tokens
               </NavLink>
               <NavLink to="/runners" className={navLinkClass}>
                 <ServerIcon className="h-4 w-4" />

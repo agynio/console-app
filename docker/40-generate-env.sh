@@ -10,7 +10,6 @@ escape_js() {
 api_base_url=$(escape_js "${API_BASE_URL:-}")
 oidc_authority=$(escape_js "${OIDC_AUTHORITY:-}")
 oidc_client_id=$(escape_js "${OIDC_CLIENT_ID:-}")
-oidc_redirect_uri=$(escape_js "${OIDC_REDIRECT_URI:-}")
 oidc_scope=$(escape_js "${OIDC_SCOPE:-}")
 
 cat > "$CONFIG_PATH" <<EOF
@@ -18,7 +17,6 @@ window.__ENV__ = {
   API_BASE_URL: "${api_base_url}",
   OIDC_AUTHORITY: "${oidc_authority}",
   OIDC_CLIENT_ID: "${oidc_client_id}",
-  OIDC_REDIRECT_URI: "${oidc_redirect_uri}",
   OIDC_SCOPE: "${oidc_scope}",
 };
 EOF

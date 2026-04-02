@@ -5,6 +5,7 @@ import { secretsClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 function formatProviderType(type: SecretProviderType): string {
   if (type === SecretProviderType.VAULT) return 'Vault';
@@ -17,7 +18,7 @@ export function OrganizationSecretsTab() {
 
   const providersQuery = useQuery({
     queryKey: ['secrets', organizationId, 'providers'],
-    queryFn: () => secretsClient.listSecretProviders({ organizationId, pageSize: 200, pageToken: '' }),
+    queryFn: () => secretsClient.listSecretProviders({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
@@ -28,7 +29,7 @@ export function OrganizationSecretsTab() {
     queryFn: () =>
       secretsClient.listSecrets({
         organizationId,
-        pageSize: 200,
+        pageSize: MAX_PAGE_SIZE,
         pageToken: '',
         secretProviderId: '',
       }),

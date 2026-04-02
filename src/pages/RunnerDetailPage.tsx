@@ -3,15 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { RunnerStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
-import { formatLabelPairs } from '@/lib/format';
-
-function formatRunnerStatus(status: RunnerStatus): string {
-  if (status === RunnerStatus.ENROLLED) return 'Enrolled';
-  if (status === RunnerStatus.PENDING) return 'Pending';
-  if (status === RunnerStatus.OFFLINE) return 'Offline';
-  return 'Unspecified';
-}
+import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 
 export function RunnerDetailPage() {
   const { id } = useParams();

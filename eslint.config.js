@@ -34,6 +34,12 @@ export default defineConfig([
   },
   {
     files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.vitest,
+      },
+    },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'react-refresh/only-export-components': 'off',

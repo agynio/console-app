@@ -1,6 +1,6 @@
 import { Code, ConnectError, createContextKey } from '@connectrpc/connect';
 import type { Interceptor } from '@connectrpc/connect';
-import { getAccessToken, userManager } from './user-manager';
+import { getAccessToken, userManager } from '@/auth/user-manager';
 
 const retryKey = createContextKey(false, { description: 'authRetry' });
 

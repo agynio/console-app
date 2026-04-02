@@ -4,11 +4,7 @@ import { usersClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
-
-function formatClusterRole(role: ClusterRole): string {
-  if (role === ClusterRole.ADMIN) return 'Admin';
-  return 'None';
-}
+import { formatClusterRole } from '@/lib/format';
 
 export function UserDetailPage() {
   const { id } = useParams();

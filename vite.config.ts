@@ -8,11 +8,14 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     proxy: {
-      '/agynio.api.gateway.v1': {
+      '/api': {
         target: process.env.VITE_PROXY_TARGET || 'http://gateway:8080',
         changeOrigin: true,
       },
     },
+  },
+  test: {
+    environment: 'jsdom',
   },
   resolve: {
     alias: {

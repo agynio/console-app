@@ -6,6 +6,7 @@ import { organizationsClient } from '@/api/client';
 import type { Membership } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import type { Organization } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { useUserContext } from './UserContext';
 
 export type OrganizationSummary = {
@@ -65,12 +66,13 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const { identityId, isClusterAdmin, status: userStatus } = useUserContext();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(readStoredOrgId);
 
+  // Memberships include role/status data used to filter org visibility.
   const membershipsQuery = useQuery({
     queryKey: ['organizations', 'memberships'],
     queryFn: () =>
       organizationsClient.listMyMemberships({
         status: MembershipStatus.ACTIVE,
-        pageSize: 200,
+        pageSize: MAX_PAGE_SIZE,
         pageToken: '',
       }),
     enabled: userStatus === 'ready' && Boolean(identityId),
@@ -78,6 +80,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: false,
   });
 
+  // Accessible orgs provide metadata even when memberships are filtered by status.
   const organizationsQuery = useQuery({
     queryKey: ['organizations', 'accessible', identityId],
     queryFn: () => organizationsClient.listAccessibleOrganizations({ identityId: identityId ?? '' }),
