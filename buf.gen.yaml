@@ -1,0 +1,14 @@
+version: v2
+inputs:
+  - module: buf.build/agynio/api
+    paths:
+      - agynio/api/gateway/v1
+      - agynio/api/users/v1
+      - agynio/api/organizations/v1
+      - agynio/api/runners/v1
+      - agynio/api/secrets/v1
+plugins:
+  - local: protoc-gen-es
+    out: src/gen
+    opt: target=ts
+    include_imports: true
