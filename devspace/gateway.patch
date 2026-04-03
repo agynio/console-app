@@ -546,6 +546,47 @@ index 0000000..81a6c55
 +	}
 +	return merged
 +}
+diff --git a/internal/gateway/files.go b/internal/gateway/files.go
+index edac061..84ad768 100644
+--- a/internal/gateway/files.go
++++ b/internal/gateway/files.go
+@@ -2,6 +2,8 @@ package gateway
+ 
+ import (
+ 	"context"
++	"errors"
++	"io"
+ 
+ 	"connectrpc.com/connect"
+ 	filesv1 "github.com/agynio/gateway/gen/agynio/api/files/v1"
+@@ -44,3 +46,27 @@ func (g *Gateway) GetDownloadUrl(ctx context.Context, req *connect.Request[files
+ 	}
+ 	return connect.NewResponse(resp), nil
+ }
++
++func (g *Gateway) GetFileContent(
++	ctx context.Context,
++	req *connect.Request[filesv1.GetFileContentRequest],
++	stream *connect.ServerStream[filesv1.GetFileContentResponse],
++) error {
++	grpcStream, err := g.files.GetFileContent(ctx, req.Msg)
++	if err != nil {
++		return toConnectError(err)
++	}
++
++	for {
++		msg, err := grpcStream.Recv()
++		if err != nil {
++			if errors.Is(err, io.EOF) {
++				return nil
++			}
++			return toConnectError(err)
++		}
++		if err := stream.Send(msg); err != nil {
++			return err
++		}
++	}
++}
 diff --git a/internal/gateway/runners.go b/internal/gateway/runners.go
 index 920841f..26088ee 100644
 --- a/internal/gateway/runners.go
