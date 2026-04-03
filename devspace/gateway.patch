@@ -567,11 +567,19 @@ index 920841f..26088ee 100644
  func NewRunnersGateway(runners runnersv1.RunnersServiceClient) *RunnersGateway {
  	return &RunnersGateway{runners: runners}
  }
-@@ -20,23 +24,45 @@ func (g *RunnersGateway) RegisterRunner(ctx context.Context, req *connect.Reques
+@@ -20,31 +24,53 @@ func (g *RunnersGateway) RegisterRunner(ctx context.Context, req *connect.Reques
  	if err != nil {
  		return nil, toConnectError(err)
  	}
 +	runnersFallback.recordRunner(resp.GetRunner())
+ 	return connect.NewResponse(resp), nil
+ }
+ 
+ func (g *RunnersGateway) EnrollRunner(ctx context.Context, req *connect.Request[runnersv1.EnrollRunnerRequest]) (*connect.Response[runnersv1.EnrollRunnerResponse], error) {
+ 	resp, err := g.runners.EnrollRunner(ctx, req.Msg)
+ 	if err != nil {
+ 		return nil, toConnectError(err)
+ 	}
  	return connect.NewResponse(resp), nil
  }
  
@@ -629,14 +637,6 @@ index 920841f..26088ee 100644
  	return connect.NewResponse(resp), nil
  }
  
-+func (g *RunnersGateway) EnrollRunner(ctx context.Context, req *connect.Request[runnersv1.EnrollRunnerRequest]) (*connect.Response[runnersv1.EnrollRunnerResponse], error) {
-+	resp, err := g.runners.EnrollRunner(ctx, req.Msg)
-+	if err != nil {
-+		return nil, toConnectError(err)
-+	}
-+	return connect.NewResponse(resp), nil
-+}
-+
  func (g *RunnersGateway) ListWorkloadsByThread(ctx context.Context, req *connect.Request[runnersv1.ListWorkloadsByThreadRequest]) (*connect.Response[runnersv1.ListWorkloadsByThreadResponse], error) {
  	resp, err := g.runners.ListWorkloadsByThread(ctx, req.Msg)
  	if err != nil {
