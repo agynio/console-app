@@ -7,6 +7,7 @@ vars:
   ARGOS_BRANCH: ""
   ARGOS_COMMIT: ""
   CI: "false"
+  E2E_OIDC_REDIRECT_URI: ""
 
 functions:
   disable_argocd_sync: |-
@@ -95,6 +96,8 @@ deployments:
             env:
               - name: E2E_BASE_URL
                 value: "https://console.agyn.dev"
+              - name: E2E_OIDC_REDIRECT_URI
+                value: "${E2E_OIDC_REDIRECT_URI}"
               - name: ARGOS_TOKEN
                 value: "${ARGOS_TOKEN}"
               - name: ARGOS_BRANCH
@@ -151,7 +154,7 @@ pipelines:
           sleep 5
           cd /opt/app/data
           npm ci --ignore-scripts
-          E2E_BASE_URL=https://console.agyn.dev E2E_OIDC_REDIRECT_URI=https://chat.agyn.dev/callback ARGOS_TOKEN=${ARGOS_TOKEN} ARGOS_BRANCH=${ARGOS_BRANCH} ARGOS_COMMIT=${ARGOS_COMMIT} CI=true npm run test:e2e
+          E2E_BASE_URL=https://console.agyn.dev ARGOS_TOKEN=${ARGOS_TOKEN} ARGOS_BRANCH=${ARGOS_BRANCH} ARGOS_COMMIT=${ARGOS_COMMIT} CI=true npm run test:e2e
         '
       EXIT_CODE=$?
       set -e

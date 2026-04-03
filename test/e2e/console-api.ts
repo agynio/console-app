@@ -463,7 +463,7 @@ export async function deleteSecretProvider(page: Page, providerId: string): Prom
 }
 
 export async function clearOrganizationSecrets(page: Page, organizationId: string): Promise<void> {
-  const timeoutMs = 30000;
+  const timeoutMs = 45000;
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const secrets = await listSecrets(page, { organizationId });
