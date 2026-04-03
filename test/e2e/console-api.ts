@@ -463,7 +463,7 @@ export async function deleteSecretProvider(page: Page, providerId: string): Prom
 }
 
 export async function clearOrganizationSecrets(page: Page, organizationId: string): Promise<void> {
-  const timeoutMs = 10000;
+  const timeoutMs = 30000;
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const secrets = await listSecrets(page, { organizationId });
@@ -471,16 +471,18 @@ export async function clearOrganizationSecrets(page: Page, organizationId: strin
     if (secrets.length === 0 && providers.length === 0) {
       return;
     }
-    for (const secret of secrets) {
-      if (secret.meta?.id) {
-        await deleteSecret(page, secret.meta.id);
-      }
-    }
-    for (const provider of providers) {
-      if (provider.meta?.id) {
-        await deleteSecretProvider(page, provider.meta.id);
-      }
-    }
+    await Promise.all(
+      secrets
+        .map((secret) => secret.meta?.id)
+        .filter((secretId): secretId is string => Boolean(secretId))
+        .map((secretId) => deleteSecret(page, secretId)),
+    );
+    await Promise.all(
+      providers
+        .map((provider) => provider.meta?.id)
+        .filter((providerId): providerId is string => Boolean(providerId))
+        .map((providerId) => deleteSecretProvider(page, providerId)),
+    );
     await page.waitForTimeout(500);
   }
   throw new Error('Timed out clearing organization secrets.');
