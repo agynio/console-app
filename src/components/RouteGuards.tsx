@@ -33,17 +33,18 @@ export function RequireOrganization({ children }: GuardProps) {
   const { selectedOrganization, status, error, organizations, setSelectedOrganization } = useOrganizationContext();
   const location = useLocation();
   const params = useParams();
+  const orgId = params.id;
+  const matchingOrganization = orgId ? organizations.find((org) => org.id === orgId) : null;
+  const fallback = selectedOrganization ? `/organizations/${selectedOrganization.id}` : '/organizations';
 
   useEffect(() => {
     if (status !== 'ready') return;
-    const orgId = params.id;
     if (!orgId) return;
     if (selectedOrganization?.id === orgId) return;
-    const match = organizations.find((org) => org.id === orgId);
-    if (match) {
-      setSelectedOrganization(match);
+    if (matchingOrganization) {
+      setSelectedOrganization(matchingOrganization);
     }
-  }, [organizations, params.id, selectedOrganization, setSelectedOrganization, status]);
+  }, [matchingOrganization, orgId, selectedOrganization, setSelectedOrganization, status]);
 
   if (status === 'loading') {
     return <div className="text-sm text-[var(--agyn-gray)]">Loading organizations...</div>;
@@ -53,8 +54,12 @@ export function RequireOrganization({ children }: GuardProps) {
     return <div className="text-sm text-[var(--agyn-gray)]">{error?.message ?? 'Failed to load organizations.'}</div>;
   }
 
-  if (!selectedOrganization) {
-    return <Navigate to="/organizations" state={{ from: location }} replace />;
+  if (!orgId) {
+    return <Navigate to={fallback} state={{ from: location }} replace />;
+  }
+
+  if (!matchingOrganization) {
+    return <Navigate to={fallback} state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

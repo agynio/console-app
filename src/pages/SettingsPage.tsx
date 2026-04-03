@@ -9,10 +9,12 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">Settings</h2>
+        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="settings-heading">
+          Settings
+        </h2>
         <p className="text-sm text-[var(--agyn-gray)]">Profile and session settings.</p>
       </div>
-      <Card className="border-[var(--agyn-border-subtle)]">
+      <Card className="border-[var(--agyn-border-subtle)]" data-testid="settings-profile-card">
         <CardContent className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Profile</h3>
@@ -43,7 +45,7 @@ export function SettingsPage() {
             </div>
           </div>
           <div>
-            <Button variant="outline" onClick={signOut}>
+            <Button variant="outline" onClick={signOut} data-testid="settings-signout">
               Sign out
             </Button>
           </div>

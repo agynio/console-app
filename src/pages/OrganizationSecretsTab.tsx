@@ -49,23 +49,34 @@ export function OrganizationSecretsTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Secrets</h3>
+        <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-secrets-heading">
+          Secrets
+        </h3>
         <p className="text-sm text-[var(--agyn-gray)]">Secret providers and secrets.</p>
       </div>
       {isLoading ? <div className="text-sm text-[var(--agyn-gray)]">Loading secrets...</div> : null}
       {isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load secrets.</div> : null}
 
-      <Card className="border-[var(--agyn-border-subtle)]">
+      <Card className="border-[var(--agyn-border-subtle)]" data-testid="secret-providers-table">
         <CardContent className="px-0">
-          <div className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)]">
+          <div
+            className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)]"
+            data-testid="secret-providers-header"
+          >
             Secret Providers
           </div>
           <div className="divide-y divide-[var(--agyn-border-subtle)]">
             {(providersQuery.data?.secretProviders ?? []).length === 0 ? (
-              <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]">No secret providers configured.</div>
+              <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]" data-testid="secret-providers-empty">
+                No secret providers configured.
+              </div>
             ) : (
               providersQuery.data?.secretProviders.map((provider) => (
-                <div key={provider.meta?.id ?? provider.title} className="px-6 py-4 text-sm">
+                <div
+                  key={provider.meta?.id ?? provider.title}
+                  className="px-6 py-4 text-sm"
+                  data-testid="secret-provider-row"
+                >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-[var(--agyn-dark)]">{provider.title}</span>
                     <Badge variant="secondary">{formatProviderType(provider.type)}</Badge>
@@ -83,17 +94,24 @@ export function OrganizationSecretsTab() {
         </CardContent>
       </Card>
 
-      <Card className="border-[var(--agyn-border-subtle)]">
+      <Card className="border-[var(--agyn-border-subtle)]" data-testid="secrets-table">
         <CardContent className="px-0">
-          <div className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)]">Secrets</div>
+          <div
+            className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)]"
+            data-testid="secrets-header"
+          >
+            Secrets
+          </div>
           <div className="divide-y divide-[var(--agyn-border-subtle)]">
             {(secretsQuery.data?.secrets ?? []).length === 0 ? (
-              <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]">No secrets configured.</div>
+              <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]" data-testid="secrets-empty">
+                No secrets configured.
+              </div>
             ) : (
               secretsQuery.data?.secrets.map((secret) => {
                 const provider = providerMap.get(secret.secretProviderId);
                 return (
-                  <div key={secret.meta?.id ?? secret.title} className="px-6 py-4 text-sm">
+                  <div key={secret.meta?.id ?? secret.title} className="px-6 py-4 text-sm" data-testid="secret-row">
                     <div className="font-medium text-[var(--agyn-dark)]">{secret.title}</div>
                     <div className="mt-1 text-xs text-[var(--agyn-gray)]">{secret.description}</div>
                     <div className="mt-2 text-xs text-[var(--agyn-gray)]">

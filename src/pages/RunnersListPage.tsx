@@ -21,10 +21,14 @@ export function RunnersListPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">Cluster Runners</h2>
+          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="runners-heading">
+            Cluster Runners
+          </h2>
           <p className="text-sm text-[var(--agyn-gray)]">Runners enrolled at the cluster level.</p>
         </div>
-        <Button variant="outline" size="sm">Enroll runner</Button>
+        <Button variant="outline" size="sm" data-testid="runners-enroll-button">
+          Enroll runner
+        </Button>
       </div>
       {runnersQuery.isPending ? (
         <div className="text-sm text-[var(--agyn-gray)]">Loading runners...</div>
@@ -32,9 +36,12 @@ export function RunnersListPage() {
       {runnersQuery.isError ? (
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load runners.</div>
       ) : null}
-      <Card className="border-[var(--agyn-border-subtle)]">
+      <Card className="border-[var(--agyn-border-subtle)]" data-testid="runners-table">
         <CardContent className="px-0">
-          <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_2fr_120px]">
+          <div
+            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_2fr_120px]"
+            data-testid="runners-header"
+          >
             <span>Runner</span>
             <span>Status</span>
             <span>Labels</span>
@@ -48,16 +55,23 @@ export function RunnersListPage() {
                 <div
                   key={runner.meta?.id ?? runner.name}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_2fr_120px]"
+                  data-testid="runners-row"
                 >
                   <div>
-                    <div className="font-medium">{runner.name}</div>
-                    <div className="text-xs text-[var(--agyn-gray)]">{runner.meta?.id}</div>
+                    <div className="font-medium" data-testid="runners-name">
+                      {runner.name}
+                    </div>
+                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="runners-id">
+                      {runner.meta?.id}
+                    </div>
                   </div>
                   <Badge variant="secondary">{formatRunnerStatus(runner.status)}</Badge>
                   <span className="text-xs text-[var(--agyn-gray)]">{formatLabelPairs(runner.labels)}</span>
                   <div className="text-right">
                     <Button variant="outline" size="sm" asChild>
-                      <NavLink to={`/runners/${runner.meta?.id ?? ''}`}>View</NavLink>
+                      <NavLink to={`/runners/${runner.meta?.id ?? ''}`} data-testid="runners-view">
+                        View
+                      </NavLink>
                     </Button>
                   </div>
                 </div>

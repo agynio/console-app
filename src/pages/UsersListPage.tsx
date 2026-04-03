@@ -18,10 +18,14 @@ export function UsersListPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">Users</h2>
+          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="users-heading">
+            Users
+          </h2>
           <p className="text-sm text-[var(--agyn-gray)]">Manage platform users.</p>
         </div>
-        <Button variant="outline" size="sm">Create user</Button>
+        <Button variant="outline" size="sm" data-testid="users-create-button">
+          Create user
+        </Button>
       </div>
 
       {usersQuery.isPending && (
@@ -31,9 +35,12 @@ export function UsersListPage() {
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load users.</div>
       )}
 
-      <Card className="border-[var(--agyn-border-subtle)]">
+      <Card className="border-[var(--agyn-border-subtle)]" data-testid="users-table">
         <CardContent className="px-0">
-          <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_2fr_120px]">
+          <div
+            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_2fr_120px]"
+            data-testid="users-header"
+          >
             <span>User</span>
             <span>Identity ID</span>
             <span className="text-right">Action</span>
@@ -49,16 +56,23 @@ export function UsersListPage() {
                   <div
                     key={identityId}
                     className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_2fr_120px]"
+                    data-testid="users-row"
                   >
                     <div>
-                      <div className="font-medium">{user.name || 'Unnamed user'}</div>
-                      <div className="text-xs text-[var(--agyn-gray)]">{user.email}</div>
+                      <div className="font-medium" data-testid="users-name">
+                        {user.name || 'Unnamed user'}
+                      </div>
+                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="users-email">
+                        {user.email}
+                      </div>
                     </div>
                     <div className="text-xs text-[var(--agyn-gray)]">{identityId || '—'}</div>
                     <div className="text-right">
                       {canView ? (
                         <Button variant="outline" size="sm" asChild>
-                          <NavLink to={`/users/${identityId}`}>View</NavLink>
+                          <NavLink to={`/users/${identityId}`} data-testid="users-view">
+                            View
+                          </NavLink>
                         </Button>
                       ) : (
                         <span className="text-xs text-[var(--agyn-gray)]">—</span>

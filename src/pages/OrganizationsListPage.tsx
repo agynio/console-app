@@ -21,11 +21,13 @@ export function OrganizationsListPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">Organizations</h2>
+          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="organizations-heading">
+            Organizations
+          </h2>
           <p className="text-sm text-[var(--agyn-gray)]">Manage organizations across the platform.</p>
         </div>
         {isClusterAdmin ? (
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" data-testid="organizations-create-button">
             <PlusIcon className="mr-2 h-4 w-4" />
             Create organization
           </Button>
@@ -48,9 +50,12 @@ export function OrganizationsListPage() {
       ) : null}
 
       {status === 'ready' && organizations.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]">
+        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organizations-table">
           <CardContent className="px-0">
-            <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_120px]">
+            <div
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_120px]"
+              data-testid="organizations-header"
+            >
               <span>Organization</span>
               <span>Role</span>
               <span>Created</span>
@@ -61,16 +66,21 @@ export function OrganizationsListPage() {
                 <div
                   key={org.id}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_120px]"
+                  data-testid="organizations-row"
                 >
                   <div className="flex items-center gap-2">
                     <BuildingIcon className="h-4 w-4 text-[var(--agyn-gray)]" />
-                    <span className="font-medium">{org.name}</span>
+                    <span className="font-medium" data-testid="organizations-name">
+                      {org.name}
+                    </span>
                   </div>
                   <Badge variant="secondary">{describeRole(org.membershipRole, isClusterAdmin)}</Badge>
                   <span className="text-[var(--agyn-gray)]">{formatDateOnly(org.createdAt)}</span>
                   <div className="text-right">
                     <Button variant="outline" size="sm" asChild>
-                      <NavLink to={`/organizations/${org.id}`}>View</NavLink>
+                      <NavLink to={`/organizations/${org.id}`} data-testid="organizations-view">
+                        View
+                      </NavLink>
                     </Button>
                   </div>
                 </div>

@@ -22,7 +22,9 @@ export function RunnerDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">Runner</h2>
+        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="runner-heading">
+          Runner
+        </h2>
         <p className="text-sm text-[var(--agyn-gray)]">Runner status and metadata.</p>
       </div>
       {runnerQuery.isPending ? (
@@ -32,7 +34,7 @@ export function RunnerDetailPage() {
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load runner.</div>
       ) : null}
       {runner ? (
-        <Card className="border-[var(--agyn-border-subtle)]">
+        <Card className="border-[var(--agyn-border-subtle)]" data-testid="runner-details-card">
           <CardContent className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Details</h3>

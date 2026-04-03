@@ -36,17 +36,23 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">Dashboard</h2>
+        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="dashboard-heading">
+          Dashboard
+        </h2>
         <p className="text-sm text-[var(--agyn-gray)]">Platform overview and status.</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3" data-testid="dashboard-summary">
         {summaryCards.map((card) => (
-          <Card key={card.label} className="border-[var(--agyn-border-subtle)]">
+          <Card key={card.label} className="border-[var(--agyn-border-subtle)]" data-testid="dashboard-stat-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-[var(--agyn-gray)]">{card.label}</CardTitle>
+              <CardTitle className="text-sm font-medium text-[var(--agyn-gray)]" data-testid="dashboard-stat-label">
+                {card.label}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-[var(--agyn-dark)]">{card.value}</div>
+              <div className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="dashboard-stat-value">
+                {card.value}
+              </div>
             </CardContent>
           </Card>
         ))}
