@@ -33,3 +33,114 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Free disk space
+        run: |
+          # Remove Java (JDKs)
+          sudo rm -rf /usr/lib/jvm
+
+          # Remove .NET SDKs
+          sudo rm -rf /usr/share/dotnet
+
+          # Remove Swift toolchain
+          sudo rm -rf /usr/share/swift
+
+          # Remove Haskell (GHC)
+          sudo rm -rf /usr/local/.ghcup
+
+          # Remove Julia
+          sudo rm -rf /usr/local/julia*
+
+          # Remove Android SDKs
+          sudo rm -rf /usr/local/lib/android
+      - name: Checkout service repo
+        uses: actions/checkout@v4
+      - name: Set PR image tag
+        run: echo "PR_IMAGE=ghcr.io/agynio/console-app:pr-${{ github.event.pull_request.number || github.run_id }}-${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push PR image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.PR_IMAGE }}
+
+      - name: Checkout bootstrap
+        uses: actions/checkout@v4
+        with:
+          repository: agynio/bootstrap
+          ref: main
+          path: bootstrap
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.28.7
+
+      - name: Install k3d
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/v5.7.5/install.sh | TAG=v5.7.5 bash
+          k3d version
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Install DevSpace
+        run: |
+          curl -fsSL --retry 3 --retry-delay 5 -o /tmp/devspace "https://github.com/loft-sh/devspace/releases/download/v6.3.20/devspace-linux-amd64"
+          sudo install -c -m 0755 /tmp/devspace /usr/local/bin
+          devspace version
+
+      - name: Provision cluster
+        working-directory: bootstrap
+        env:
+          TF_VAR_k8s_runner_identity_id: 439e0da2-88cd-46d7-bb9c-56c723c15606
+        run: ./apply.sh -y
+
+      - name: Verify cluster health
+        working-directory: bootstrap
+        run: ./.github/scripts/verify_platform_health.sh
+
+      - name: Run E2E tests
+        env:
+          KUBECONFIG: ${{ github.workspace }}/bootstrap/stacks/k8s/.kube/agyn-local-kubeconfig.yaml
+          PR_IMAGE: ${{ env.PR_IMAGE }}
+          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}
+          ARGOS_BRANCH: ${{ github.head_ref || github.ref_name }}
+          ARGOS_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: devspace run-pipeline test-e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

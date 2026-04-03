@@ -62,9 +62,9 @@ export function OrganizationOverviewTab() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2" data-testid="organization-overview-summary">
         {summary.map((item) => (
-          <Card key={item.label} className="border-[var(--agyn-border-subtle)]">
+          <Card key={item.label} className="border-[var(--agyn-border-subtle)]" data-testid="organization-overview-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-[var(--agyn-gray)]">{item.label}</CardTitle>
             </CardHeader>

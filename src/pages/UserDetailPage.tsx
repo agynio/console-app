@@ -24,7 +24,9 @@ export function UserDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">User</h2>
+        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="user-heading">
+          User
+        </h2>
         <p className="text-sm text-[var(--agyn-gray)]">Manage user profile and cluster role.</p>
       </div>
       {userQuery.isPending ? (
@@ -34,7 +36,7 @@ export function UserDetailPage() {
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load user.</div>
       ) : null}
       {user ? (
-        <Card className="border-[var(--agyn-border-subtle)]">
+        <Card className="border-[var(--agyn-border-subtle)]" data-testid="user-profile-card">
           <CardContent className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Profile</h3>

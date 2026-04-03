@@ -36,7 +36,7 @@ export function OrganizationDetailLayout() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">
+        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="organization-heading">
           {organization?.name ?? 'Organization'}
         </h2>
         <p className="text-sm text-[var(--agyn-gray)]">Manage organization details and resources.</p>
@@ -48,18 +48,26 @@ export function OrganizationDetailLayout() {
         ) : null}
       </div>
       <Tabs value={activeTab}>
-        <TabsList>
+        <TabsList data-testid="organization-tabs">
           <TabsTrigger asChild value="overview">
-            <NavLink to={base}>Overview</NavLink>
+            <NavLink to={base} data-testid="organization-tab-overview">
+              Overview
+            </NavLink>
           </TabsTrigger>
           <TabsTrigger asChild value="members">
-            <NavLink to={`${base}/members`}>Members</NavLink>
+            <NavLink to={`${base}/members`} data-testid="organization-tab-members">
+              Members
+            </NavLink>
           </TabsTrigger>
           <TabsTrigger asChild value="secrets">
-            <NavLink to={`${base}/secrets`}>Secrets</NavLink>
+            <NavLink to={`${base}/secrets`} data-testid="organization-tab-secrets">
+              Secrets
+            </NavLink>
           </TabsTrigger>
           <TabsTrigger asChild value="runners">
-            <NavLink to={`${base}/runners`}>Runners</NavLink>
+            <NavLink to={`${base}/runners`} data-testid="organization-tab-runners">
+              Runners
+            </NavLink>
           </TabsTrigger>
         </TabsList>
       </Tabs>

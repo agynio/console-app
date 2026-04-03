@@ -46,7 +46,10 @@ export function AppLayout() {
 
   if (!hasConsoleAccess) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] px-6">
+      <div
+        className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] px-6"
+        data-testid="console-no-access"
+      >
         <div className="max-w-lg rounded-xl border border-[var(--agyn-border-subtle)] bg-white p-8 text-center">
           <h1 className="text-xl font-semibold text-[var(--agyn-dark)]">No organizations to manage</h1>
           <p className="mt-2 text-sm text-[var(--agyn-gray)]">
@@ -67,48 +70,51 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen bg-[var(--agyn-bg-light)]">
-      <aside className="flex w-64 flex-col border-r border-[var(--agyn-border-subtle)] bg-white px-4 py-6">
+      <aside
+        className="flex w-64 flex-col border-r border-[var(--agyn-border-subtle)] bg-white px-4 py-6"
+        data-testid="console-sidebar"
+      >
         {isClusterAdmin ? (
           <div className="mb-6">
             <p className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Platform</p>
             <nav className="mt-3 flex flex-col gap-1">
-              <NavLink to="/" className={navLinkClass}>
+              <NavLink to="/" className={navLinkClass} data-testid="nav-dashboard">
                 <HomeIcon className="h-4 w-4" />
                 Dashboard
               </NavLink>
-              <NavLink to="/users" className={navLinkClass}>
+              <NavLink to="/users" className={navLinkClass} data-testid="nav-users">
                 <UsersIcon className="h-4 w-4" />
                 Users
               </NavLink>
-              <NavLink to="/agents" className={navLinkClass}>
+              <NavLink to="/agents" className={navLinkClass} data-testid="nav-agents">
                 <BotIcon className="h-4 w-4" />
                 Agents
               </NavLink>
-              <NavLink to="/apps" className={navLinkClass}>
+              <NavLink to="/apps" className={navLinkClass} data-testid="nav-apps">
                 <BoxesIcon className="h-4 w-4" />
                 Apps
               </NavLink>
-              <NavLink to="/llm" className={navLinkClass}>
+              <NavLink to="/llm" className={navLinkClass} data-testid="nav-llm">
                 <BrainIcon className="h-4 w-4" />
                 LLM Providers
               </NavLink>
-              <NavLink to="/monitoring" className={navLinkClass}>
+              <NavLink to="/monitoring" className={navLinkClass} data-testid="nav-monitoring">
                 <ActivityIcon className="h-4 w-4" />
                 Monitoring
               </NavLink>
-              <NavLink to="/volumes" className={navLinkClass}>
+              <NavLink to="/volumes" className={navLinkClass} data-testid="nav-volumes">
                 <HardDriveIcon className="h-4 w-4" />
                 Volumes
               </NavLink>
-              <NavLink to="/api-tokens" className={navLinkClass}>
+              <NavLink to="/api-tokens" className={navLinkClass} data-testid="nav-api-tokens">
                 <KeyIcon className="h-4 w-4" />
                 API Tokens
               </NavLink>
-              <NavLink to="/runners" className={navLinkClass}>
+              <NavLink to="/runners" className={navLinkClass} data-testid="nav-cluster-runners">
                 <ServerIcon className="h-4 w-4" />
                 Cluster Runners
               </NavLink>
-              <NavLink to="/organizations" className={navLinkClass}>
+              <NavLink to="/organizations" className={navLinkClass} data-testid="nav-organizations">
                 <BuildingIcon className="h-4 w-4" />
                 Organizations
               </NavLink>
@@ -121,6 +127,7 @@ export function AppLayout() {
             <NavLink
               to={selectedOrganization ? `/organizations/${selectedOrganization.id}` : '/organizations'}
               className={navLinkClass}
+              data-testid="nav-organization-overview"
             >
               <BuildingIcon className="h-4 w-4" />
               Overview
@@ -128,6 +135,7 @@ export function AppLayout() {
             <NavLink
               to={selectedOrganization ? `/organizations/${selectedOrganization.id}/members` : '/organizations'}
               className={navLinkClass}
+              data-testid="nav-organization-members"
             >
               <UsersIcon className="h-4 w-4" />
               Members
@@ -135,6 +143,7 @@ export function AppLayout() {
             <NavLink
               to={selectedOrganization ? `/organizations/${selectedOrganization.id}/secrets` : '/organizations'}
               className={navLinkClass}
+              data-testid="nav-organization-secrets"
             >
               <ShieldIcon className="h-4 w-4" />
               Secrets
@@ -142,6 +151,7 @@ export function AppLayout() {
             <NavLink
               to={selectedOrganization ? `/organizations/${selectedOrganization.id}/runners` : '/organizations'}
               className={navLinkClass}
+              data-testid="nav-organization-runners"
             >
               <ServerIcon className="h-4 w-4" />
               Runners
@@ -149,7 +159,7 @@ export function AppLayout() {
           </nav>
         </div>
         <div className="mt-auto space-y-4">
-          <NavLink to="/settings" className={navLinkClass}>
+          <NavLink to="/settings" className={navLinkClass} data-testid="nav-settings">
             <SettingsIcon className="h-4 w-4" />
             Settings
           </NavLink>
