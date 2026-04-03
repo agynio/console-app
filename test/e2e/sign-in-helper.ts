@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { User } from 'oidc-client-ts';
 import { createHash, randomBytes } from 'node:crypto';
@@ -89,8 +89,8 @@ function readEnvValue(body: string, key: string): string | undefined {
   return match ? match[1] : undefined;
 }
 
-async function resolveRuntimeEnv(page: Page): Promise<Record<string, string | undefined>> {
-  const response = await page.context().request.get(new URL('/env.js', resolveBaseUrl()).toString());
+async function resolveRuntimeEnv(request: APIRequestContext): Promise<Record<string, string | undefined>> {
+  const response = await request.get(new URL('/env.js', resolveBaseUrl()).toString());
   if (!response.ok()) {
     throw new Error(`Failed to load runtime env.js (${response.status()}).`);
   }
@@ -102,8 +102,8 @@ async function resolveRuntimeEnv(page: Page): Promise<Record<string, string | un
   };
 }
 
-async function resolveOidcConfig(page: Page): Promise<OidcRuntimeConfig> {
-  const env = await resolveRuntimeEnv(page);
+async function resolveOidcConfig(request: APIRequestContext): Promise<OidcRuntimeConfig> {
+  const env = await resolveRuntimeEnv(request);
   const authority = stripTrailingSlash(process.env.E2E_OIDC_AUTHORITY ?? env.OIDC_AUTHORITY ?? '');
   const clientId = process.env.E2E_OIDC_CLIENT_ID ?? env.OIDC_CLIENT_ID ?? '';
   const scope = process.env.E2E_OIDC_SCOPE ?? env.OIDC_SCOPE ?? '';
@@ -112,6 +112,30 @@ async function resolveOidcConfig(page: Page): Promise<OidcRuntimeConfig> {
     throw new Error('OIDC config is missing (authority, client ID, or scope).');
   }
   return { authority, clientId, scope };
+}
+
+export async function ensureMockAuthEmailStrategy(request: APIRequestContext): Promise<void> {
+  const config = await resolveOidcConfig(request);
+  const mockAuthOrigin = new URL(config.authority).origin;
+  const response = await request.post(new URL('/api/test/client-auth-strategies', mockAuthOrigin).toString(), {
+    headers: { 'Content-Type': 'application/json' },
+    data: {
+      clientId: config.clientId,
+      strategies: {
+        username: { enabled: true, subSource: 'entered' },
+        email: { enabled: true, subSource: 'entered', emailVerifiedMode: 'true' },
+      },
+    },
+  });
+  if (response.status() === 404) {
+    const body = await response.text();
+    console.warn(`MockAuth test routes disabled; skipping email strategy enablement. (${body})`);
+    return;
+  }
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`Failed to enable MockAuth email strategy (${response.status()}): ${body}`);
+  }
 }
 
 async function isRedirectUriAllowed(config: OidcRuntimeConfig, redirectUri: string): Promise<boolean> {
@@ -211,7 +235,7 @@ export async function signInViaMockAuth(
   options: SignInOptions = {},
 ): Promise<boolean> {
   const expectedEmail = email ?? process.env.E2E_OIDC_EMAIL ?? defaultEmail;
-  const config = await resolveOidcConfig(page);
+  const config = await resolveOidcConfig(page.context().request);
   const redirectUri = await resolveRedirectUri(config);
   const { codeVerifier, codeChallenge } = createPkcePair();
   const state = randomState();
@@ -234,9 +258,9 @@ export async function signInViaMockAuth(
   const redirectResponsePromise = waitForRedirectResponse(page, redirectUri);
   await page.goto(authorizeUrl.toString());
 
-  const emailInput = page.getByTestId('login-email-input');
+  const loginHeading = page.getByRole('heading', { level: 1, name: /Log in to/ });
   const loginReady = await Promise.race([
-    emailInput.waitFor({ timeout: 10000 }).then(() => true).catch(() => false),
+    loginHeading.waitFor({ timeout: 10000 }).then(() => true).catch(() => false),
     redirectResponsePromise.then(() => false),
   ]);
 
@@ -246,12 +270,22 @@ export async function signInViaMockAuth(
     }
 
     const strategyTabs = page.getByTestId('login-strategy-tabs');
-    if (await strategyTabs.isVisible()) {
-      await strategyTabs.getByRole('tab', { name: 'Email' }).click();
+    if (await strategyTabs.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const emailTab = strategyTabs.getByRole('tab', { name: 'Email' });
+      if (await emailTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await emailTab.click();
+      }
     }
 
-    await expect(emailInput).toBeVisible();
-    await emailInput.fill(expectedEmail);
+    const emailInput = page.getByTestId('login-email-input');
+    if ((await emailInput.count()) > 0) {
+      await expect(emailInput).toBeVisible({ timeout: 5000 });
+      await emailInput.fill(expectedEmail);
+    } else {
+      const usernameInput = page.getByTestId('login-username-input');
+      await expect(usernameInput).toBeVisible({ timeout: 5000 });
+      await usernameInput.fill(expectedEmail);
+    }
     await page.getByRole('button', { name: 'Continue' }).click();
   }
 
