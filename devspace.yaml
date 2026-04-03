@@ -6,7 +6,6 @@ vars:
   ARGOS_TOKEN: ""
   ARGOS_BRANCH: ""
   ARGOS_COMMIT: ""
-  CI: "false"
   E2E_OIDC_REDIRECT_URI: ""
 
 functions:
@@ -60,7 +59,7 @@ functions:
       cd "${tmp_dir}" || exit 1
       # Temporary e2e patch until upstream gateway ships required RPC behavior.
       # Remove after https://github.com/agynio/console-app/issues/5 is resolved.
-      if ! grep -q "EnrollRunner" internal/gateway/runners.go || ! grep -q "ResolveOrCreateUser" internal/gateway/users.go || ! grep -q "IdentityFromContext" internal/gateway/users.go; then
+      if [ ! -f internal/gateway/runners_fallback.go ] || ! grep -q "ResolveOrCreateUser" internal/gateway/users.go || ! grep -q "IdentityFromContext" internal/gateway/users.go; then
         git apply "${project_root}/devspace/gateway.patch"
       fi
       docker buildx build --load -t "${GATEWAY_IMAGE}" .

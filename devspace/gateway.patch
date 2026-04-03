@@ -546,6 +546,47 @@ index 0000000..81a6c55
 +	}
 +	return merged
 +}
+diff --git a/internal/gateway/files.go b/internal/gateway/files.go
+index edac061..84ad768 100644
+--- a/internal/gateway/files.go
++++ b/internal/gateway/files.go
+@@ -2,6 +2,8 @@ package gateway
+ 
+ import (
+ 	"context"
++	"errors"
++	"io"
+ 
+ 	"connectrpc.com/connect"
+ 	filesv1 "github.com/agynio/gateway/gen/agynio/api/files/v1"
+@@ -44,3 +46,27 @@ func (g *Gateway) GetDownloadUrl(ctx context.Context, req *connect.Request[files
+ 	}
+ 	return connect.NewResponse(resp), nil
+ }
++
++func (g *Gateway) GetFileContent(
++	ctx context.Context,
++	req *connect.Request[filesv1.GetFileContentRequest],
++	stream *connect.ServerStream[filesv1.GetFileContentResponse],
++) error {
++	grpcStream, err := g.files.GetFileContent(ctx, req.Msg)
++	if err != nil {
++		return toConnectError(err)
++	}
++
++	for {
++		msg, err := grpcStream.Recv()
++		if err != nil {
++			if errors.Is(err, io.EOF) {
++				return nil
++			}
++			return toConnectError(err)
++		}
++		if err := stream.Send(msg); err != nil {
++			return err
++		}
++	}
++}
 diff --git a/internal/gateway/runners.go b/internal/gateway/runners.go
 index 920841f..26088ee 100644
 --- a/internal/gateway/runners.go
@@ -567,7 +608,7 @@ index 920841f..26088ee 100644
  func NewRunnersGateway(runners runnersv1.RunnersServiceClient) *RunnersGateway {
  	return &RunnersGateway{runners: runners}
  }
-@@ -20,23 +24,45 @@ func (g *RunnersGateway) RegisterRunner(ctx context.Context, req *connect.Reques
+@@ -20,6 +24,7 @@ func (g *RunnersGateway) RegisterRunner(ctx context.Context, req *connect.Reques
  	if err != nil {
  		return nil, toConnectError(err)
  	}
@@ -575,6 +616,7 @@ index 920841f..26088ee 100644
  	return connect.NewResponse(resp), nil
  }
  
+@@ -34,17 +39,38 @@ func (g *RunnersGateway) EnrollRunner(ctx context.Context, req *connect.Request[
  func (g *RunnersGateway) GetRunner(ctx context.Context, req *connect.Request[runnersv1.GetRunnerRequest]) (*connect.Response[runnersv1.GetRunnerResponse], error) {
  	resp, err := g.runners.GetRunner(ctx, req.Msg)
 -	if err != nil {
@@ -617,7 +659,7 @@ index 920841f..26088ee 100644
  }
  
  func (g *RunnersGateway) UpdateRunner(ctx context.Context, req *connect.Request[runnersv1.UpdateRunnerRequest]) (*connect.Response[runnersv1.UpdateRunnerResponse], error) {
-@@ -44,6 +70,7 @@ func (g *RunnersGateway) UpdateRunner(ctx context.Context, req *connect.Request[
+@@ -52,6 +78,7 @@ func (g *RunnersGateway) UpdateRunner(ctx context.Context, req *connect.Request[
  	if err != nil {
  		return nil, toConnectError(err)
  	}
@@ -625,21 +667,6 @@ index 920841f..26088ee 100644
  	return connect.NewResponse(resp), nil
  }
  
-@@ -55,6 +82,14 @@ func (g *RunnersGateway) DeleteRunner(ctx context.Context, req *connect.Request[
- 	return connect.NewResponse(resp), nil
- }
- 
-+func (g *RunnersGateway) EnrollRunner(ctx context.Context, req *connect.Request[runnersv1.EnrollRunnerRequest]) (*connect.Response[runnersv1.EnrollRunnerResponse], error) {
-+	resp, err := g.runners.EnrollRunner(ctx, req.Msg)
-+	if err != nil {
-+		return nil, toConnectError(err)
-+	}
-+	return connect.NewResponse(resp), nil
-+}
-+
- func (g *RunnersGateway) ListWorkloadsByThread(ctx context.Context, req *connect.Request[runnersv1.ListWorkloadsByThreadRequest]) (*connect.Response[runnersv1.ListWorkloadsByThreadResponse], error) {
- 	resp, err := g.runners.ListWorkloadsByThread(ctx, req.Msg)
- 	if err != nil {
 diff --git a/internal/gateway/runners_fallback.go b/internal/gateway/runners_fallback.go
 new file mode 100644
 index 0000000..a60a6ad
