@@ -57,6 +57,8 @@ functions:
     git clone --depth 1 --branch "${GATEWAY_REF}" https://github.com/agynio/gateway.git "${tmp_dir}"
     (
       cd "${tmp_dir}" || exit 1
+      # Temporary e2e patch until upstream gateway ships required RPC behavior.
+      # Remove after https://github.com/agynio/console-app/issues/5 is resolved.
       if ! grep -q "EnrollRunner" internal/gateway/runners.go || ! grep -q "ResolveOrCreateUser" internal/gateway/users.go || ! grep -q "IdentityFromContext" internal/gateway/users.go; then
         git apply "${project_root}/devspace/gateway.patch"
       fi
@@ -149,7 +151,7 @@ pipelines:
           sleep 5
           cd /opt/app/data
           npm ci --ignore-scripts
-          E2E_BASE_URL=https://console.agyn.dev ARGOS_TOKEN=${ARGOS_TOKEN} ARGOS_BRANCH=${ARGOS_BRANCH} ARGOS_COMMIT=${ARGOS_COMMIT} CI=true npm run test:e2e
+          E2E_BASE_URL=https://console.agyn.dev E2E_OIDC_REDIRECT_URI=https://chat.agyn.dev/callback ARGOS_TOKEN=${ARGOS_TOKEN} ARGOS_BRANCH=${ARGOS_BRANCH} ARGOS_COMMIT=${ARGOS_COMMIT} CI=true npm run test:e2e
         '
       EXIT_CODE=$?
       set -e

@@ -1,3 +1,7 @@
+# Temporary patch for console-app e2e: adds fallback gateway behavior for
+# missing RPCs so e2e runs do not depend on yet-to-ship upstream features.
+# Remove once https://github.com/agynio/console-app/issues/5 is resolved.
+
 diff --git a/internal/gateway/organizations.go b/internal/gateway/organizations.go
 index 41033a9..14249b8 100644
 --- a/internal/gateway/organizations.go
@@ -10,7 +14,7 @@ index 41033a9..14249b8 100644
  
  	"connectrpc.com/connect"
  	organizationsv1 "github.com/agynio/gateway/gen/agynio/api/organizations/v1"
-@@ -14,10 +15,24 @@ type OrganizationsGateway struct {
+@@ -14,10 +15,26 @@ type OrganizationsGateway struct {
  	organizations organizationsv1.OrganizationsServiceClient
  }
  
@@ -21,6 +25,8 @@ index 41033a9..14249b8 100644
  }
  
 +func isUnimplemented(err error) bool {
++	// Older gateway releases return NotFound for missing RPC handlers, so
++	// treat it as Unimplemented here to enable temporary e2e fallbacks.
 +	connectCode := connect.CodeOf(err)
 +	if connectCode == connect.CodeUnimplemented || connectCode == connect.CodeNotFound {
 +		return true

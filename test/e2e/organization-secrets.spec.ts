@@ -1,10 +1,17 @@
 import { argosScreenshot } from '@argos-ci/playwright';
 import { test, expect } from './fixtures';
-import { createOrganization, createSecret, createSecretProvider, setSelectedOrganization } from './console-api';
+import {
+  clearOrganizationSecrets,
+  createOrganization,
+  createSecret,
+  createSecretProvider,
+  setSelectedOrganization,
+} from './console-api';
 
 test('shows empty secrets tab initially', async ({ page }) => {
   const organizationId = await createOrganization(page, `e2e-org-secrets-${Date.now()}`);
   await setSelectedOrganization(page, organizationId);
+  await clearOrganizationSecrets(page, organizationId);
 
   await page.goto(`/organizations/${organizationId}/secrets`);
   await expect(page.getByTestId('secret-providers-empty')).toBeVisible({ timeout: 15000 });

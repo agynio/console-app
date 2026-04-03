@@ -14,6 +14,7 @@ test('runner detail shows metadata', async ({ page }) => {
   const runnerId = runners[0]?.meta?.id;
   if (!runnerId) {
     test.skip(true, 'No runners available for detail view.');
+    return;
   }
 
   await page.goto(`/runners/${runnerId}`);

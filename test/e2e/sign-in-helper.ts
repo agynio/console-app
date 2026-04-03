@@ -3,9 +3,10 @@ import { expect } from '@playwright/test';
 import { User } from 'oidc-client-ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { ensureClusterAdmin } from './console-api';
+import { readOidcSession } from './oidc-helpers';
 
 const defaultEmail = 'e2e-tester@agyn.test';
-const fallbackRedirectUri = 'https://chat.agyn.dev/callback';
+const fallbackRedirectUri = 'https://console.agyn.dev/callback';
 
 type SignInOptions = {
   onLoginPage?: (page: Page) => Promise<void>;
@@ -144,7 +145,7 @@ async function resolveRedirectUri(config: OidcRuntimeConfig): Promise<string> {
   if (await isRedirectUriAllowed(config, defaultRedirectUri)) {
     return defaultRedirectUri;
   }
-  if (defaultRedirectUri !== fallbackRedirectUri && (await isRedirectUriAllowed(config, fallbackRedirectUri))) {
+  if (await isRedirectUriAllowed(config, fallbackRedirectUri)) {
     return fallbackRedirectUri;
   }
   throw new Error('No valid MockAuth redirect URI found for E2E tests.');
@@ -287,6 +288,10 @@ export async function signInViaMockAuth(
   const appReady = dashboardHeading.or(organizationsHeading).or(organizationHeading).or(sidebarNav).or(noAccessState);
 
   await page.goto('/');
+  const session = await readOidcSession(page);
+  if (!session?.accessToken) {
+    throw new Error('MockAuth session storage was not initialized.');
+  }
   await ensureClusterAdmin(page);
   await page.goto('/');
   await expect(appReady.first()).toBeVisible({ timeout: 30000 });

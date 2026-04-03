@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { readOidcSession } from './oidc-helpers';
 
 const USERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.UsersGateway';
 const ORGS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.OrganizationsGateway';
@@ -83,8 +84,17 @@ type ListSecretProvidersResponseWire = {
   secretProviders?: Array<{ meta?: { id?: string }; title?: string }>;
 };
 
+type SecretWire = {
+  meta?: { id?: string };
+  secretProviderId?: string;
+};
+
 type CreateSecretResponseWire = {
   secret?: { meta?: { id?: string } };
+};
+
+type ListSecretsResponseWire = {
+  secrets?: SecretWire[];
 };
 
 type ListRunnersResponseWire = {
@@ -113,49 +123,21 @@ function buildRpcUrl(servicePath: string, method: string): string {
   return new URL(`${servicePath}/${method}`, resolveBaseUrl()).toString();
 }
 
+const CLUSTER_ROLE_ADMIN = 1;
+
 function isClusterAdminRole(role: ClusterRoleWire): boolean {
   if (role === undefined || role === null) return false;
   if (typeof role === 'number') {
-    return role === 1;
+    return role === CLUSTER_ROLE_ADMIN;
   }
-  return role === 'CLUSTER_ROLE_ADMIN' || role === 'ADMIN';
-}
-
-type OidcStorageSnapshot = {
-  accessToken: string | null;
-};
-
-async function readOidcSession(page: Page): Promise<OidcStorageSnapshot | null> {
-  return page.evaluate(() => {
-    let storageKey: string | null = null;
-    for (let i = 0; i < window.sessionStorage.length; i += 1) {
-      const key = window.sessionStorage.key(i);
-      if (key && key.startsWith('oidc.user:')) {
-        storageKey = key;
-        break;
-      }
-    }
-
-    if (!storageKey) return null;
-    const raw = window.sessionStorage.getItem(storageKey);
-    if (!raw) return null;
-
-    try {
-      const parsed = JSON.parse(raw) as { access_token?: unknown };
-      return {
-        accessToken: typeof parsed.access_token === 'string' ? parsed.access_token : null,
-      };
-    } catch (_error) {
-      return null;
-    }
-  });
+  return role === 'CLUSTER_ROLE_ADMIN';
 }
 
 async function postConnect<T>(
   page: Page,
   servicePath: string,
   method: string,
-  payload: unknown,
+  payload: Record<string, unknown>,
 ): Promise<T> {
   const session = await readOidcSession(page);
   const token = session?.accessToken ?? null;
@@ -169,6 +151,11 @@ async function postConnect<T>(
     throw new Error(`ConnectRPC ${method} failed with status ${response.status()}: ${body}`);
   }
   return (await response.json()) as T;
+}
+
+function isNotFoundError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.message.includes('status 404');
 }
 
 export async function getMe(page: Page): Promise<GetMeResponseWire> {
@@ -426,6 +413,19 @@ export async function listSecretProviders(
   return response.secretProviders ?? [];
 }
 
+export async function listSecrets(
+  page: Page,
+  opts: { organizationId: string; providerId?: string },
+): Promise<SecretWire[]> {
+  const response = await postConnect<ListSecretsResponseWire>(page, SECRETS_GATEWAY_PATH, 'ListSecrets', {
+    organizationId: opts.organizationId,
+    pageSize: 200,
+    pageToken: '',
+    secretProviderId: opts.providerId ?? '',
+  });
+  return response.secrets ?? [];
+}
+
 export async function createSecret(
   page: Page,
   opts: { providerId: string; name: string; value: string; organizationId: string },
@@ -442,6 +442,48 @@ export async function createSecret(
     throw new Error('CreateSecret response missing secret id.');
   }
   return secretId;
+}
+
+export async function deleteSecret(page: Page, secretId: string): Promise<void> {
+  try {
+    await postConnect(page, SECRETS_GATEWAY_PATH, 'DeleteSecret', { id: secretId });
+  } catch (error) {
+    if (isNotFoundError(error)) return;
+    throw error;
+  }
+}
+
+export async function deleteSecretProvider(page: Page, providerId: string): Promise<void> {
+  try {
+    await postConnect(page, SECRETS_GATEWAY_PATH, 'DeleteSecretProvider', { id: providerId });
+  } catch (error) {
+    if (isNotFoundError(error)) return;
+    throw error;
+  }
+}
+
+export async function clearOrganizationSecrets(page: Page, organizationId: string): Promise<void> {
+  const timeoutMs = 10000;
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const secrets = await listSecrets(page, { organizationId });
+    const providers = await listSecretProviders(page, { organizationId });
+    if (secrets.length === 0 && providers.length === 0) {
+      return;
+    }
+    for (const secret of secrets) {
+      if (secret.meta?.id) {
+        await deleteSecret(page, secret.meta.id);
+      }
+    }
+    for (const provider of providers) {
+      if (provider.meta?.id) {
+        await deleteSecretProvider(page, provider.meta.id);
+      }
+    }
+    await page.waitForTimeout(500);
+  }
+  throw new Error('Timed out clearing organization secrets.');
 }
 
 export async function listRunners(page: Page): Promise<RunnerWire[]> {
