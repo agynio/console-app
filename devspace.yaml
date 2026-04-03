@@ -3,6 +3,10 @@ version: v2beta1
 vars:
   APP_NAMESPACE: platform
   E2E_IMAGE: mcr.microsoft.com/playwright:v1.59.1-noble
+  ARGOS_TOKEN: ""
+  ARGOS_BRANCH: ""
+  ARGOS_COMMIT: ""
+  E2E_OIDC_REDIRECT_URI: ""
 
 functions:
   disable_argocd_sync: |-
