@@ -270,14 +270,22 @@ export async function signInViaMockAuth(
     }
 
     const strategyTabs = page.getByTestId('login-strategy-tabs');
-    const tabsVisible = await strategyTabs.isVisible().catch(() => false);
-    if (tabsVisible) {
-      await strategyTabs.getByRole('tab', { name: 'Email' }).click();
+    if (await strategyTabs.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const emailTab = strategyTabs.getByRole('tab', { name: 'Email' });
+      if (await emailTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await emailTab.click();
+      }
     }
 
     const emailInput = page.getByTestId('login-email-input');
-    await expect(emailInput).toBeVisible();
-    await emailInput.fill(expectedEmail);
+    if ((await emailInput.count()) > 0) {
+      await expect(emailInput).toBeVisible({ timeout: 5000 });
+      await emailInput.fill(expectedEmail);
+    } else {
+      const usernameInput = page.getByTestId('login-username-input');
+      await expect(usernameInput).toBeVisible({ timeout: 5000 });
+      await usernameInput.fill(expectedEmail);
+    }
     await page.getByRole('button', { name: 'Continue' }).click();
   }
 
