@@ -153,6 +153,28 @@ async function postConnect<T>(
   return (await response.json()) as T;
 }
 
+async function postConnectAsClusterAdmin<T>(
+  page: Page,
+  servicePath: string,
+  method: string,
+  payload: Record<string, unknown>,
+): Promise<T> {
+  const token = process.env.CLUSTER_ADMIN_TOKEN;
+  if (!token) {
+    throw new Error('CLUSTER_ADMIN_TOKEN env var is required for admin operations in e2e.');
+  }
+  const headers = { ...CONNECT_HEADERS, Authorization: `Bearer ${token}` };
+  const response = await page.context().request.post(buildRpcUrl(servicePath, method), {
+    data: payload,
+    headers,
+  });
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`ConnectRPC ${method} (admin) failed with status ${response.status()}: ${body}`);
+  }
+  return (await response.json()) as T;
+}
+
 function isNotFoundError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   return error.message.includes('status 404');
@@ -175,12 +197,8 @@ export async function ensureClusterAdmin(page: Page): Promise<void> {
   if (!identityId) {
     throw new Error('GetMe response missing identity id for cluster role update.');
   }
-  const name = me.user?.name ?? me.user?.email ?? '';
-  const nickname = me.user?.nickname ?? '';
-  await postConnect<UpdateUserResponseWire>(page, USERS_GATEWAY_PATH, 'UpdateUser', {
+  await postConnectAsClusterAdmin<UpdateUserResponseWire>(page, USERS_GATEWAY_PATH, 'UpdateUser', {
     identityId,
-    name: name || undefined,
-    nickname: nickname || undefined,
     clusterRole: 'CLUSTER_ROLE_ADMIN',
   });
   const start = Date.now();
