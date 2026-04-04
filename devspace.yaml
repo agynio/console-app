@@ -59,17 +59,11 @@ functions:
     GATEWAY_REF="${GATEWAY_REF:-main}"
     GATEWAY_IMAGE="${GATEWAY_IMAGE:-agynio/gateway:e2e}"
     echo "Building gateway image ${GATEWAY_IMAGE} from ${GATEWAY_REF}..."
-    project_root="$(pwd)"
     tmp_dir="$(mktemp -d)"
     trap 'rm -rf "${tmp_dir}"' EXIT
     git clone --depth 1 --branch "${GATEWAY_REF}" https://github.com/agynio/gateway.git "${tmp_dir}"
     (
       cd "${tmp_dir}" || exit 1
-      # Temporary e2e patch until upstream gateway ships required RPC behavior.
-      # Remove after https://github.com/agynio/console-app/issues/5 is resolved.
-      if [ ! -f internal/gateway/runners_fallback.go ] || ! grep -q "ResolveOrCreateUser" internal/gateway/users.go || ! grep -q "IdentityFromContext" internal/gateway/users.go; then
-        git apply "${project_root}/devspace/gateway.patch"
-      fi
       docker buildx build --load -t "${GATEWAY_IMAGE}" .
     )
     k3d image import "${GATEWAY_IMAGE}" -c agyn-local
