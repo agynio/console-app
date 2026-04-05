@@ -4,6 +4,7 @@ import {
   BotIcon,
   BoxesIcon,
   BrainIcon,
+  ChevronDownIcon,
   BuildingIcon,
   HardDriveIcon,
   HomeIcon,
@@ -18,6 +19,14 @@ import { Button } from '@/components/Button';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import { OrganizationSwitcher } from '@/components/OrganizationSwitcher';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
@@ -86,25 +95,9 @@ export function AppLayout() {
                 <UsersIcon className="h-4 w-4" />
                 Users
               </NavLink>
-              <NavLink to="/agents" className={navLinkClass} data-testid="nav-agents">
-                <BotIcon className="h-4 w-4" />
-                Agents
-              </NavLink>
               <NavLink to="/apps" className={navLinkClass} data-testid="nav-apps">
                 <BoxesIcon className="h-4 w-4" />
                 Apps
-              </NavLink>
-              <NavLink to="/llm" className={navLinkClass} data-testid="nav-llm">
-                <BrainIcon className="h-4 w-4" />
-                LLM Providers
-              </NavLink>
-              <NavLink to="/monitoring" className={navLinkClass} data-testid="nav-monitoring">
-                <ActivityIcon className="h-4 w-4" />
-                Monitoring
-              </NavLink>
-              <NavLink to="/volumes" className={navLinkClass} data-testid="nav-volumes">
-                <HardDriveIcon className="h-4 w-4" />
-                Volumes
               </NavLink>
               <NavLink to="/api-tokens" className={navLinkClass} data-testid="nav-api-tokens">
                 <KeyIcon className="h-4 w-4" />
@@ -141,6 +134,38 @@ export function AppLayout() {
               Members
             </NavLink>
             <NavLink
+              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/agents` : '/organizations'}
+              className={navLinkClass}
+              data-testid="nav-organization-agents"
+            >
+              <BotIcon className="h-4 w-4" />
+              Agents
+            </NavLink>
+            <NavLink
+              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/volumes` : '/organizations'}
+              className={navLinkClass}
+              data-testid="nav-organization-volumes"
+            >
+              <HardDriveIcon className="h-4 w-4" />
+              Volumes
+            </NavLink>
+            <NavLink
+              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/llm-providers` : '/organizations'}
+              className={navLinkClass}
+              data-testid="nav-organization-llm-providers"
+            >
+              <BrainIcon className="h-4 w-4" />
+              LLM Providers
+            </NavLink>
+            <NavLink
+              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/models` : '/organizations'}
+              className={navLinkClass}
+              data-testid="nav-organization-models"
+            >
+              <BoxesIcon className="h-4 w-4" />
+              Models
+            </NavLink>
+            <NavLink
               to={selectedOrganization ? `/organizations/${selectedOrganization.id}/secrets` : '/organizations'}
               className={navLinkClass}
               data-testid="nav-organization-secrets"
@@ -156,6 +181,22 @@ export function AppLayout() {
               <ServerIcon className="h-4 w-4" />
               Runners
             </NavLink>
+            <NavLink
+              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/apps` : '/organizations'}
+              className={navLinkClass}
+              data-testid="nav-organization-apps"
+            >
+              <BoxesIcon className="h-4 w-4" />
+              Apps
+            </NavLink>
+            <NavLink
+              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/monitoring` : '/organizations'}
+              className={navLinkClass}
+              data-testid="nav-organization-monitoring"
+            >
+              <ActivityIcon className="h-4 w-4" />
+              Monitoring
+            </NavLink>
           </nav>
         </div>
         <div className="mt-auto space-y-4">
@@ -163,14 +204,6 @@ export function AppLayout() {
             <SettingsIcon className="h-4 w-4" />
             Settings
           </NavLink>
-          <div className="rounded-lg border border-[var(--agyn-border-subtle)] p-3">
-            <p className="text-sm font-medium text-[var(--agyn-dark)]">{currentUser?.name ?? 'Signed in'}</p>
-            <p className="text-xs text-[var(--agyn-gray)]">{currentUser?.email ?? 'User profile'}</p>
-            <p className="mt-2 text-xs text-[var(--agyn-gray)]">Cluster role: {isClusterAdmin ? 'admin' : 'none'}</p>
-            <Button className="mt-3 w-full" variant="outline" size="sm" onClick={signOut}>
-              Log out
-            </Button>
-          </div>
         </div>
       </aside>
       <main className="flex flex-1 flex-col">
@@ -191,6 +224,30 @@ export function AppLayout() {
               </a>
             </Button>
             <OrganizationSwitcher />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="user-menu-trigger">
+                  {currentUser?.name ?? 'Signed in'}
+                  <ChevronDownIcon className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" data-testid="user-menu">
+                <DropdownMenuLabel data-testid="user-menu-name">
+                  {currentUser?.name ?? 'Signed in'}
+                </DropdownMenuLabel>
+                <DropdownMenuLabel className="text-xs text-[var(--agyn-gray)]" data-testid="user-menu-email">
+                  {currentUser?.email ?? 'User profile'}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled data-testid="user-menu-role">
+                  Cluster role: {isClusterAdmin ? 'admin' : 'none'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => signOut()} data-testid="user-menu-signout">
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <div className="flex-1 p-6">

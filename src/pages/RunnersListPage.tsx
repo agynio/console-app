@@ -1,19 +1,24 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { Button } from '@/components/Button';
+import { EnrollRunnerDialog } from '@/components/EnrollRunnerDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function RunnersListPage() {
+  const [enrollOpen, setEnrollOpen] = useState(false);
+
   const runnersQuery = useQuery({
     queryKey: ['runners', 'list'],
     queryFn: () => runnersClient.listRunners({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    staleTime: 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
 
   const runners = (runnersQuery.data?.runners ?? []).filter((runner) => !runner.organizationId);
 
@@ -26,7 +31,12 @@ export function RunnersListPage() {
           </h2>
           <p className="text-sm text-[var(--agyn-gray)]">Runners enrolled at the cluster level.</p>
         </div>
-        <Button variant="outline" size="sm" data-testid="runners-enroll-button">
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="runners-enroll-button"
+          onClick={() => setEnrollOpen(true)}
+        >
           Enroll runner
         </Button>
       </div>
@@ -65,8 +75,12 @@ export function RunnersListPage() {
                       {runner.meta?.id}
                     </div>
                   </div>
-                  <Badge variant="secondary">{formatRunnerStatus(runner.status)}</Badge>
-                  <span className="text-xs text-[var(--agyn-gray)]">{formatLabelPairs(runner.labels)}</span>
+                  <Badge variant="secondary" data-testid="runners-status">
+                    {formatRunnerStatus(runner.status)}
+                  </Badge>
+                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="runners-labels">
+                    {formatLabelPairs(runner.labels)}
+                  </span>
                   <div className="text-right">
                     <Button variant="outline" size="sm" asChild>
                       <NavLink to={`/runners/${runner.meta?.id ?? ''}`} data-testid="runners-view">
@@ -80,6 +94,27 @@ export function RunnersListPage() {
           </div>
         </CardContent>
       </Card>
+      <EnrollRunnerDialog
+        open={enrollOpen}
+        onOpenChange={setEnrollOpen}
+        description="Register a new cluster runner and copy its enrollment token."
+        namePlaceholder="edge-runner-1"
+        testIds={{
+          dialog: 'runners-enroll-dialog',
+          title: 'runners-enroll-title',
+          description: 'runners-enroll-description',
+          nameInput: 'runners-enroll-name',
+          labelsHeading: 'runners-enroll-labels',
+          labelsPrefix: 'runners-enroll',
+          cancel: 'runners-enroll-cancel',
+          submit: 'runners-enroll-submit',
+          tokenLabel: 'runners-token-label',
+          tokenValue: 'runners-token-value',
+          tokenWarning: 'runners-token-warning',
+          tokenCopy: 'runners-token-copy',
+          tokenDone: 'runners-token-done',
+        }}
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { RunnerStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
@@ -42,6 +43,12 @@ export function formatClusterRole(role?: ClusterRole): string {
   if (role === ClusterRole.ADMIN) return 'Admin';
   if (role === ClusterRole.UNSPECIFIED) return 'None';
   return 'Unknown';
+}
+
+export function formatAuthMethod(method?: AuthMethod): string {
+  if (method === AuthMethod.BEARER) return 'Bearer';
+  if (method === AuthMethod.UNSPECIFIED) return 'Unspecified';
+  return 'Unspecified';
 }
 
 export function formatMembershipRole(role?: MembershipRole): string {

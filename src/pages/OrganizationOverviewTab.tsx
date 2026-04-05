@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { organizationsClient, runnersClient, secretsClient } from '@/api/client';
+import { agentsClient, organizationsClient, runnersClient, secretsClient } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -19,7 +19,7 @@ export function OrganizationOverviewTab() {
         pageToken: '',
       }),
     enabled: Boolean(organizationId),
-    staleTime: 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
@@ -27,7 +27,7 @@ export function OrganizationOverviewTab() {
     queryKey: ['secrets', organizationId, 'providers', 'overview'],
     queryFn: () => secretsClient.listSecretProviders({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
-    staleTime: 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
@@ -41,7 +41,7 @@ export function OrganizationOverviewTab() {
         secretProviderId: '',
       }),
     enabled: Boolean(organizationId),
-    staleTime: 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
@@ -49,12 +49,21 @@ export function OrganizationOverviewTab() {
     queryKey: ['runners', organizationId, 'list', 'overview'],
     queryFn: () => runnersClient.listRunners({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
-    staleTime: 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const summary = [
+  const agentsQuery = useQuery({
+    queryKey: ['agents', organizationId, 'overview'],
+    queryFn: () => agentsClient.listAgents({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const summary: Array<{ label: string; value: number }> = [
     { label: 'Active members', value: membersQuery.data?.memberships.length ?? 0 },
+    { label: 'Agents', value: agentsQuery.data?.agents.length ?? 0 },
     { label: 'Secret providers', value: providersQuery.data?.secretProviders.length ?? 0 },
     { label: 'Secrets', value: secretsQuery.data?.secrets.length ?? 0 },
     { label: 'Runners', value: runnersQuery.data?.runners.length ?? 0 },
@@ -74,7 +83,11 @@ export function OrganizationOverviewTab() {
           </Card>
         ))}
       </div>
-      {(membersQuery.isError || providersQuery.isError || secretsQuery.isError || runnersQuery.isError) && (
+      {(membersQuery.isError ||
+        providersQuery.isError ||
+        secretsQuery.isError ||
+        runnersQuery.isError ||
+        agentsQuery.isError) && (
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load organization metrics.</div>
       )}
     </div>

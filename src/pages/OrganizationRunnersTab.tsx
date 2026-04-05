@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
+import { Button } from '@/components/Button';
+import { EnrollRunnerDialog } from '@/components/EnrollRunnerDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
@@ -9,20 +12,37 @@ import { MAX_PAGE_SIZE } from '@/lib/pagination';
 export function OrganizationRunnersTab() {
   const { id } = useParams();
   const organizationId = id ?? '';
+  const [enrollOpen, setEnrollOpen] = useState(false);
 
   const runnersQuery = useQuery({
     queryKey: ['runners', organizationId, 'list'],
     queryFn: () => runnersClient.listRunners({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
-    staleTime: 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
+
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Runners</h3>
-        <p className="text-sm text-[var(--agyn-gray)]">Organization-scoped runners.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3
+            className="text-lg font-semibold text-[var(--agyn-dark)]"
+            data-testid="organization-runners-heading"
+          >
+            Runners
+          </h3>
+          <p className="text-sm text-[var(--agyn-gray)]">Organization-scoped runners.</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setEnrollOpen(true)}
+          data-testid="organization-runners-enroll"
+        >
+          Enroll runner
+        </Button>
       </div>
       {runnersQuery.isPending ? (
         <div className="text-sm text-[var(--agyn-gray)]">Loading runners...</div>
@@ -30,9 +50,12 @@ export function OrganizationRunnersTab() {
       {runnersQuery.isError ? (
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load runners.</div>
       ) : null}
-      <Card className="border-[var(--agyn-border-subtle)]">
+      <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-runners-table">
         <CardContent className="px-0">
-          <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_2fr]">
+          <div
+            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_2fr]"
+            data-testid="organization-runners-header"
+          >
             <span>Runner</span>
             <span>Status</span>
             <span>Labels</span>
@@ -45,19 +68,50 @@ export function OrganizationRunnersTab() {
                 <div
                   key={runner.meta?.id ?? runner.name}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_2fr]"
+                  data-testid="organization-runner-row"
                 >
                   <div>
-                    <div className="font-medium">{runner.name}</div>
-                    <div className="text-xs text-[var(--agyn-gray)]">{runner.meta?.id}</div>
+                    <div className="font-medium" data-testid="organization-runner-name">
+                      {runner.name}
+                    </div>
+                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-runner-id">
+                      {runner.meta?.id}
+                    </div>
                   </div>
-                  <Badge variant="secondary">{formatRunnerStatus(runner.status)}</Badge>
-                  <span className="text-xs text-[var(--agyn-gray)]">{formatLabelPairs(runner.labels)}</span>
+                  <Badge variant="secondary" data-testid="organization-runner-status">
+                    {formatRunnerStatus(runner.status)}
+                  </Badge>
+                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-runner-labels">
+                    {formatLabelPairs(runner.labels)}
+                  </span>
                 </div>
               ))
             )}
           </div>
         </CardContent>
       </Card>
+      <EnrollRunnerDialog
+        open={enrollOpen}
+        onOpenChange={setEnrollOpen}
+        organizationId={organizationId}
+        description="Register a new organization runner and copy its enrollment token."
+        namePlaceholder="org-runner-1"
+        testIds={{
+          dialog: 'organization-runners-enroll-dialog',
+          title: 'organization-runners-enroll-title',
+          description: 'organization-runners-enroll-description',
+          nameInput: 'organization-runners-enroll-name',
+          labelsHeading: 'organization-runners-labels',
+          labelsPrefix: 'organization-runners-enroll',
+          cancel: 'organization-runners-enroll-cancel',
+          submit: 'organization-runners-enroll-submit',
+          tokenLabel: 'organization-runners-token',
+          tokenValue: 'organization-runners-token-value',
+          tokenWarning: 'organization-runners-token-warning',
+          tokenCopy: 'organization-runners-token-copy',
+          tokenDone: 'organization-runners-token-done',
+        }}
+      />
     </div>
   );
 }
