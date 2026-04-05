@@ -31,7 +31,7 @@ export function OrganizationMembersTab() {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState<MembershipRole>(MembershipRole.MEMBER);
   const [inviteError, setInviteError] = useState('');
-  const [removeTargetId, setRemoveTargetId] = useState('');
+  const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
 
   const activeQuery = useQuery({
     queryKey: ['organizations', organizationId, 'members', 'active'],
@@ -87,10 +87,15 @@ export function OrganizationMembersTab() {
     refetchOnWindowFocus: false,
   });
 
-  const userMap = useMemo(
-    () => new Map((usersQuery.data?.users ?? []).map((user) => [user.meta?.id ?? '', user])),
-    [usersQuery.data?.users],
-  );
+  const userMap = useMemo(() => {
+    const users = usersQuery.data?.users ?? [];
+    return new Map(
+      users.flatMap((user) => {
+        const userId = user.meta?.id;
+        return userId ? ([[userId, user]] as const) : [];
+      }),
+    );
+  }, [usersQuery.data?.users]);
 
   const inviteMemberMutation = useMutation({
     mutationFn: (payload: { identityId: string; role: MembershipRole }) =>
@@ -125,7 +130,7 @@ export function OrganizationMembersTab() {
     onSuccess: () => {
       toast.success('Member removed.');
       void queryClient.invalidateQueries({ queryKey: ['organizations', organizationId, 'members'] });
-      setRemoveTargetId('');
+      setRemoveTargetId(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to remove member.');
@@ -286,13 +291,15 @@ export function OrganizationMembersTab() {
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(allUsersQuery.data?.users ?? [])
-                    .filter((user) => Boolean(user.meta?.id))
-                    .map((user) => (
-                      <SelectItem key={user.meta?.id ?? user.name} value={user.meta?.id ?? ''}>
+                  {(allUsersQuery.data?.users ?? []).map((user) => {
+                    const userId = user.meta?.id;
+                    if (!userId) return null;
+                    return (
+                      <SelectItem key={userId} value={userId}>
                         {user.name || 'Unnamed user'} ({user.email || 'No email'})
                       </SelectItem>
-                    ))}
+                    );
+                  })}
                 </SelectContent>
               </Select>
               {inviteError ? (
@@ -339,12 +346,20 @@ export function OrganizationMembersTab() {
       </Dialog>
       <ConfirmDialog
         open={Boolean(removeTargetId)}
-        onOpenChange={(open) => setRemoveTargetId(open ? removeTargetId : '')}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRemoveTargetId(null);
+          }
+        }}
         title="Remove member"
         description="This member will lose access to the organization."
         confirmLabel="Remove member"
         variant="danger"
-        onConfirm={() => removeMemberMutation.mutate(removeTargetId)}
+        onConfirm={() => {
+          if (removeTargetId) {
+            removeMemberMutation.mutate(removeTargetId);
+          }
+        }}
         isPending={removeMemberMutation.isPending}
       />
     </div>

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Agent, ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { NO_MODEL } from '@/lib/constants';
 import { formatComputeResources } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
@@ -33,11 +34,12 @@ type ConfigurationPreview = {
 
 export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurationTabProps) {
   const queryClient = useQueryClient();
+  const agentId = agent.meta?.id;
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
   const [role, setRole] = useState('');
-  const [modelId, setModelId] = useState('none');
+  const [modelId, setModelId] = useState(NO_MODEL);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [initImage, setInitImage] = useState('');
@@ -53,10 +55,15 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
     refetchOnWindowFocus: false,
   });
 
-  const modelMap = useMemo(
-    () => new Map((modelsQuery.data?.models ?? []).map((model) => [model.meta?.id ?? '', model])),
-    [modelsQuery.data?.models],
-  );
+  const modelMap = useMemo(() => {
+    const models = modelsQuery.data?.models ?? [];
+    return new Map(
+      models.flatMap((model) => {
+        const modelId = model.meta?.id;
+        return modelId ? ([[modelId, model]] as const) : [];
+      }),
+    );
+  }, [modelsQuery.data?.models]);
 
   const configurationPreview = useMemo<ConfigurationPreview>(() => {
     if (!agent.configuration) {
@@ -83,7 +90,9 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
     }) => agentsClient.updateAgent(payload),
     onSuccess: () => {
       toast.success('Agent updated.');
-      void queryClient.invalidateQueries({ queryKey: ['agents', agent.meta?.id ?? ''] });
+      if (agentId) {
+        void queryClient.invalidateQueries({ queryKey: ['agents', agentId] });
+      }
       void queryClient.invalidateQueries({ queryKey: ['agents', organizationId, 'list'] });
       setEditOpen(false);
     },
@@ -96,7 +105,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
     if (open) {
       setName(agent.name);
       setRole(agent.role);
-      setModelId(agent.model || 'none');
+      setModelId(agent.model || NO_MODEL);
       setDescription(agent.description);
       setImage(agent.image);
       setInitImage(agent.initImage);
@@ -127,7 +136,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       }
     }
 
-    const agentId = agent.meta?.id;
     if (!agentId) {
       toast.error('Missing agent ID.');
       return;
@@ -137,7 +145,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       id: agentId,
       name: trimmedName,
       role: role.trim(),
-      model: modelId === 'none' ? '' : modelId,
+      model: modelId === NO_MODEL ? '' : modelId,
       description: description.trim(),
       configuration: trimmedConfig,
       image: image.trim(),
@@ -244,14 +252,16 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                   <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {(modelsQuery.data?.models ?? [])
-                    .filter((model) => Boolean(model.meta?.id))
-                    .map((model) => (
-                      <SelectItem key={model.meta?.id ?? model.name} value={model.meta?.id ?? ''}>
+                  <SelectItem value={NO_MODEL}>None</SelectItem>
+                  {(modelsQuery.data?.models ?? []).map((model) => {
+                    const modelValue = model.meta?.id;
+                    if (!modelValue) return null;
+                    return (
+                      <SelectItem key={modelValue} value={modelValue}>
                         {model.name || 'Unnamed model'}
                       </SelectItem>
-                    ))}
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

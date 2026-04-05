@@ -9,6 +9,8 @@ type ComputeResourcesEditorProps = {
   testIdPrefix: string;
 };
 
+type ComputeResourceField = 'requestsCpu' | 'requestsMemory' | 'limitsCpu' | 'limitsMemory';
+
 export function ComputeResourcesEditor({ value, onChange, testIdPrefix }: ComputeResourcesEditorProps) {
   const resources =
     value ??
@@ -19,7 +21,7 @@ export function ComputeResourcesEditor({ value, onChange, testIdPrefix }: Comput
       limitsMemory: '',
     });
 
-  const updateResource = (field: keyof ComputeResources, nextValue: string) => {
+  const updateResource = (field: ComputeResourceField, nextValue: string) => {
     const nextResources = create(ComputeResourcesSchema, { ...resources, [field]: nextValue });
     const hasValues = [
       nextResources.requestsCpu,

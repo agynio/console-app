@@ -26,10 +26,15 @@ export function OrganizationModelsTab() {
     refetchOnWindowFocus: false,
   });
 
-  const providerMap = useMemo(
-    () => new Map((providersQuery.data?.providers ?? []).map((provider) => [provider.meta?.id ?? '', provider])),
-    [providersQuery.data?.providers],
-  );
+  const providerMap = useMemo(() => {
+    const providers = providersQuery.data?.providers ?? [];
+    return new Map(
+      providers.flatMap((provider) => {
+        const providerId = provider.meta?.id;
+        return providerId ? ([[providerId, provider]] as const) : [];
+      }),
+    );
+  }, [providersQuery.data?.providers]);
 
   const models = modelsQuery.data?.models ?? [];
   const isLoading = modelsQuery.isPending || providersQuery.isPending;

@@ -4,6 +4,7 @@ import { agentsClient } from '@/api/client';
 import { Button } from '@/components/Button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/Input';
+import { ScriptEditor } from '@/components/ScriptEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -15,18 +16,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { Skill } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { formatDateOnly } from '@/lib/format';
+import { formatDateOnly, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 type AgentSkillsTabProps = {
   agentId: string;
-};
-
-const truncate = (value: string, maxLength = 100) => {
-  if (!value) return '—';
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength)}...`;
 };
 
 export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
@@ -38,13 +33,13 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
   const [createNameError, setCreateNameError] = useState('');
   const [createBodyError, setCreateBodyError] = useState('');
   const [editOpen, setEditOpen] = useState(false);
-  const [editSkillId, setEditSkillId] = useState('');
+  const [editSkillId, setEditSkillId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editBody, setEditBody] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editNameError, setEditNameError] = useState('');
   const [editBodyError, setEditBodyError] = useState('');
-  const [deleteTargetId, setDeleteTargetId] = useState('');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const skillsQuery = useQuery({
     queryKey: ['skills', agentId, 'list'],
@@ -81,7 +76,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
       toast.success('Skill updated.');
       void queryClient.invalidateQueries({ queryKey: ['skills', agentId, 'list'] });
       setEditOpen(false);
-      setEditSkillId('');
+      setEditSkillId(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to update skill.');
@@ -93,7 +88,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
     onSuccess: () => {
       toast.success('Skill deleted.');
       void queryClient.invalidateQueries({ queryKey: ['skills', agentId, 'list'] });
-      setDeleteTargetId('');
+      setDeleteTargetId(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to delete skill.');
@@ -119,7 +114,12 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
   };
 
   const handleEditOpen = (skill: Skill) => {
-    setEditSkillId(skill.meta?.id ?? '');
+    const skillId = skill.meta?.id;
+    if (!skillId) {
+      toast.error('Missing skill ID.');
+      return;
+    }
+    setEditSkillId(skillId);
     setEditName(skill.name);
     setEditBody(skill.body);
     setEditDescription(skill.description);
@@ -153,13 +153,22 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
   const handleEditOpenChange = (open: boolean) => {
     setEditOpen(open);
     if (!open) {
-      setEditSkillId('');
+      setEditSkillId(null);
       setEditName('');
       setEditBody('');
       setEditDescription('');
       setEditNameError('');
       setEditBodyError('');
     }
+  };
+
+  const handleDeleteOpen = (skill: Skill) => {
+    const skillId = skill.meta?.id;
+    if (!skillId) {
+      toast.error('Missing skill ID.');
+      return;
+    }
+    setDeleteTargetId(skillId);
   };
 
   return (
@@ -229,7 +238,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => setDeleteTargetId(skill.meta?.id ?? '')}
+                      onClick={() => handleDeleteOpen(skill)}
                       data-testid="agent-skill-delete"
                     >
                       Delete
@@ -260,24 +269,16 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
               error={createNameError}
               data-testid="agent-skills-create-name"
             />
-            <div className="space-y-2">
-              <label className="text-sm text-[var(--agyn-dark)]">Body</label>
-              <textarea
-                className={`
-                  w-full min-h-[140px] rounded-[10px] border border-[var(--agyn-border-subtle)] bg-white px-4 py-3
-                  text-sm text-[var(--agyn-dark)] placeholder:text-[var(--agyn-gray)]
-                  focus:outline-none focus:ring-2 focus:ring-[var(--agyn-blue)] focus:border-transparent
-                  ${createBodyError ? 'border-red-500 focus:ring-red-500' : ''}
-                `}
-                value={createBody}
-                onChange={(event) => {
-                  setCreateBody(event.target.value);
-                  if (createBodyError) setCreateBodyError('');
-                }}
-                data-testid="agent-skills-create-body"
-              />
-              {createBodyError ? <p className="text-sm text-red-500">{createBodyError}</p> : null}
-            </div>
+            <ScriptEditor
+              label="Body"
+              value={createBody}
+              onChange={(event) => {
+                setCreateBody(event.target.value);
+                if (createBodyError) setCreateBodyError('');
+              }}
+              error={createBodyError}
+              data-testid="agent-skills-create-body"
+            />
             <Input
               label="Description"
               value={createDescription}
@@ -322,24 +323,16 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
               error={editNameError}
               data-testid="agent-skills-edit-name"
             />
-            <div className="space-y-2">
-              <label className="text-sm text-[var(--agyn-dark)]">Body</label>
-              <textarea
-                className={`
-                  w-full min-h-[140px] rounded-[10px] border border-[var(--agyn-border-subtle)] bg-white px-4 py-3
-                  text-sm text-[var(--agyn-dark)] placeholder:text-[var(--agyn-gray)]
-                  focus:outline-none focus:ring-2 focus:ring-[var(--agyn-blue)] focus:border-transparent
-                  ${editBodyError ? 'border-red-500 focus:ring-red-500' : ''}
-                `}
-                value={editBody}
-                onChange={(event) => {
-                  setEditBody(event.target.value);
-                  if (editBodyError) setEditBodyError('');
-                }}
-                data-testid="agent-skills-edit-body"
-              />
-              {editBodyError ? <p className="text-sm text-red-500">{editBodyError}</p> : null}
-            </div>
+            <ScriptEditor
+              label="Body"
+              value={editBody}
+              onChange={(event) => {
+                setEditBody(event.target.value);
+                if (editBodyError) setEditBodyError('');
+              }}
+              error={editBodyError}
+              data-testid="agent-skills-edit-body"
+            />
             <Input
               label="Description"
               value={editDescription}
@@ -367,12 +360,20 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
       </Dialog>
       <ConfirmDialog
         open={Boolean(deleteTargetId)}
-        onOpenChange={(open) => setDeleteTargetId(open ? deleteTargetId : '')}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTargetId(null);
+          }
+        }}
         title="Delete skill"
         description="This action permanently removes the skill."
         confirmLabel="Delete skill"
         variant="danger"
-        onConfirm={() => deleteSkillMutation.mutate(deleteTargetId)}
+        onConfirm={() => {
+          if (deleteTargetId) {
+            deleteSkillMutation.mutate(deleteTargetId);
+          }
+        }}
         isPending={deleteSkillMutation.isPending}
       />
     </div>

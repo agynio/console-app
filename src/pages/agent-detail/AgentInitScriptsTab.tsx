@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
 import { Button } from '@/components/Button';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/Input';
+import { ScriptEditor } from '@/components/ScriptEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -13,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { formatDateOnly } from '@/lib/format';
+import type { InitScript } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { formatDateOnly, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -21,18 +24,18 @@ type AgentInitScriptsTabProps = {
   agentId: string;
 };
 
-const truncate = (value: string, maxLength = 100) => {
-  if (!value) return '—';
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength)}...`;
-};
-
 export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
-  const [script, setScript] = useState('');
-  const [description, setDescription] = useState('');
-  const [scriptError, setScriptError] = useState('');
+  const [createScript, setCreateScript] = useState('');
+  const [createDescription, setCreateDescription] = useState('');
+  const [createScriptError, setCreateScriptError] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editInitScriptId, setEditInitScriptId] = useState<string | null>(null);
+  const [editScript, setEditScript] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editScriptError, setEditScriptError] = useState('');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const initScriptsQuery = useQuery({
     queryKey: ['initScripts', agentId, 'list'],
@@ -51,26 +54,101 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
       toast.success('Init script created.');
       void queryClient.invalidateQueries({ queryKey: ['initScripts', agentId, 'list'] });
       setCreateOpen(false);
-      setScript('');
-      setDescription('');
-      setScriptError('');
+      setCreateScript('');
+      setCreateDescription('');
+      setCreateScriptError('');
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to create init script.');
     },
   });
 
+  const updateInitScriptMutation = useMutation({
+    mutationFn: (payload: { id: string; script?: string; description?: string }) =>
+      agentsClient.updateInitScript(payload),
+    onSuccess: () => {
+      toast.success('Init script updated.');
+      void queryClient.invalidateQueries({ queryKey: ['initScripts', agentId, 'list'] });
+      setEditOpen(false);
+      setEditInitScriptId(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update init script.');
+    },
+  });
+
+  const deleteInitScriptMutation = useMutation({
+    mutationFn: (initId: string) => agentsClient.deleteInitScript({ id: initId }),
+    onSuccess: () => {
+      toast.success('Init script deleted.');
+      void queryClient.invalidateQueries({ queryKey: ['initScripts', agentId, 'list'] });
+      setDeleteTargetId(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete init script.');
+    },
+  });
+
   const handleCreate = () => {
-    const trimmedScript = script.trim();
+    const trimmedScript = createScript.trim();
     if (!trimmedScript) {
-      setScriptError('Script is required.');
+      setCreateScriptError('Script is required.');
       return;
     }
     createInitScriptMutation.mutate({
       script: trimmedScript,
-      description: description.trim(),
+      description: createDescription.trim(),
       target: { case: 'agentId', value: agentId },
     });
+  };
+
+  const handleEditOpen = (initScript: InitScript) => {
+    const initId = initScript.meta?.id;
+    if (!initId) {
+      toast.error('Missing init script ID.');
+      return;
+    }
+    setEditInitScriptId(initId);
+    setEditScript(initScript.script);
+    setEditDescription(initScript.description);
+    setEditScriptError('');
+    setEditOpen(true);
+  };
+
+  const handleEditSave = () => {
+    const trimmedScript = editScript.trim();
+    if (!trimmedScript) {
+      setEditScriptError('Script is required.');
+      return;
+    }
+    if (!editInitScriptId) {
+      toast.error('Missing init script ID.');
+      return;
+    }
+    updateInitScriptMutation.mutate({
+      id: editInitScriptId,
+      script: trimmedScript,
+      description: editDescription.trim(),
+    });
+  };
+
+  const handleEditOpenChange = (open: boolean) => {
+    setEditOpen(open);
+    if (!open) {
+      setEditInitScriptId(null);
+      setEditScript('');
+      setEditDescription('');
+      setEditScriptError('');
+    }
+  };
+
+  const handleDeleteOpen = (initScript: InitScript) => {
+    const initId = initScript.meta?.id;
+    if (!initId) {
+      toast.error('Missing init script ID.');
+      return;
+    }
+    setDeleteTargetId(initId);
   };
 
   return (
@@ -108,18 +186,19 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
         <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-init-scripts-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_120px]"
               data-testid="agent-init-scripts-header"
             >
               <span>Script</span>
               <span>Description</span>
               <span>Created</span>
+              <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-[var(--agyn-border-subtle)]">
               {initScripts.map((initScript) => (
                 <div
                   key={initScript.meta?.id ?? initScript.script}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_120px]"
                   data-testid="agent-init-script-row"
                 >
                   <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-init-script-value">
@@ -131,6 +210,24 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
                   <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-init-script-created">
                     {formatDateOnly(initScript.meta?.createdAt)}
                   </span>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditOpen(initScript)}
+                      data-testid="agent-init-script-edit"
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleDeleteOpen(initScript)}
+                      data-testid="agent-init-script-delete"
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -146,28 +243,21 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm text-[var(--agyn-dark)]">Script</label>
-              <textarea
-                className={`
-                  w-full min-h-[140px] rounded-[10px] border border-[var(--agyn-border-subtle)] bg-white px-4 py-3
-                  text-sm text-[var(--agyn-dark)] placeholder:text-[var(--agyn-gray)] font-mono
-                  focus:outline-none focus:ring-2 focus:ring-[var(--agyn-blue)] focus:border-transparent
-                  ${scriptError ? 'border-red-500 focus:ring-red-500' : ''}
-                `}
-                value={script}
-                onChange={(event) => {
-                  setScript(event.target.value);
-                  if (scriptError) setScriptError('');
-                }}
-                data-testid="agent-init-scripts-create-script"
-              />
-              {scriptError ? <p className="text-sm text-red-500">{scriptError}</p> : null}
-            </div>
+            <ScriptEditor
+              label="Script"
+              value={createScript}
+              onChange={(event) => {
+                setCreateScript(event.target.value);
+                if (createScriptError) setCreateScriptError('');
+              }}
+              error={createScriptError}
+              monospace
+              data-testid="agent-init-scripts-create-script"
+            />
             <Input
               label="Description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              value={createDescription}
+              onChange={(event) => setCreateDescription(event.target.value)}
               data-testid="agent-init-scripts-create-description-input"
             />
           </div>
@@ -189,6 +279,69 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
+        <DialogContent data-testid="agent-init-scripts-edit-dialog">
+          <DialogHeader>
+            <DialogTitle data-testid="agent-init-scripts-edit-title">Edit init script</DialogTitle>
+            <DialogDescription data-testid="agent-init-scripts-edit-description">
+              Update init script details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ScriptEditor
+              label="Script"
+              value={editScript}
+              onChange={(event) => {
+                setEditScript(event.target.value);
+                if (editScriptError) setEditScriptError('');
+              }}
+              error={editScriptError}
+              monospace
+              data-testid="agent-init-scripts-edit-script"
+            />
+            <Input
+              label="Description"
+              value={editDescription}
+              onChange={(event) => setEditDescription(event.target.value)}
+              data-testid="agent-init-scripts-edit-description-input"
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" data-testid="agent-init-scripts-edit-cancel">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleEditSave}
+              disabled={updateInitScriptMutation.isPending}
+              data-testid="agent-init-scripts-edit-submit"
+            >
+              {updateInitScriptMutation.isPending ? 'Saving...' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={Boolean(deleteTargetId)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTargetId(null);
+          }
+        }}
+        title="Delete init script"
+        description="This action permanently removes the init script."
+        confirmLabel="Delete init script"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteTargetId) {
+            deleteInitScriptMutation.mutate(deleteTargetId);
+          }
+        }}
+        isPending={deleteInitScriptMutation.isPending}
+      />
     </div>
   );
 }

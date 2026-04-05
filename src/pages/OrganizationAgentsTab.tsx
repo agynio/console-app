@@ -28,10 +28,15 @@ export function OrganizationAgentsTab() {
     refetchOnWindowFocus: false,
   });
 
-  const modelMap = useMemo(
-    () => new Map((modelsQuery.data?.models ?? []).map((model) => [model.meta?.id ?? '', model])),
-    [modelsQuery.data?.models],
-  );
+  const modelMap = useMemo(() => {
+    const models = modelsQuery.data?.models ?? [];
+    return new Map(
+      models.flatMap((model) => {
+        const modelId = model.meta?.id;
+        return modelId ? ([[modelId, model]] as const) : [];
+      }),
+    );
+  }, [modelsQuery.data?.models]);
 
   const agents = agentsQuery.data?.agents ?? [];
   const isLoading = agentsQuery.isPending || modelsQuery.isPending;
@@ -89,8 +94,14 @@ export function OrganizationAgentsTab() {
                     <Badge variant="secondary" data-testid="organization-agent-role">
                       {agent.role || '—'}
                     </Badge>
-                    <Badge variant="secondary" data-testid="organization-agent-status">
-                      Idle
+                    {/* TODO: replace with live agent status when available. */}
+                    <Badge
+                      variant="secondary"
+                      className="text-[var(--agyn-gray)]"
+                      title="Status is not yet available."
+                      data-testid="organization-agent-status"
+                    >
+                      TBD
                     </Badge>
                     <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-agent-model">
                       {model?.name ?? (agent.model || '—')}

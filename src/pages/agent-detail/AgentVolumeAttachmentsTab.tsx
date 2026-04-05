@@ -29,7 +29,7 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
   const [attachOpen, setAttachOpen] = useState(false);
   const [selectedVolumeId, setSelectedVolumeId] = useState('');
   const [selectedVolumeError, setSelectedVolumeError] = useState('');
-  const [detachTargetId, setDetachTargetId] = useState('');
+  const [detachTargetId, setDetachTargetId] = useState<string | null>(null);
 
   const attachmentsQuery = useQuery({
     queryKey: ['volumeAttachments', agentId, 'list'],
@@ -47,10 +47,15 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
     refetchOnWindowFocus: false,
   });
 
-  const volumeMap = useMemo(
-    () => new Map((volumesQuery.data?.volumes ?? []).map((volume) => [volume.meta?.id ?? '', volume])),
-    [volumesQuery.data?.volumes],
-  );
+  const volumeMap = useMemo(() => {
+    const volumes = volumesQuery.data?.volumes ?? [];
+    return new Map(
+      volumes.flatMap((volume) => {
+        const volumeId = volume.meta?.id;
+        return volumeId ? ([[volumeId, volume]] as const) : [];
+      }),
+    );
+  }, [volumesQuery.data?.volumes]);
 
   const attachments = attachmentsQuery.data?.volumeAttachments ?? [];
 
@@ -74,7 +79,7 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
     onSuccess: () => {
       toast.success('Volume detached.');
       void queryClient.invalidateQueries({ queryKey: ['volumeAttachments', agentId, 'list'] });
-      setDetachTargetId('');
+      setDetachTargetId(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to detach volume.');
@@ -90,6 +95,15 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
       volumeId: selectedVolumeId,
       target: { case: 'agentId', value: agentId },
     });
+  };
+
+  const handleDetachOpen = (attachment: VolumeAttachment) => {
+    const attachmentId = attachment.meta?.id;
+    if (!attachmentId) {
+      toast.error('Missing volume attachment ID.');
+      return;
+    }
+    setDetachTargetId(attachmentId);
   };
 
   const renderVolumeSummary = (attachment: VolumeAttachment, volumes: Map<string, Volume>) => {
@@ -168,7 +182,7 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => setDetachTargetId(attachment.meta?.id ?? '')}
+                      onClick={() => handleDetachOpen(attachment)}
                       data-testid="agent-volume-attachment-detach"
                     >
                       Detach
@@ -201,13 +215,15 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
                 <SelectValue placeholder="Select volume" />
               </SelectTrigger>
               <SelectContent>
-                {(volumesQuery.data?.volumes ?? [])
-                  .filter((volume) => Boolean(volume.meta?.id))
-                  .map((volume) => (
-                    <SelectItem key={volume.meta?.id ?? volume.description} value={volume.meta?.id ?? ''}>
+                {(volumesQuery.data?.volumes ?? []).map((volume) => {
+                  const volumeId = volume.meta?.id;
+                  if (!volumeId) return null;
+                  return (
+                    <SelectItem key={volumeId} value={volumeId}>
                       {volume.description || volume.mountPath || 'Volume'}
                     </SelectItem>
-                  ))}
+                  );
+                })}
               </SelectContent>
             </Select>
             {selectedVolumeError ? <div className="text-sm text-red-500">{selectedVolumeError}</div> : null}
@@ -232,12 +248,20 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
       </Dialog>
       <ConfirmDialog
         open={Boolean(detachTargetId)}
-        onOpenChange={(open) => setDetachTargetId(open ? detachTargetId : '')}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetachTargetId(null);
+          }
+        }}
         title="Detach volume"
         description="This will remove the volume from the agent."
         confirmLabel="Detach volume"
         variant="danger"
-        onConfirm={() => deleteAttachmentMutation.mutate(detachTargetId)}
+        onConfirm={() => {
+          if (detachTargetId) {
+            deleteAttachmentMutation.mutate(detachTargetId);
+          }
+        }}
         isPending={deleteAttachmentMutation.isPending}
       />
     </div>

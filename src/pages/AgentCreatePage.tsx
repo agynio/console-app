@@ -9,6 +9,7 @@ import { JsonEditor } from '@/components/JsonEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { NO_MODEL } from '@/lib/constants';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -20,7 +21,7 @@ export function AgentCreatePage() {
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
   const [role, setRole] = useState('');
-  const [modelId, setModelId] = useState('none');
+  const [modelId, setModelId] = useState(NO_MODEL);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [initImage, setInitImage] = useState('');
@@ -92,7 +93,7 @@ export function AgentCreatePage() {
     createAgentMutation.mutate({
       name: trimmedName,
       role: role.trim(),
-      model: modelId === 'none' ? '' : modelId,
+      model: modelId === NO_MODEL ? '' : modelId,
       description: description.trim(),
       configuration: trimmedConfig,
       image: image.trim(),
@@ -144,14 +145,16 @@ export function AgentCreatePage() {
                 <SelectValue placeholder={modelsQuery.isPending ? 'Loading models...' : 'Select model'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {models
-                  .filter((model) => Boolean(model.meta?.id))
-                  .map((model) => (
-                    <SelectItem key={model.meta?.id ?? model.name} value={model.meta?.id ?? ''}>
+                <SelectItem value={NO_MODEL}>None</SelectItem>
+                {models.map((model) => {
+                  const modelValue = model.meta?.id;
+                  if (!modelValue) return null;
+                  return (
+                    <SelectItem key={modelValue} value={modelValue}>
                       {model.name || 'Unnamed model'}
                     </SelectItem>
-                  ))}
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

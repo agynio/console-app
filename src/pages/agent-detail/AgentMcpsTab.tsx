@@ -16,19 +16,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import type { ComputeResources, Env, InitScript, Mcp } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { formatDateOnly } from '@/lib/format';
+import type { ComputeResources, Mcp } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { formatDateOnly, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { NestedEnvsDialog } from '@/pages/agent-detail/NestedEnvsDialog';
+import { NestedInitScriptsDialog } from '@/pages/agent-detail/NestedInitScriptsDialog';
 import { toast } from 'sonner';
 
 type AgentMcpsTabProps = {
   agentId: string;
-};
-
-const truncate = (value: string, maxLength = 100) => {
-  if (!value) return '—';
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength)}...`;
 };
 
 export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
@@ -42,24 +38,16 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   const [createNameError, setCreateNameError] = useState('');
   const [createImageError, setCreateImageError] = useState('');
   const [editOpen, setEditOpen] = useState(false);
-  const [editMcpId, setEditMcpId] = useState('');
+  const [editMcpId, setEditMcpId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editImage, setEditImage] = useState('');
   const [editCommand, setEditCommand] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editResources, setEditResources] = useState<ComputeResources | undefined>(undefined);
   const [editImageError, setEditImageError] = useState('');
-  const [envTargetId, setEnvTargetId] = useState('');
-  const [envName, setEnvName] = useState('');
-  const [envValue, setEnvValue] = useState('');
-  const [envDescription, setEnvDescription] = useState('');
-  const [envNameError, setEnvNameError] = useState('');
-  const [envValueError, setEnvValueError] = useState('');
-  const [initTargetId, setInitTargetId] = useState('');
-  const [initScript, setInitScript] = useState('');
-  const [initDescription, setInitDescription] = useState('');
-  const [initScriptError, setInitScriptError] = useState('');
-  const [deleteTargetId, setDeleteTargetId] = useState('');
+  const [envTargetId, setEnvTargetId] = useState<string | null>(null);
+  const [initTargetId, setInitTargetId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const mcpsQuery = useQuery({
     queryKey: ['mcps', agentId, 'list'],
@@ -70,22 +58,6 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   });
 
   const mcps = mcpsQuery.data?.mcps ?? [];
-
-  const envsQuery = useQuery({
-    queryKey: ['envs', 'mcp', envTargetId, 'list'],
-    queryFn: () => agentsClient.listEnvs({ mcpId: envTargetId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    enabled: Boolean(envTargetId),
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
-
-  const initScriptsQuery = useQuery({
-    queryKey: ['initScripts', 'mcp', initTargetId, 'list'],
-    queryFn: () => agentsClient.listInitScripts({ mcpId: initTargetId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    enabled: Boolean(initTargetId),
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
 
   const createMcpMutation = useMutation({
     mutationFn: (payload: {
@@ -125,7 +97,7 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
       toast.success('MCP updated.');
       void queryClient.invalidateQueries({ queryKey: ['mcps', agentId, 'list'] });
       setEditOpen(false);
-      setEditMcpId('');
+      setEditMcpId(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to update MCP.');
@@ -137,76 +109,10 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
     onSuccess: () => {
       toast.success('MCP deleted.');
       void queryClient.invalidateQueries({ queryKey: ['mcps', agentId, 'list'] });
-      setDeleteTargetId('');
+      setDeleteTargetId(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to delete MCP.');
-    },
-  });
-
-  const createEnvMutation = useMutation({
-    mutationFn: (payload: {
-      name: string;
-      description: string;
-      target: { case: 'mcpId'; value: string };
-      source: { case: 'value'; value: string };
-    }) => agentsClient.createEnv(payload),
-    onSuccess: () => {
-      toast.success('Environment variable added.');
-      if (envTargetId) {
-        void queryClient.invalidateQueries({ queryKey: ['envs', 'mcp', envTargetId, 'list'] });
-      }
-      setEnvName('');
-      setEnvValue('');
-      setEnvDescription('');
-      setEnvNameError('');
-      setEnvValueError('');
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to add environment variable.');
-    },
-  });
-
-  const deleteEnvMutation = useMutation({
-    mutationFn: (envId: string) => agentsClient.deleteEnv({ id: envId }),
-    onSuccess: () => {
-      toast.success('Environment variable removed.');
-      if (envTargetId) {
-        void queryClient.invalidateQueries({ queryKey: ['envs', 'mcp', envTargetId, 'list'] });
-      }
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete environment variable.');
-    },
-  });
-
-  const createInitScriptMutation = useMutation({
-    mutationFn: (payload: { script: string; description: string; target: { case: 'mcpId'; value: string } }) =>
-      agentsClient.createInitScript(payload),
-    onSuccess: () => {
-      toast.success('Init script added.');
-      if (initTargetId) {
-        void queryClient.invalidateQueries({ queryKey: ['initScripts', 'mcp', initTargetId, 'list'] });
-      }
-      setInitScript('');
-      setInitDescription('');
-      setInitScriptError('');
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to add init script.');
-    },
-  });
-
-  const deleteInitScriptMutation = useMutation({
-    mutationFn: (initId: string) => agentsClient.deleteInitScript({ id: initId }),
-    onSuccess: () => {
-      toast.success('Init script removed.');
-      if (initTargetId) {
-        void queryClient.invalidateQueries({ queryKey: ['initScripts', 'mcp', initTargetId, 'list'] });
-      }
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete init script.');
     },
   });
 
@@ -231,7 +137,12 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   };
 
   const handleEditOpen = (mcp: Mcp) => {
-    setEditMcpId(mcp.meta?.id ?? '');
+    const mcpId = mcp.meta?.id;
+    if (!mcpId) {
+      toast.error('Missing MCP ID.');
+      return;
+    }
+    setEditMcpId(mcpId);
     setEditName(mcp.name);
     setEditImage(mcp.image);
     setEditCommand(mcp.command);
@@ -260,42 +171,37 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
     });
   };
 
-  const handleEnvCreate = () => {
-    const trimmedName = envName.trim();
-    const trimmedValue = envValue.trim();
-    if (!trimmedName) {
-      setEnvNameError('Name is required.');
-    }
-    if (!trimmedValue) {
-      setEnvValueError('Value is required.');
-    }
-    if (!trimmedName || !trimmedValue || !envTargetId) return;
-    createEnvMutation.mutate({
-      name: trimmedName,
-      description: envDescription.trim(),
-      target: { case: 'mcpId', value: envTargetId },
-      source: { case: 'value', value: trimmedValue },
-    });
-  };
-
-  const handleInitCreate = () => {
-    const trimmedScript = initScript.trim();
-    if (!trimmedScript) {
-      setInitScriptError('Script is required.');
+  const handleEnvOpen = (mcp: Mcp) => {
+    const mcpId = mcp.meta?.id;
+    if (!mcpId) {
+      toast.error('Missing MCP ID.');
       return;
     }
-    if (!initTargetId) return;
-    createInitScriptMutation.mutate({
-      script: trimmedScript,
-      description: initDescription.trim(),
-      target: { case: 'mcpId', value: initTargetId },
-    });
+    setEnvTargetId(mcpId);
+  };
+
+  const handleInitOpen = (mcp: Mcp) => {
+    const mcpId = mcp.meta?.id;
+    if (!mcpId) {
+      toast.error('Missing MCP ID.');
+      return;
+    }
+    setInitTargetId(mcpId);
+  };
+
+  const handleDeleteOpen = (mcp: Mcp) => {
+    const mcpId = mcp.meta?.id;
+    if (!mcpId) {
+      toast.error('Missing MCP ID.');
+      return;
+    }
+    setDeleteTargetId(mcpId);
   };
 
   const handleEditOpenChange = (open: boolean) => {
     setEditOpen(open);
     if (!open) {
-      setEditMcpId('');
+      setEditMcpId(null);
       setEditName('');
       setEditImage('');
       setEditCommand('');
@@ -307,26 +213,15 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
 
   const handleEnvOpenChange = (open: boolean) => {
     if (!open) {
-      setEnvTargetId('');
-      setEnvName('');
-      setEnvValue('');
-      setEnvDescription('');
-      setEnvNameError('');
-      setEnvValueError('');
+      setEnvTargetId(null);
     }
   };
 
   const handleInitOpenChange = (open: boolean) => {
     if (!open) {
-      setInitTargetId('');
-      setInitScript('');
-      setInitDescription('');
-      setInitScriptError('');
+      setInitTargetId(null);
     }
   };
-
-  const envs = envsQuery.data?.envs ?? [];
-  const initScripts = initScriptsQuery.data?.initScripts ?? [];
 
   return (
     <div className="space-y-4">
@@ -396,22 +291,13 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
                         <DropdownMenuItem onSelect={() => handleEditOpen(mcp)} data-testid="agent-mcp-edit">
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => setEnvTargetId(mcp.meta?.id ?? '')}
-                          data-testid="agent-mcp-envs"
-                        >
+                        <DropdownMenuItem onSelect={() => handleEnvOpen(mcp)} data-testid="agent-mcp-envs">
                           Environment Variables
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => setInitTargetId(mcp.meta?.id ?? '')}
-                          data-testid="agent-mcp-init-scripts"
-                        >
+                        <DropdownMenuItem onSelect={() => handleInitOpen(mcp)} data-testid="agent-mcp-init-scripts">
                           Init Scripts
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => setDeleteTargetId(mcp.meta?.id ?? '')}
-                          data-testid="agent-mcp-delete"
-                        >
+                        <DropdownMenuItem onSelect={() => handleDeleteOpen(mcp)} data-testid="agent-mcp-delete">
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -553,197 +439,40 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(envTargetId)} onOpenChange={handleEnvOpenChange}>
-        <DialogContent data-testid="agent-mcps-envs-dialog">
-          <DialogHeader>
-            <DialogTitle data-testid="agent-mcps-envs-title">Environment Variables</DialogTitle>
-            <DialogDescription data-testid="agent-mcps-envs-description">
-              Manage MCP-specific environment variables.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                label="Name"
-                value={envName}
-                onChange={(event) => {
-                  setEnvName(event.target.value);
-                  if (envNameError) setEnvNameError('');
-                }}
-                error={envNameError}
-                data-testid="agent-mcps-envs-name"
-              />
-              <Input
-                label="Value"
-                value={envValue}
-                onChange={(event) => {
-                  setEnvValue(event.target.value);
-                  if (envValueError) setEnvValueError('');
-                }}
-                error={envValueError}
-                data-testid="agent-mcps-envs-value"
-              />
-              <Input
-                label="Description"
-                value={envDescription}
-                onChange={(event) => setEnvDescription(event.target.value)}
-                data-testid="agent-mcps-envs-description-input"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEnvCreate}
-                disabled={createEnvMutation.isPending}
-                data-testid="agent-mcps-envs-add"
-              >
-                {createEnvMutation.isPending ? 'Adding...' : 'Add ENV'}
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-[var(--agyn-dark)]">Existing ENVs</div>
-              {envsQuery.isPending ? (
-                <div className="text-xs text-[var(--agyn-gray)]">Loading envs...</div>
-              ) : null}
-              {envsQuery.isError ? (
-                <div className="text-xs text-[var(--agyn-gray)]">Failed to load envs.</div>
-              ) : null}
-              {envs.length === 0 && !envsQuery.isPending ? (
-                <div className="text-xs text-[var(--agyn-gray)]">No envs configured.</div>
-              ) : null}
-              {envs.length > 0 ? (
-                <div className="divide-y divide-[var(--agyn-border-subtle)] rounded-md border border-[var(--agyn-border-subtle)]">
-                  {envs.map((env: Env) => (
-                    <div key={env.meta?.id ?? env.name} className="flex items-center justify-between px-3 py-2">
-                      <div>
-                        <div className="text-sm text-[var(--agyn-dark)]">{env.name}</div>
-                        <div className="text-xs text-[var(--agyn-gray)]">{env.description || '—'}</div>
-                        <div className="text-xs text-[var(--agyn-gray)]">
-                          {env.source.case === 'value'
-                            ? env.source.value
-                            : env.source.case === 'secretId'
-                            ? `secret: ${env.source.value}`
-                            : '—'}
-                        </div>
-                      </div>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => deleteEnvMutation.mutate(env.meta?.id ?? '')}
-                        disabled={deleteEnvMutation.isPending}
-                        data-testid="agent-mcps-envs-delete"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="agent-mcps-envs-close">
-                Close
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <NestedEnvsDialog
+        targetCase="mcpId"
+        targetId={envTargetId}
+        open={Boolean(envTargetId)}
+        onOpenChange={handleEnvOpenChange}
+        title="Environment Variables"
+        description="Manage MCP-specific environment variables."
+      />
 
-      <Dialog open={Boolean(initTargetId)} onOpenChange={handleInitOpenChange}>
-        <DialogContent data-testid="agent-mcps-init-dialog">
-          <DialogHeader>
-            <DialogTitle data-testid="agent-mcps-init-title">Init Scripts</DialogTitle>
-            <DialogDescription data-testid="agent-mcps-init-description">
-              Manage MCP init scripts.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm text-[var(--agyn-dark)]">Script</label>
-              <textarea
-                className={`
-                  w-full min-h-[120px] rounded-[10px] border border-[var(--agyn-border-subtle)] bg-white px-4 py-3
-                  text-sm text-[var(--agyn-dark)] placeholder:text-[var(--agyn-gray)] font-mono
-                  focus:outline-none focus:ring-2 focus:ring-[var(--agyn-blue)] focus:border-transparent
-                  ${initScriptError ? 'border-red-500 focus:ring-red-500' : ''}
-                `}
-                value={initScript}
-                onChange={(event) => {
-                  setInitScript(event.target.value);
-                  if (initScriptError) setInitScriptError('');
-                }}
-                data-testid="agent-mcps-init-script"
-              />
-              {initScriptError ? <p className="text-sm text-red-500">{initScriptError}</p> : null}
-              <Input
-                label="Description"
-                value={initDescription}
-                onChange={(event) => setInitDescription(event.target.value)}
-                data-testid="agent-mcps-init-description-input"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleInitCreate}
-                disabled={createInitScriptMutation.isPending}
-                data-testid="agent-mcps-init-add"
-              >
-                {createInitScriptMutation.isPending ? 'Adding...' : 'Add init script'}
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-[var(--agyn-dark)]">Existing init scripts</div>
-              {initScriptsQuery.isPending ? (
-                <div className="text-xs text-[var(--agyn-gray)]">Loading init scripts...</div>
-              ) : null}
-              {initScriptsQuery.isError ? (
-                <div className="text-xs text-[var(--agyn-gray)]">Failed to load init scripts.</div>
-              ) : null}
-              {initScripts.length === 0 && !initScriptsQuery.isPending ? (
-                <div className="text-xs text-[var(--agyn-gray)]">No init scripts configured.</div>
-              ) : null}
-              {initScripts.length > 0 ? (
-                <div className="divide-y divide-[var(--agyn-border-subtle)] rounded-md border border-[var(--agyn-border-subtle)]">
-                  {initScripts.map((script: InitScript) => (
-                    <div key={script.meta?.id ?? script.script} className="flex items-center justify-between px-3 py-2">
-                      <div>
-                        <div className="text-sm text-[var(--agyn-dark)]">{truncate(script.script)}</div>
-                        <div className="text-xs text-[var(--agyn-gray)]">{script.description || '—'}</div>
-                      </div>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => deleteInitScriptMutation.mutate(script.meta?.id ?? '')}
-                        disabled={deleteInitScriptMutation.isPending}
-                        data-testid="agent-mcps-init-delete"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="agent-mcps-init-close">
-                Close
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <NestedInitScriptsDialog
+        targetCase="mcpId"
+        targetId={initTargetId}
+        open={Boolean(initTargetId)}
+        onOpenChange={handleInitOpenChange}
+        title="Init Scripts"
+        description="Manage MCP init scripts."
+      />
 
       <ConfirmDialog
         open={Boolean(deleteTargetId)}
-        onOpenChange={(open) => setDeleteTargetId(open ? deleteTargetId : '')}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTargetId(null);
+          }
+        }}
         title="Delete MCP"
         description="This action permanently removes the MCP."
         confirmLabel="Delete MCP"
         variant="danger"
-        onConfirm={() => deleteMcpMutation.mutate(deleteTargetId)}
+        onConfirm={() => {
+          if (deleteTargetId) {
+            deleteMcpMutation.mutate(deleteTargetId);
+          }
+        }}
         isPending={deleteMcpMutation.isPending}
       />
     </div>

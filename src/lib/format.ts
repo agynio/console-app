@@ -43,6 +43,12 @@ export function formatComputeResources(resources?: ComputeResources): string {
   return parts.length > 0 ? parts.join(', ') : '—';
 }
 
+export function truncate(value?: string | null, maxLength = 100): string {
+  if (!value) return '—';
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}...`;
+}
+
 export function formatRunnerStatus(status: RunnerStatus): string {
   if (status === RunnerStatus.ENROLLED) return 'Enrolled';
   if (status === RunnerStatus.PENDING) return 'Pending';
