@@ -54,25 +54,6 @@ functions:
     kubectl set image deployment/console-app console-app="$IMAGE" -n ${APP_NAMESPACE}
     kubectl rollout status deployment/console-app -n ${APP_NAMESPACE} --timeout=120s
     echo "PR image deployed successfully"
-  build_gateway_image: |-
-    if [ "${SKIP_GATEWAY_BUILD:-}" = "true" ]; then
-      echo "Skipping gateway build (SKIP_GATEWAY_BUILD=true)."
-      exit 0
-    fi
-    GATEWAY_REF="${GATEWAY_REF:-main}"
-    GATEWAY_IMAGE="${GATEWAY_IMAGE:-agynio/gateway:e2e}"
-    echo "Building gateway image ${GATEWAY_IMAGE} from ${GATEWAY_REF}..."
-    tmp_dir="$(mktemp -d)"
-    trap 'rm -rf "${tmp_dir}"' EXIT
-    git clone --depth 1 --branch "${GATEWAY_REF}" https://github.com/agynio/gateway.git "${tmp_dir}"
-    (
-      cd "${tmp_dir}" || exit 1
-      docker buildx build --load -t "${GATEWAY_IMAGE}" .
-    )
-    k3d image import "${GATEWAY_IMAGE}" -c agyn-local
-    kubectl set image deployment/gateway-gateway gateway="${GATEWAY_IMAGE}" -n ${APP_NAMESPACE}
-    kubectl rollout status deployment/gateway-gateway -n ${APP_NAMESPACE} --timeout=180s
-    echo "Gateway image deployed successfully"
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
     kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
@@ -138,7 +119,6 @@ pipelines:
   test-e2e:
     run: |-
       disable_argocd_sync
-      build_gateway_image
       deploy_pr_image
       create_deployments e2e-runner
       start_dev e2e-runner &
