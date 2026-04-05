@@ -1,20 +1,48 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/Button';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Input } from '@/components/Input';
 import { Card, CardContent } from '@/components/ui/card';
-import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Secret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
+import { formatDateOnly } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
-
-function formatProviderType(type: SecretProviderType): string {
-  if (type === SecretProviderType.VAULT) return 'Vault';
-  return 'Unspecified';
-}
+import { toast } from 'sonner';
 
 export function OrganizationSecretsTab() {
   const { id } = useParams();
   const organizationId = id ?? '';
+  const queryClient = useQueryClient();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createDescription, setCreateDescription] = useState('');
+  const [createProviderId, setCreateProviderId] = useState('');
+  const [createRemoteName, setCreateRemoteName] = useState('');
+  const [createTitleError, setCreateTitleError] = useState('');
+  const [createProviderError, setCreateProviderError] = useState('');
+  const [createRemoteError, setCreateRemoteError] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSecretId, setEditSecretId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editProviderId, setEditProviderId] = useState('');
+  const [editRemoteName, setEditRemoteName] = useState('');
+  const [editTitleError, setEditTitleError] = useState('');
+  const [editProviderError, setEditProviderError] = useState('');
+  const [editRemoteError, setEditRemoteError] = useState('');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const providersQuery = useQuery({
     queryKey: ['secrets', organizationId, 'providers'],
@@ -38,6 +66,193 @@ export function OrganizationSecretsTab() {
     refetchOnWindowFocus: false,
   });
 
+  const createSecretMutation = useMutation({
+    mutationFn: (payload: {
+      title: string;
+      description: string;
+      secretProviderId: string;
+      remoteName: string;
+      organizationId: string;
+    }) => secretsClient.createSecret(payload),
+    onSuccess: () => {
+      toast.success('Secret created.');
+      void queryClient.invalidateQueries({ queryKey: ['secrets', organizationId, 'list'] });
+      setCreateOpen(false);
+      setCreateTitle('');
+      setCreateDescription('');
+      setCreateProviderId('');
+      setCreateRemoteName('');
+      setCreateTitleError('');
+      setCreateProviderError('');
+      setCreateRemoteError('');
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create secret.');
+    },
+  });
+
+  const updateSecretMutation = useMutation({
+    mutationFn: (payload: {
+      id: string;
+      title?: string;
+      description?: string;
+      secretProviderId?: string;
+      remoteName?: string;
+    }) => secretsClient.updateSecret(payload),
+    onSuccess: () => {
+      toast.success('Secret updated.');
+      void queryClient.invalidateQueries({ queryKey: ['secrets', organizationId, 'list'] });
+      setEditOpen(false);
+      setEditSecretId(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update secret.');
+    },
+  });
+
+  const deleteSecretMutation = useMutation({
+    mutationFn: (secretId: string) => secretsClient.deleteSecret({ id: secretId }),
+    onSuccess: () => {
+      toast.success('Secret deleted.');
+      void queryClient.invalidateQueries({ queryKey: ['secrets', organizationId, 'list'] });
+      setDeleteTargetId(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete secret.');
+    },
+  });
+
+  const handleCreate = () => {
+    const trimmedTitle = createTitle.trim();
+    const trimmedRemote = createRemoteName.trim();
+    let hasError = false;
+
+    if (!trimmedTitle) {
+      setCreateTitleError('Title is required.');
+      hasError = true;
+    } else if (createTitleError) {
+      setCreateTitleError('');
+    }
+
+    if (!createProviderId) {
+      setCreateProviderError('Select a provider.');
+      hasError = true;
+    } else if (createProviderError) {
+      setCreateProviderError('');
+    }
+
+    if (!trimmedRemote) {
+      setCreateRemoteError('Remote name is required.');
+      hasError = true;
+    } else if (createRemoteError) {
+      setCreateRemoteError('');
+    }
+
+    if (hasError) return;
+
+    createSecretMutation.mutate({
+      title: trimmedTitle,
+      description: createDescription.trim(),
+      secretProviderId: createProviderId,
+      remoteName: trimmedRemote,
+      organizationId,
+    });
+  };
+
+  const handleCreateOpenChange = (open: boolean) => {
+    setCreateOpen(open);
+    if (!open) {
+      setCreateTitle('');
+      setCreateDescription('');
+      setCreateProviderId('');
+      setCreateRemoteName('');
+      setCreateTitleError('');
+      setCreateProviderError('');
+      setCreateRemoteError('');
+    }
+  };
+
+  const handleEditOpen = (secret: Secret) => {
+    const secretId = secret.meta?.id;
+    if (!secretId) {
+      toast.error('Missing secret ID.');
+      return;
+    }
+    setEditSecretId(secretId);
+    setEditTitle(secret.title);
+    setEditDescription(secret.description);
+    setEditProviderId(secret.secretProviderId);
+    setEditRemoteName(secret.remoteName);
+    setEditTitleError('');
+    setEditProviderError('');
+    setEditRemoteError('');
+    setEditOpen(true);
+  };
+
+  const handleEditSave = () => {
+    const trimmedTitle = editTitle.trim();
+    const trimmedRemote = editRemoteName.trim();
+    let hasError = false;
+
+    if (!trimmedTitle) {
+      setEditTitleError('Title is required.');
+      hasError = true;
+    } else if (editTitleError) {
+      setEditTitleError('');
+    }
+
+    if (!editProviderId) {
+      setEditProviderError('Select a provider.');
+      hasError = true;
+    } else if (editProviderError) {
+      setEditProviderError('');
+    }
+
+    if (!trimmedRemote) {
+      setEditRemoteError('Remote name is required.');
+      hasError = true;
+    } else if (editRemoteError) {
+      setEditRemoteError('');
+    }
+
+    if (hasError) return;
+    if (!editSecretId) {
+      toast.error('Missing secret ID.');
+      return;
+    }
+
+    updateSecretMutation.mutate({
+      id: editSecretId,
+      title: trimmedTitle,
+      description: editDescription.trim(),
+      secretProviderId: editProviderId,
+      remoteName: trimmedRemote,
+    });
+  };
+
+  const handleEditOpenChange = (open: boolean) => {
+    setEditOpen(open);
+    if (!open) {
+      setEditSecretId(null);
+      setEditTitle('');
+      setEditDescription('');
+      setEditProviderId('');
+      setEditRemoteName('');
+      setEditTitleError('');
+      setEditProviderError('');
+      setEditRemoteError('');
+    }
+  };
+
+  const handleDeleteOpen = (secret: Secret) => {
+    const secretId = secret.meta?.id;
+    if (!secretId) {
+      toast.error('Missing secret ID.');
+      return;
+    }
+    setDeleteTargetId(secretId);
+  };
+
   const providerMap = useMemo(() => {
     const providers = providersQuery.data?.secretProviders ?? [];
     return new Map(
@@ -51,85 +266,287 @@ export function OrganizationSecretsTab() {
   const isLoading = providersQuery.isPending || secretsQuery.isPending;
   const isError = providersQuery.isError || secretsQuery.isError;
 
+  const secrets = secretsQuery.data?.secrets ?? [];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-secrets-heading">
-          Secrets
-        </h3>
-        <p className="text-sm text-[var(--agyn-gray)]">Secret providers and secrets.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-secrets-heading">
+            Secrets
+          </h3>
+          <p className="text-sm text-[var(--agyn-gray)]">Manage organization secrets.</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleCreateOpenChange(true)}
+          data-testid="organization-secrets-create"
+        >
+          Add secret
+        </Button>
       </div>
       {isLoading ? <div className="text-sm text-[var(--agyn-gray)]">Loading secrets...</div> : null}
       {isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load secrets.</div> : null}
-
-      <Card className="border-[var(--agyn-border-subtle)]" data-testid="secret-providers-table">
-        <CardContent className="px-0">
-          <div
-            className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)]"
-            data-testid="secret-providers-header"
-          >
-            Secret Providers
-          </div>
-          <div className="divide-y divide-[var(--agyn-border-subtle)]">
-            {(providersQuery.data?.secretProviders ?? []).length === 0 ? (
-              <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]" data-testid="secret-providers-empty">
-                No secret providers configured.
-              </div>
-            ) : (
-              providersQuery.data?.secretProviders.map((provider) => (
-                <div
-                  key={provider.meta?.id ?? provider.title}
-                  className="px-6 py-4 text-sm"
-                  data-testid="secret-provider-row"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-[var(--agyn-dark)]">{provider.title}</span>
-                    <Badge variant="secondary">{formatProviderType(provider.type)}</Badge>
-                  </div>
-                  <div className="mt-1 text-xs text-[var(--agyn-gray)]">{provider.description}</div>
-                  {provider.config?.provider.case === 'vault' ? (
-                    <div className="mt-2 text-xs text-[var(--agyn-gray)]">
-                      Vault address: {provider.config.provider.value.address || '—'}
-                    </div>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-[var(--agyn-border-subtle)]" data-testid="secrets-table">
-        <CardContent className="px-0">
-          <div
-            className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)]"
-            data-testid="secrets-header"
-          >
-            Secrets
-          </div>
-          <div className="divide-y divide-[var(--agyn-border-subtle)]">
-            {(secretsQuery.data?.secrets ?? []).length === 0 ? (
-              <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]" data-testid="secrets-empty">
-                No secrets configured.
-              </div>
-            ) : (
-              secretsQuery.data?.secrets.map((secret) => {
+      {secrets.length === 0 && !isLoading ? (
+        <Card className="border-[var(--agyn-border-subtle)]" data-testid="secrets-empty">
+          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+            No secrets configured.
+          </CardContent>
+        </Card>
+      ) : null}
+      {secrets.length > 0 ? (
+        <Card className="border-[var(--agyn-border-subtle)]" data-testid="secrets-table">
+          <CardContent className="px-0">
+            <div
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+              data-testid="secrets-header"
+            >
+              <span>Title</span>
+              <span>Provider</span>
+              <span>Remote Name</span>
+              <span>Created</span>
+              <span className="text-right">Actions</span>
+            </div>
+            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+              {secrets.map((secret) => {
                 const provider = providerMap.get(secret.secretProviderId);
                 return (
-                  <div key={secret.meta?.id ?? secret.title} className="px-6 py-4 text-sm" data-testid="secret-row">
-                    <div className="font-medium text-[var(--agyn-dark)]">{secret.title}</div>
-                    <div className="mt-1 text-xs text-[var(--agyn-gray)]">{secret.description}</div>
-                    <div className="mt-2 text-xs text-[var(--agyn-gray)]">
-                      Provider: {provider?.title ?? secret.secretProviderId}
+                  <div
+                    key={secret.meta?.id ?? secret.title}
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+                    data-testid="secret-row"
+                  >
+                    <div>
+                      <div className="font-medium" data-testid="secret-title">
+                        {secret.title}
+                      </div>
+                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="secret-id">
+                        {secret.meta?.id ?? '—'}
+                      </div>
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]">Remote name: {secret.remoteName}</div>
+                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="secret-provider">
+                      {provider?.title ?? secret.secretProviderId}
+                    </span>
+                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="secret-remote">
+                      {secret.remoteName}
+                    </span>
+                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="secret-created">
+                      {formatDateOnly(secret.meta?.createdAt)}
+                    </span>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditOpen(secret)}
+                        data-testid="secret-edit"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDeleteOpen(secret)}
+                        data-testid="secret-delete"
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+      <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
+        <DialogContent data-testid="secrets-create-dialog">
+          <DialogHeader>
+            <DialogTitle data-testid="secrets-create-title">Add secret</DialogTitle>
+            <DialogDescription data-testid="secrets-create-description">
+              Register a secret and link it to a provider.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              label="Title"
+              value={createTitle}
+              onChange={(event) => {
+                setCreateTitle(event.target.value);
+                if (createTitleError) setCreateTitleError('');
+              }}
+              error={createTitleError}
+              data-testid="secrets-create-title-input"
+            />
+            <Input
+              label="Description"
+              value={createDescription}
+              onChange={(event) => setCreateDescription(event.target.value)}
+              data-testid="secrets-create-description-input"
+            />
+            <div className="space-y-2">
+              <div className="text-sm text-[var(--agyn-dark)]">Secret Provider</div>
+              <Select
+                value={createProviderId}
+                onValueChange={(value) => {
+                  setCreateProviderId(value);
+                  if (createProviderError) setCreateProviderError('');
+                }}
+              >
+                <SelectTrigger data-testid="secrets-create-provider">
+                  <SelectValue placeholder="Select provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(providersQuery.data?.secretProviders ?? []).map((provider) => {
+                    const providerId = provider.meta?.id;
+                    if (!providerId) return null;
+                    return (
+                      <SelectItem key={providerId} value={providerId}>
+                        {provider.title}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {createProviderError ? (
+                <div className="text-xs text-[var(--agyn-danger)]" data-testid="secrets-create-provider-error">
+                  {createProviderError}
+                </div>
+              ) : null}
+            </div>
+            <Input
+              label="Remote Name"
+              placeholder="secret/data/my-secret"
+              value={createRemoteName}
+              onChange={(event) => {
+                setCreateRemoteName(event.target.value);
+                if (createRemoteError) setCreateRemoteError('');
+              }}
+              error={createRemoteError}
+              data-testid="secrets-create-remote"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" data-testid="secrets-create-cancel">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleCreate}
+              disabled={createSecretMutation.isPending}
+              data-testid="secrets-create-submit"
+            >
+              {createSecretMutation.isPending ? 'Adding...' : 'Add secret'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
+        <DialogContent data-testid="secrets-edit-dialog">
+          <DialogHeader>
+            <DialogTitle data-testid="secrets-edit-title">Edit secret</DialogTitle>
+            <DialogDescription data-testid="secrets-edit-description">
+              Update secret metadata and provider settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              label="Title"
+              value={editTitle}
+              onChange={(event) => {
+                setEditTitle(event.target.value);
+                if (editTitleError) setEditTitleError('');
+              }}
+              error={editTitleError}
+              data-testid="secrets-edit-title-input"
+            />
+            <Input
+              label="Description"
+              value={editDescription}
+              onChange={(event) => setEditDescription(event.target.value)}
+              data-testid="secrets-edit-description-input"
+            />
+            <div className="space-y-2">
+              <div className="text-sm text-[var(--agyn-dark)]">Secret Provider</div>
+              <Select
+                value={editProviderId}
+                onValueChange={(value) => {
+                  setEditProviderId(value);
+                  if (editProviderError) setEditProviderError('');
+                }}
+              >
+                <SelectTrigger data-testid="secrets-edit-provider">
+                  <SelectValue placeholder="Select provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(providersQuery.data?.secretProviders ?? []).map((provider) => {
+                    const providerId = provider.meta?.id;
+                    if (!providerId) return null;
+                    return (
+                      <SelectItem key={providerId} value={providerId}>
+                        {provider.title}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {editProviderError ? (
+                <div className="text-xs text-[var(--agyn-danger)]" data-testid="secrets-edit-provider-error">
+                  {editProviderError}
+                </div>
+              ) : null}
+            </div>
+            <Input
+              label="Remote Name"
+              placeholder="secret/data/my-secret"
+              value={editRemoteName}
+              onChange={(event) => {
+                setEditRemoteName(event.target.value);
+                if (editRemoteError) setEditRemoteError('');
+              }}
+              error={editRemoteError}
+              data-testid="secrets-edit-remote"
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" data-testid="secrets-edit-cancel">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleEditSave}
+              disabled={updateSecretMutation.isPending}
+              data-testid="secrets-edit-submit"
+            >
+              {updateSecretMutation.isPending ? 'Saving...' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={Boolean(deleteTargetId)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTargetId(null);
+          }
+        }}
+        title="Delete secret"
+        description="This will permanently remove the secret."
+        confirmLabel="Delete secret"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteTargetId) {
+            deleteSecretMutation.mutate(deleteTargetId);
+          }
+        }}
+        isPending={deleteSecretMutation.isPending}
+      />
     </div>
   );
 }
