@@ -1,4 +1,3 @@
-import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,13 +5,9 @@ import { formatDateOnly } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationAppsTab() {
-  const { id } = useParams();
-  const organizationId = id ?? '';
-
   const appsQuery = useQuery({
-    queryKey: ['apps', organizationId, 'installations'],
-    queryFn: () => appsClient.listInstallations({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    enabled: Boolean(organizationId),
+    queryKey: ['apps', 'list'],
+    queryFn: () => appsClient.listApps({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -25,7 +20,9 @@ export function OrganizationAppsTab() {
         <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-apps-heading">
           Apps
         </h3>
-        <p className="text-sm text-[var(--agyn-gray)]">Apps installed in this organization.</p>
+        <p className="text-sm text-[var(--agyn-gray)]" data-testid="organization-apps-scope">
+          Cluster-wide apps shared across organizations.
+        </p>
       </div>
       {appsQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading apps...</div> : null}
       {appsQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load apps.</div> : null}

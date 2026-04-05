@@ -61,13 +61,12 @@ export function OrganizationOverviewTab() {
     refetchOnWindowFocus: false,
   });
 
-  const summary: Array<{ label: string; value: number | string }> = [
+  const summary: Array<{ label: string; value: number }> = [
     { label: 'Active members', value: membersQuery.data?.memberships.length ?? 0 },
     { label: 'Agents', value: agentsQuery.data?.agents.length ?? 0 },
     { label: 'Secret providers', value: providersQuery.data?.secretProviders.length ?? 0 },
     { label: 'Secrets', value: secretsQuery.data?.secrets.length ?? 0 },
     { label: 'Runners', value: runnersQuery.data?.runners.length ?? 0 },
-    { label: 'Active workloads', value: '—' },
   ];
 
   return (

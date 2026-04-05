@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { organizationsClient, usersClient } from '@/api/client';
@@ -67,9 +67,20 @@ export function UsersListPage() {
     })),
   });
 
+  const membershipsQueriesRef = useRef(membershipsQueries);
+  membershipsQueriesRef.current = membershipsQueries;
+
+  const membershipsKey = membershipsQueries
+    .flatMap((query) => query.data?.memberships ?? [])
+    .map((membership) => membership.id || `${membership.organizationId}:${membership.identityId}`)
+    .join('|');
+
   const memberships = useMemo(
-    () => membershipsQueries.flatMap((query) => query.data?.memberships ?? []),
-    [membershipsQueries],
+    () => {
+      void membershipsKey;
+      return membershipsQueriesRef.current.flatMap((query) => query.data?.memberships ?? []);
+    },
+    [membershipsKey],
   );
 
   const orgNameMap = useMemo(

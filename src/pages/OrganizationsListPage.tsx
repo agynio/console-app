@@ -33,7 +33,6 @@ export function OrganizationsListPage() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [orgName, setOrgName] = useState('');
-  const [orgDescription, setOrgDescription] = useState('');
   const [orgNameError, setOrgNameError] = useState('');
 
   const createOrganizationMutation = useMutation({
@@ -45,7 +44,6 @@ export function OrganizationsListPage() {
       void queryClient.invalidateQueries({ queryKey: ['organizations', 'list'] });
       setCreateOpen(false);
       setOrgName('');
-      setOrgDescription('');
       setOrgNameError('');
     },
     onError: (err) => {
@@ -67,7 +65,6 @@ export function OrganizationsListPage() {
     setCreateOpen(open);
     if (!open) {
       setOrgName('');
-      setOrgDescription('');
       setOrgNameError('');
     }
   };
@@ -154,7 +151,7 @@ export function OrganizationsListPage() {
           <DialogHeader>
             <DialogTitle data-testid="organizations-create-title">Create organization</DialogTitle>
             <DialogDescription data-testid="organizations-create-description">
-              Set the organization name and optional description.
+              Set the organization name.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -168,13 +165,6 @@ export function OrganizationsListPage() {
               }}
               error={orgNameError}
               data-testid="organizations-create-name"
-            />
-            <Input
-              label="Description (optional)"
-              placeholder="Customer support automations"
-              value={orgDescription}
-              onChange={(event) => setOrgDescription(event.target.value)}
-              data-testid="organizations-create-description-input"
             />
           </div>
           <DialogFooter>
