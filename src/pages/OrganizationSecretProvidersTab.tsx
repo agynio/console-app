@@ -292,7 +292,7 @@ export function OrganizationSecretProvidersTab() {
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load secret providers.</div>
       ) : null}
       {providers.length === 0 && !providersQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-secret-providers-empty">
+        <Card className="border-[var(--agyn-border-subtle)]" data-testid="secret-providers-empty">
           <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
             No secret providers configured.
           </CardContent>
@@ -319,7 +319,7 @@ export function OrganizationSecretProvidersTab() {
                   <div
                     key={provider.meta?.id ?? provider.title}
                     className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
-                    data-testid="organization-secret-provider-row"
+                    data-testid="secret-provider-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="organization-secret-provider-title">

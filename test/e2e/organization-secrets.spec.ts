@@ -13,8 +13,9 @@ test('shows empty secrets tab initially', async ({ page }) => {
   await setSelectedOrganization(page, organizationId);
   await clearOrganizationSecrets(page, organizationId);
 
-  await page.goto(`/organizations/${organizationId}/secrets`);
+  await page.goto(`/organizations/${organizationId}/secret-providers`);
   await expect(page.getByTestId('secret-providers-empty')).toBeVisible({ timeout: 15000 });
+  await page.goto(`/organizations/${organizationId}/secrets`);
   await expect(page.getByTestId('secrets-empty')).toBeVisible({ timeout: 15000 });
 });
 
@@ -36,8 +37,9 @@ test('shows secret providers and secrets', async ({ page }) => {
     organizationId,
   });
 
-  await page.goto(`/organizations/${organizationId}/secrets`);
+  await page.goto(`/organizations/${organizationId}/secret-providers`);
   await expect(page.getByTestId('secret-provider-row').filter({ hasText: providerName })).toBeVisible({ timeout: 15000 });
+  await page.goto(`/organizations/${organizationId}/secrets`);
   await expect(page.getByTestId('secret-row').filter({ hasText: secretName })).toBeVisible({ timeout: 15000 });
   await argosScreenshot(page, 'organization-secrets-list');
 });
