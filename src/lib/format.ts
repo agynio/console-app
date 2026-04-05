@@ -1,5 +1,6 @@
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { RunnerStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
@@ -54,6 +55,12 @@ export function formatRunnerStatus(status: RunnerStatus): string {
   if (status === RunnerStatus.ENROLLED) return 'Enrolled';
   if (status === RunnerStatus.PENDING) return 'Pending';
   if (status === RunnerStatus.OFFLINE) return 'Offline';
+  return 'Unspecified';
+}
+
+export function formatAppVisibility(visibility: AppVisibility): string {
+  if (visibility === AppVisibility.PUBLIC) return 'Public';
+  if (visibility === AppVisibility.INTERNAL) return 'Internal';
   return 'Unspecified';
 }
 
