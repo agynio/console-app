@@ -38,10 +38,15 @@ export function OrganizationSecretsTab() {
     refetchOnWindowFocus: false,
   });
 
-  const providerMap = useMemo(
-    () => new Map((providersQuery.data?.secretProviders ?? []).map((provider) => [provider.meta?.id ?? '', provider])),
-    [providersQuery.data?.secretProviders],
-  );
+  const providerMap = useMemo(() => {
+    const providers = providersQuery.data?.secretProviders ?? [];
+    return new Map(
+      providers.flatMap((provider) => {
+        const providerId = provider.meta?.id;
+        return providerId ? ([[providerId, provider]] as const) : [];
+      }),
+    );
+  }, [providersQuery.data?.secretProviders]);
 
   const isLoading = providersQuery.isPending || secretsQuery.isPending;
   const isError = providersQuery.isError || secretsQuery.isError;

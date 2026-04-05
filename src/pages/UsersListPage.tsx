@@ -102,7 +102,7 @@ export function UsersListPage() {
 
   const users = useMemo(() => usersQuery.data?.users ?? [], [usersQuery.data?.users]);
   const identityIds = useMemo(() => {
-    const ids = users.map((user) => user.meta?.id ?? '').filter(Boolean);
+    const ids = users.flatMap((user) => (user.meta?.id ? [user.meta.id] : []));
     return Array.from(new Set(ids));
   }, [users]);
 
@@ -294,15 +294,16 @@ export function UsersListPage() {
               <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]">No users found.</div>
             ) : (
               users.map((user) => {
-                const identityId = user.meta?.id ?? '';
+                const identityId = user.meta?.id;
                 const canView = Boolean(identityId);
-                const memberships = orgsByUser.get(identityId) ?? [];
-                const roleValue = clusterRoleMap.get(identityId);
-                const roleIndex = identityIndexMap.get(identityId);
+                const memberships = identityId ? orgsByUser.get(identityId) ?? [] : [];
+                const roleValue = identityId ? clusterRoleMap.get(identityId) : undefined;
+                const roleIndex = identityId ? identityIndexMap.get(identityId) : undefined;
                 const isRoleLoading = roleIndex !== undefined ? clusterRoleQueries[roleIndex]?.isPending ?? false : false;
+                const rowKey = identityId ?? user.email ?? user.name ?? 'user';
                 return (
                   <div
-                    key={identityId}
+                    key={rowKey}
                     className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1.5fr_2fr_1fr_120px]"
                     data-testid="users-row"
                   >

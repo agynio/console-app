@@ -61,35 +61,44 @@ export function RunnersListPage() {
             {runners.length === 0 ? (
               <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]">No cluster runners yet.</div>
             ) : (
-              runners.map((runner) => (
-                <div
-                  key={runner.meta?.id ?? runner.name}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_2fr_120px]"
-                  data-testid="runners-row"
-                >
-                  <div>
-                    <div className="font-medium" data-testid="runners-name">
-                      {runner.name}
+              runners.map((runner) => {
+                const runnerId = runner.meta?.id;
+                return (
+                  <div
+                    key={runner.meta?.id ?? runner.name}
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_2fr_120px]"
+                    data-testid="runners-row"
+                  >
+                    <div>
+                      <div className="font-medium" data-testid="runners-name">
+                        {runner.name}
+                      </div>
+                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="runners-id">
+                        {runner.meta?.id}
+                      </div>
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="runners-id">
-                      {runner.meta?.id}
+                    <Badge variant="secondary" data-testid="runners-status">
+                      {formatRunnerStatus(runner.status)}
+                    </Badge>
+                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="runners-labels">
+                      {formatLabelPairs(runner.labels)}
+                    </span>
+                    <div className="text-right">
+                      {runnerId ? (
+                        <Button variant="outline" size="sm" asChild>
+                          <NavLink to={`/runners/${runnerId}`} data-testid="runners-view">
+                            View
+                          </NavLink>
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" disabled data-testid="runners-view">
+                          View
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <Badge variant="secondary" data-testid="runners-status">
-                    {formatRunnerStatus(runner.status)}
-                  </Badge>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="runners-labels">
-                    {formatLabelPairs(runner.labels)}
-                  </span>
-                  <div className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <NavLink to={`/runners/${runner.meta?.id ?? ''}`} data-testid="runners-view">
-                        View
-                      </NavLink>
-                    </Button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </CardContent>

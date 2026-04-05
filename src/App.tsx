@@ -6,6 +6,8 @@ import { OrganizationsListPage } from '@/pages/OrganizationsListPage';
 import { OrganizationDetailLayout } from '@/pages/OrganizationDetailLayout';
 import { OrganizationMembersTab } from '@/pages/OrganizationMembersTab';
 import { OrganizationAgentsTab } from '@/pages/OrganizationAgentsTab';
+import { AgentCreatePage } from '@/pages/AgentCreatePage';
+import { AgentDetailPage } from '@/pages/AgentDetailPage';
 import { OrganizationAppsTab } from '@/pages/OrganizationAppsTab';
 import { OrganizationLlmProvidersTab } from '@/pages/OrganizationLlmProvidersTab';
 import { OrganizationModelsTab } from '@/pages/OrganizationModelsTab';
@@ -45,6 +47,8 @@ export default function App() {
         >
           <Route index element={<OrganizationOverviewTab />} />
           <Route path="members" element={<OrganizationMembersTab />} />
+          <Route path="agents/new" element={<AgentCreatePage />} />
+          <Route path="agents/:agentId" element={<AgentDetailPage />} />
           <Route path="agents" element={<OrganizationAgentsTab />} />
           <Route path="volumes" element={<OrganizationVolumesTab />} />
           <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
