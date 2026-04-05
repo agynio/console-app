@@ -1,19 +1,169 @@
+import { useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { usersClient } from '@/api/client';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { organizationsClient, usersClient } from '@/api/client';
 import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
+import { formatClusterRole, formatMembershipRole } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { toast } from 'sonner';
 
 export function UsersListPage() {
+  const queryClient = useQueryClient();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [oidcSubject, setOidcSubject] = useState('');
+  const [name, setName] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [clusterRole, setClusterRole] = useState<ClusterRole>(ClusterRole.UNSPECIFIED);
+  const [oidcError, setOidcError] = useState('');
+
   const usersQuery = useQuery({
     queryKey: ['users', 'list'],
     queryFn: () => usersClient.listUsers({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    staleTime: 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const users = usersQuery.data?.users ?? [];
+  const organizationsQuery = useQuery({
+    queryKey: ['organizations', 'list'],
+    queryFn: () => organizationsClient.listOrganizations({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const organizations = useMemo(
+    () => organizationsQuery.data?.organizations ?? [],
+    [organizationsQuery.data?.organizations],
+  );
+
+  const membershipsQueries = useQueries({
+    queries: organizations.map((org) => ({
+      queryKey: ['organizations', org.id, 'members', 'users-list'],
+      queryFn: () =>
+        organizationsClient.listMembers({
+          organizationId: org.id,
+          status: MembershipStatus.ACTIVE,
+          pageSize: MAX_PAGE_SIZE,
+          pageToken: '',
+        }),
+      enabled: Boolean(org.id),
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    })),
+  });
+
+  const memberships = useMemo(
+    () => membershipsQueries.flatMap((query) => query.data?.memberships ?? []),
+    [membershipsQueries],
+  );
+
+  const orgNameMap = useMemo(
+    () => new Map(organizations.map((org) => [org.id, org.name])),
+    [organizations],
+  );
+
+  const orgsByUser = useMemo(() => {
+    const map = new Map<string, string[]>();
+    memberships.forEach((membership) => {
+      const orgName = orgNameMap.get(membership.organizationId) ?? membership.organizationId;
+      const role = formatMembershipRole(membership.role);
+      const entry = `${orgName} (${role})`;
+      const current = map.get(membership.identityId) ?? [];
+      map.set(membership.identityId, [...current, entry]);
+    });
+    return map;
+  }, [memberships, orgNameMap]);
+
+  const users = useMemo(() => usersQuery.data?.users ?? [], [usersQuery.data?.users]);
+  const identityIds = useMemo(() => {
+    const ids = users.map((user) => user.meta?.id ?? '').filter(Boolean);
+    return Array.from(new Set(ids));
+  }, [users]);
+
+  const clusterRoleQueries = useQueries({
+    queries: identityIds.map((identityId) => ({
+      queryKey: ['users', identityId, 'detail'],
+      queryFn: () => usersClient.getUser({ identityId }),
+      enabled: Boolean(identityId),
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    })),
+  });
+
+  const identityIndexMap = useMemo(
+    () => new Map(identityIds.map((identityId, index) => [identityId, index])),
+    [identityIds],
+  );
+
+  const clusterRoleMap = useMemo(() => {
+    const map = new Map<string, ClusterRole>();
+    identityIds.forEach((identityId, index) => {
+      const role = clusterRoleQueries[index]?.data?.clusterRole;
+      if (role !== undefined) {
+        map.set(identityId, role);
+      }
+    });
+    return map;
+  }, [clusterRoleQueries, identityIds]);
+
+  const createUserMutation = useMutation({
+    mutationFn: (payload: {
+      oidcSubject: string;
+      name?: string;
+      nickname?: string;
+      photoUrl?: string;
+      clusterRole: ClusterRole;
+    }) => usersClient.createUser(payload),
+    onSuccess: () => {
+      toast.success('User created.');
+      void queryClient.invalidateQueries({ queryKey: ['users', 'list'] });
+      setCreateOpen(false);
+      setOidcSubject('');
+      setName('');
+      setNickname('');
+      setPhotoUrl('');
+      setClusterRole(ClusterRole.UNSPECIFIED);
+      setOidcError('');
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create user.');
+    },
+  });
+
+  const handleCreateUser = () => {
+    const trimmedOidc = oidcSubject.trim();
+    if (!trimmedOidc) {
+      setOidcError('OIDC subject is required.');
+      return;
+    }
+    setOidcError('');
+    createUserMutation.mutate({
+      oidcSubject: trimmedOidc,
+      clusterRole,
+      name: name.trim() || undefined,
+      nickname: nickname.trim() || undefined,
+      photoUrl: photoUrl.trim() || undefined,
+    });
+  };
+
+  const isMembershipsLoading = organizationsQuery.isPending || membershipsQueries.some((query) => query.isPending);
+  const isMembershipsError = organizationsQuery.isError || membershipsQueries.some((query) => query.isError);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -23,7 +173,7 @@ export function UsersListPage() {
           </h2>
           <p className="text-sm text-[var(--agyn-gray)]">Manage platform users.</p>
         </div>
-        <Button variant="outline" size="sm" data-testid="users-create-button">
+        <Button variant="outline" size="sm" data-testid="users-create-button" onClick={() => setCreateOpen(true)}>
           Create user
         </Button>
       </div>
@@ -34,15 +184,98 @@ export function UsersListPage() {
       {usersQuery.isError && (
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load users.</div>
       )}
+      {isMembershipsError && (
+        <div className="text-sm text-[var(--agyn-gray)]">Failed to load organization memberships.</div>
+      )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent data-testid="users-create-dialog">
+          <DialogHeader>
+            <DialogTitle data-testid="users-create-title">Create user</DialogTitle>
+            <DialogDescription data-testid="users-create-description">
+              Add a new user by OIDC subject and profile details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              label="OIDC Subject"
+              placeholder="auth0|abc123"
+              value={oidcSubject}
+              onChange={(event) => {
+                setOidcSubject(event.target.value);
+                if (oidcError) setOidcError('');
+              }}
+              error={oidcError}
+              data-testid="users-create-oidc"
+            />
+            <Input
+              label="Name"
+              placeholder="Jane Doe"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              data-testid="users-create-name"
+            />
+            <Input
+              label="Nickname"
+              placeholder="jane"
+              value={nickname}
+              onChange={(event) => setNickname(event.target.value)}
+              data-testid="users-create-nickname"
+            />
+            <Input
+              label="Photo URL"
+              placeholder="https://..."
+              value={photoUrl}
+              onChange={(event) => setPhotoUrl(event.target.value)}
+              data-testid="users-create-photo-url"
+            />
+            <div className="space-y-2">
+              <div className="text-sm text-[var(--agyn-dark)]">Cluster Role</div>
+              <Select
+                value={clusterRole === ClusterRole.ADMIN ? 'admin' : 'none'}
+                onValueChange={(value) =>
+                  setClusterRole(value === 'admin' ? ClusterRole.ADMIN : ClusterRole.UNSPECIFIED)
+                }
+              >
+                <SelectTrigger data-testid="users-create-cluster-role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" data-testid="users-create-cancel" disabled={createUserMutation.isPending}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleCreateUser}
+              disabled={createUserMutation.isPending}
+              data-testid="users-create-submit"
+            >
+              {createUserMutation.isPending ? 'Creating...' : 'Create user'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="border-[var(--agyn-border-subtle)]" data-testid="users-table">
         <CardContent className="px-0">
           <div
-            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_2fr_120px]"
+            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1.5fr_2fr_1fr_120px]"
             data-testid="users-header"
           >
             <span>User</span>
             <span>Identity ID</span>
+            <span>Organizations</span>
+            <span>Cluster Admin</span>
             <span className="text-right">Action</span>
           </div>
           <div className="divide-y divide-[var(--agyn-border-subtle)]">
@@ -52,10 +285,14 @@ export function UsersListPage() {
               users.map((user) => {
                 const identityId = user.meta?.id ?? '';
                 const canView = Boolean(identityId);
+                const memberships = orgsByUser.get(identityId) ?? [];
+                const roleValue = clusterRoleMap.get(identityId);
+                const roleIndex = identityIndexMap.get(identityId);
+                const isRoleLoading = roleIndex !== undefined ? clusterRoleQueries[roleIndex]?.isPending ?? false : false;
                 return (
                   <div
                     key={identityId}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_2fr_120px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1.5fr_2fr_1fr_120px]"
                     data-testid="users-row"
                   >
                     <div>
@@ -67,6 +304,21 @@ export function UsersListPage() {
                       </div>
                     </div>
                     <div className="text-xs text-[var(--agyn-gray)]">{identityId || '—'}</div>
+                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="users-organizations">
+                      {isMembershipsLoading ? 'Loading...' : memberships.length > 0 ? memberships.join(', ') : '—'}
+                    </div>
+                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="users-cluster-role">
+                      {isRoleLoading ? (
+                        'Loading...'
+                      ) : (
+                        <Badge
+                          variant={roleValue === ClusterRole.ADMIN ? 'default' : 'outline'}
+                          data-testid="users-cluster-role-badge"
+                        >
+                          {formatClusterRole(roleValue ?? ClusterRole.UNSPECIFIED)}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="text-right">
                       {canView ? (
                         <Button variant="outline" size="sm" asChild>

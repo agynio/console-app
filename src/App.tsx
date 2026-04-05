@@ -5,19 +5,21 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { OrganizationsListPage } from '@/pages/OrganizationsListPage';
 import { OrganizationDetailLayout } from '@/pages/OrganizationDetailLayout';
 import { OrganizationMembersTab } from '@/pages/OrganizationMembersTab';
+import { OrganizationAgentsTab } from '@/pages/OrganizationAgentsTab';
+import { OrganizationAppsTab } from '@/pages/OrganizationAppsTab';
+import { OrganizationLlmProvidersTab } from '@/pages/OrganizationLlmProvidersTab';
+import { OrganizationModelsTab } from '@/pages/OrganizationModelsTab';
+import { OrganizationMonitoringTab } from '@/pages/OrganizationMonitoringTab';
 import { OrganizationOverviewTab } from '@/pages/OrganizationOverviewTab';
 import { OrganizationRunnersTab } from '@/pages/OrganizationRunnersTab';
 import { OrganizationSecretsTab } from '@/pages/OrganizationSecretsTab';
+import { OrganizationVolumesTab } from '@/pages/OrganizationVolumesTab';
 import { UsersListPage } from '@/pages/UsersListPage';
 import { UserDetailPage } from '@/pages/UserDetailPage';
 import { RunnersListPage } from '@/pages/RunnersListPage';
 import { RunnerDetailPage } from '@/pages/RunnerDetailPage';
 import { SettingsPage } from '@/pages/SettingsPage';
-import { AgentsPage } from '@/pages/AgentsPage';
 import { AppsPage } from '@/pages/AppsPage';
-import { LlmPage } from '@/pages/LlmPage';
-import { MonitoringPage } from '@/pages/MonitoringPage';
-import { VolumesPage } from '@/pages/VolumesPage';
 import { ApiTokensPage } from '@/pages/ApiTokensPage';
 
 export default function App() {
@@ -43,8 +45,14 @@ export default function App() {
         >
           <Route index element={<OrganizationOverviewTab />} />
           <Route path="members" element={<OrganizationMembersTab />} />
+          <Route path="agents" element={<OrganizationAgentsTab />} />
+          <Route path="volumes" element={<OrganizationVolumesTab />} />
+          <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
+          <Route path="models" element={<OrganizationModelsTab />} />
           <Route path="secrets" element={<OrganizationSecretsTab />} />
           <Route path="runners" element={<OrganizationRunnersTab />} />
+          <Route path="apps" element={<OrganizationAppsTab />} />
+          <Route path="monitoring" element={<OrganizationMonitoringTab />} />
         </Route>
         <Route
           path="users"
@@ -55,42 +63,10 @@ export default function App() {
           }
         />
         <Route
-          path="agents"
-          element={
-            <RequireClusterAdmin>
-              <AgentsPage />
-            </RequireClusterAdmin>
-          }
-        />
-        <Route
           path="apps"
           element={
             <RequireClusterAdmin>
               <AppsPage />
-            </RequireClusterAdmin>
-          }
-        />
-        <Route
-          path="llm"
-          element={
-            <RequireClusterAdmin>
-              <LlmPage />
-            </RequireClusterAdmin>
-          }
-        />
-        <Route
-          path="monitoring"
-          element={
-            <RequireClusterAdmin>
-              <MonitoringPage />
-            </RequireClusterAdmin>
-          }
-        />
-        <Route
-          path="volumes"
-          element={
-            <RequireClusterAdmin>
-              <VolumesPage />
             </RequireClusterAdmin>
           }
         />

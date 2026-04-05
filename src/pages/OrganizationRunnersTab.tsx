@@ -1,28 +1,117 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { LabelsEditor } from '@/components/LabelsEditor';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
+import { createLabelEntry, entriesToLabels, type LabelEntry } from '@/lib/labels';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { toast } from 'sonner';
 
 export function OrganizationRunnersTab() {
   const { id } = useParams();
   const organizationId = id ?? '';
+  const queryClient = useQueryClient();
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [runnerName, setRunnerName] = useState('');
+  const [runnerNameError, setRunnerNameError] = useState('');
+  const [labelEntries, setLabelEntries] = useState<LabelEntry[]>([createLabelEntry()]);
+  const [serviceToken, setServiceToken] = useState('');
 
   const runnersQuery = useQuery({
     queryKey: ['runners', organizationId, 'list'],
     queryFn: () => runnersClient.listRunners({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
-    staleTime: 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
+  const registerRunnerMutation = useMutation({
+    mutationFn: (payload: { name: string; labels: Record<string, string> }) =>
+      runnersClient.registerRunner({ ...payload, organizationId }),
+    onSuccess: (response) => {
+      setServiceToken(response.serviceToken);
+      void queryClient.invalidateQueries({ queryKey: ['runners', organizationId, 'list'] });
+      toast.success('Runner enrolled.');
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to enroll runner.');
+    },
+  });
+
+  const resetEnrollState = () => {
+    setRunnerName('');
+    setRunnerNameError('');
+    setLabelEntries([createLabelEntry()]);
+    setServiceToken('');
+  };
+
+  const closeEnrollDialog = () => {
+    setEnrollOpen(false);
+    resetEnrollState();
+  };
+
+  const handleEnrollOpenChange = (open: boolean) => {
+    if (!open && serviceToken) return;
+    if (open) {
+      setEnrollOpen(true);
+      return;
+    }
+    closeEnrollDialog();
+  };
+
+  const handleEnrollRunner = () => {
+    const trimmedName = runnerName.trim();
+    if (!trimmedName) {
+      setRunnerNameError('Runner name is required.');
+      return;
+    }
+    setRunnerNameError('');
+    registerRunnerMutation.mutate({ name: trimmedName, labels: entriesToLabels(labelEntries) });
+  };
+
+  const handleCopyToken = async () => {
+    try {
+      await navigator.clipboard.writeText(serviceToken);
+      toast.success('Token copied to clipboard.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to copy token.');
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Runners</h3>
-        <p className="text-sm text-[var(--agyn-gray)]">Organization-scoped runners.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3
+            className="text-lg font-semibold text-[var(--agyn-dark)]"
+            data-testid="organization-runners-heading"
+          >
+            Runners
+          </h3>
+          <p className="text-sm text-[var(--agyn-gray)]">Organization-scoped runners.</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setEnrollOpen(true)}
+          data-testid="organization-runners-enroll"
+        >
+          Enroll runner
+        </Button>
       </div>
       {runnersQuery.isPending ? (
         <div className="text-sm text-[var(--agyn-gray)]">Loading runners...</div>
@@ -30,9 +119,12 @@ export function OrganizationRunnersTab() {
       {runnersQuery.isError ? (
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load runners.</div>
       ) : null}
-      <Card className="border-[var(--agyn-border-subtle)]">
+      <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-runners-table">
         <CardContent className="px-0">
-          <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_2fr]">
+          <div
+            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_2fr]"
+            data-testid="organization-runners-header"
+          >
             <span>Runner</span>
             <span>Status</span>
             <span>Labels</span>
@@ -45,19 +137,116 @@ export function OrganizationRunnersTab() {
                 <div
                   key={runner.meta?.id ?? runner.name}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_2fr]"
+                  data-testid="organization-runner-row"
                 >
                   <div>
-                    <div className="font-medium">{runner.name}</div>
-                    <div className="text-xs text-[var(--agyn-gray)]">{runner.meta?.id}</div>
+                    <div className="font-medium" data-testid="organization-runner-name">
+                      {runner.name}
+                    </div>
+                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-runner-id">
+                      {runner.meta?.id}
+                    </div>
                   </div>
-                  <Badge variant="secondary">{formatRunnerStatus(runner.status)}</Badge>
-                  <span className="text-xs text-[var(--agyn-gray)]">{formatLabelPairs(runner.labels)}</span>
+                  <Badge variant="secondary" data-testid="organization-runner-status">
+                    {formatRunnerStatus(runner.status)}
+                  </Badge>
+                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-runner-labels">
+                    {formatLabelPairs(runner.labels)}
+                  </span>
                 </div>
               ))
             )}
           </div>
         </CardContent>
       </Card>
+      <Dialog open={enrollOpen} onOpenChange={handleEnrollOpenChange}>
+        <DialogContent data-testid="organization-runners-enroll-dialog">
+          <DialogHeader>
+            <DialogTitle data-testid="organization-runners-enroll-title">Enroll runner</DialogTitle>
+            <DialogDescription data-testid="organization-runners-enroll-description">
+              Register a new organization runner and copy its enrollment token.
+            </DialogDescription>
+          </DialogHeader>
+          {serviceToken ? (
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm font-medium text-[var(--agyn-dark)]" data-testid="organization-runners-token">
+                  Service token
+                </div>
+                <div
+                  className="mt-2 rounded-md border border-[var(--agyn-border-subtle)] bg-[var(--agyn-secondary)] p-3 text-xs font-mono text-[var(--agyn-dark)] break-all"
+                  data-testid="organization-runners-token-value"
+                >
+                  {serviceToken}
+                </div>
+              </div>
+              <p className="text-xs text-[var(--agyn-gray)]" data-testid="organization-runners-token-warning">
+                This token will not be shown again.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyToken}
+                  data-testid="organization-runners-token-copy"
+                >
+                  Copy token
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={closeEnrollDialog}
+                  data-testid="organization-runners-token-done"
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Input
+                label="Runner Name"
+                placeholder="org-runner-1"
+                value={runnerName}
+                onChange={(event) => {
+                  setRunnerName(event.target.value);
+                  if (runnerNameError) setRunnerNameError('');
+                }}
+                error={runnerNameError}
+                data-testid="organization-runners-enroll-name"
+              />
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-[var(--agyn-dark)]" data-testid="organization-runners-labels">
+                  Labels
+                </div>
+                <LabelsEditor
+                  value={labelEntries}
+                  onChange={setLabelEntries}
+                  testIdPrefix="organization-runners-enroll"
+                />
+              </div>
+            </div>
+          )}
+          {serviceToken ? null : (
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" size="sm" data-testid="organization-runners-enroll-cancel">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleEnrollRunner}
+                disabled={registerRunnerMutation.isPending}
+                data-testid="organization-runners-enroll-submit"
+              >
+                {registerRunnerMutation.isPending ? 'Enrolling...' : 'Enroll runner'}
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

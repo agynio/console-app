@@ -9,6 +9,7 @@ import { OrganizationsGateway } from '@/gen/agynio/api/gateway/v1/organizations_
 import { RunnersGateway } from '@/gen/agynio/api/gateway/v1/runners_pb';
 import { SecretsGateway } from '@/gen/agynio/api/gateway/v1/secrets_pb';
 import { UsersGateway } from '@/gen/agynio/api/gateway/v1/users_pb';
+import type { ListAppsRequest } from '@/gen/agynio/api/apps/v1/apps_pb';
 
 const transport = createConnectTransport({
   baseUrl: config.apiBaseUrl,
@@ -17,7 +18,15 @@ const transport = createConnectTransport({
 
 export const usersClient = createClient(UsersGateway, transport);
 export const agentsClient = createClient(AgentsGateway, transport);
-export const appsClient = createClient(AppsGateway, transport);
+const appsServiceClient = createClient(AppsGateway, transport);
+type ListInstallationsRequest = Omit<ListAppsRequest, '$typeName'> & { organizationId: string };
+type AppsClient = typeof appsServiceClient & {
+  listInstallations: (request: ListInstallationsRequest) => ReturnType<typeof appsServiceClient.listApps>;
+};
+export const appsClient: AppsClient = Object.assign(appsServiceClient, {
+  listInstallations: ({ organizationId: _organizationId, ...request }: ListInstallationsRequest) =>
+    appsServiceClient.listApps(request),
+});
 export const llmClient = createClient(LLMGateway, transport);
 export const organizationsClient = createClient(OrganizationsGateway, transport);
 export const runnersClient = createClient(RunnersGateway, transport);
