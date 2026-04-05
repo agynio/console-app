@@ -24,6 +24,7 @@ import { RunnerDetailPage } from '@/pages/RunnerDetailPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AppsPage } from '@/pages/AppsPage';
 import { ApiTokensPage } from '@/pages/ApiTokensPage';
+import { AppDetailPage } from '@/pages/AppDetailPage';
 
 export default function App() {
   return (
@@ -77,12 +78,16 @@ export default function App() {
           }
         />
         <Route
-          path="api-tokens"
+          path="apps/:appId"
           element={
             <RequireClusterAdmin>
-              <ApiTokensPage />
+              <AppDetailPage />
             </RequireClusterAdmin>
           }
+        />
+        <Route
+          path="api-tokens"
+          element={<ApiTokensPage />}
         />
         <Route
           path="users/:id"

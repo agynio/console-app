@@ -99,10 +99,6 @@ export function AppLayout() {
                 <BoxesIcon className="h-4 w-4" />
                 Apps
               </NavLink>
-              <NavLink to="/api-tokens" className={navLinkClass} data-testid="nav-api-tokens">
-                <KeyIcon className="h-4 w-4" />
-                API Tokens
-              </NavLink>
               <NavLink to="/runners" className={navLinkClass} data-testid="nav-cluster-runners">
                 <ServerIcon className="h-4 w-4" />
                 Cluster Runners
@@ -200,6 +196,10 @@ export function AppLayout() {
           </nav>
         </div>
         <div className="mt-auto space-y-4">
+          <NavLink to="/api-tokens" className={navLinkClass} data-testid="nav-api-tokens">
+            <KeyIcon className="h-4 w-4" />
+            API Tokens
+          </NavLink>
           <NavLink to="/settings" className={navLinkClass} data-testid="nav-settings">
             <SettingsIcon className="h-4 w-4" />
             Settings

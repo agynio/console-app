@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { agentsClient, organizationsClient, runnersClient, secretsClient } from '@/api/client';
+import { agentsClient, appsClient, organizationsClient, runnersClient, secretsClient } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -61,12 +61,22 @@ export function OrganizationOverviewTab() {
     refetchOnWindowFocus: false,
   });
 
+  const installationsQuery = useQuery({
+    queryKey: ['installations', organizationId, 'overview'],
+    queryFn: () =>
+      appsClient.listInstallations({ organizationId, appId: '', pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
   const summary: Array<{ label: string; value: number }> = [
     { label: 'Active members', value: membersQuery.data?.memberships.length ?? 0 },
     { label: 'Agents', value: agentsQuery.data?.agents.length ?? 0 },
     { label: 'Secret providers', value: providersQuery.data?.secretProviders.length ?? 0 },
     { label: 'Secrets', value: secretsQuery.data?.secrets.length ?? 0 },
     { label: 'Runners', value: runnersQuery.data?.runners.length ?? 0 },
+    { label: 'App installations', value: installationsQuery.data?.installations.length ?? 0 },
   ];
 
   return (
@@ -87,7 +97,8 @@ export function OrganizationOverviewTab() {
         providersQuery.isError ||
         secretsQuery.isError ||
         runnersQuery.isError ||
-        agentsQuery.isError) && (
+        agentsQuery.isError ||
+        installationsQuery.isError) && (
         <div className="text-sm text-[var(--agyn-gray)]">Failed to load organization metrics.</div>
       )}
     </div>
