@@ -3,6 +3,7 @@ import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { RunnerStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
+import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
 
 function toDate(timestamp: Timestamp): Date {
@@ -65,6 +66,11 @@ export function formatClusterRole(role?: ClusterRole): string {
 export function formatAuthMethod(method?: AuthMethod): string {
   if (method === AuthMethod.BEARER) return 'Bearer';
   if (method === AuthMethod.UNSPECIFIED) return 'Unspecified';
+  return 'Unspecified';
+}
+
+export function formatSecretProviderType(type: SecretProviderType): string {
+  if (type === SecretProviderType.VAULT) return 'Vault';
   return 'Unspecified';
 }
 
