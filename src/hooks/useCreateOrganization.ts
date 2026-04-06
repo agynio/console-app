@@ -32,8 +32,7 @@ export function useCreateOrganization(): UseCreateOrganizationResult {
     onSuccess: (response) => {
       const organizationId = response.organization?.id;
       if (!organizationId) {
-        toast.error('Failed to create organization.');
-        return;
+        throw new Error('createOrganization succeeded but returned no organization');
       }
       toast.success('Organization created.');
       void queryClient.invalidateQueries({ queryKey: ['organizations', 'accessible'] });

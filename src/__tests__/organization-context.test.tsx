@@ -33,11 +33,20 @@ vi.mock('@/context/UserContext', () => ({
 }));
 
 function ContextProbe() {
-  const { selectedOrganization, organizations } = useOrganizationContext();
+  const {
+    selectedOrganization,
+    organizations,
+    pendingMemberships,
+    pendingMembershipsCount,
+    hasConsoleAccess,
+  } = useOrganizationContext();
   return (
     <div>
       <div data-testid="selected">{selectedOrganization?.id ?? 'none'}</div>
       <div data-testid="count">{organizations.length}</div>
+      <div data-testid="pending-count">{pendingMembershipsCount}</div>
+      <div data-testid="pending-ids">{pendingMemberships.map((membership) => membership.id).join(',')}</div>
+      <div data-testid="has-console-access">{hasConsoleAccess ? 'true' : 'false'}</div>
     </div>
   );
 }
@@ -184,6 +193,80 @@ describe('OrganizationContext', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('count').textContent).toBe('2');
+    });
+  });
+
+  it('tracks pending membership count', async () => {
+    mockMemberships([], [
+      create(MembershipSchema, {
+        id: 'pending-1',
+        organizationId: 'org-1',
+        identityId: 'identity-1',
+        role: MembershipRole.MEMBER,
+        status: MembershipStatus.PENDING,
+      }),
+      create(MembershipSchema, {
+        id: 'pending-2',
+        organizationId: 'org-2',
+        identityId: 'identity-1',
+        role: MembershipRole.MEMBER,
+        status: MembershipStatus.PENDING,
+      }),
+    ]);
+
+    listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pending-count').textContent).toBe('2');
+    });
+  });
+
+  it('reports console access when only pending memberships exist', async () => {
+    mockMemberships([], [
+      create(MembershipSchema, {
+        id: 'pending-1',
+        organizationId: 'org-1',
+        identityId: 'identity-1',
+        role: MembershipRole.MEMBER,
+        status: MembershipStatus.PENDING,
+      }),
+    ]);
+
+    listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('has-console-access').textContent).toBe('true');
+    });
+  });
+
+  it('exposes pending memberships', async () => {
+    mockMemberships([], [
+      create(MembershipSchema, {
+        id: 'pending-1',
+        organizationId: 'org-1',
+        identityId: 'identity-1',
+        role: MembershipRole.OWNER,
+        status: MembershipStatus.PENDING,
+      }),
+      create(MembershipSchema, {
+        id: 'pending-2',
+        organizationId: 'org-2',
+        identityId: 'identity-1',
+        role: MembershipRole.MEMBER,
+        status: MembershipStatus.PENDING,
+      }),
+    ]);
+
+    listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pending-ids').textContent).toBe('pending-1,pending-2');
     });
   });
 });
