@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   ActivityIcon,
@@ -17,6 +18,7 @@ import {
 import { Toaster } from 'sonner';
 import { Button } from '@/components/Button';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
+import { PendingInvitesMenu } from '@/components/PendingInvitesMenu';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import { OrganizationSwitcher } from '@/components/OrganizationSwitcher';
@@ -37,9 +39,11 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 type NoAccessScreenProps = {
   onSignOut: () => void;
+  userMenu: ReactNode;
+  pendingMembershipsCount: number;
 };
 
-function NoAccessScreen({ onSignOut }: NoAccessScreenProps) {
+function NoAccessScreen({ onSignOut, userMenu, pendingMembershipsCount }: NoAccessScreenProps) {
   const {
     open,
     handleOpenChange,
@@ -52,32 +56,38 @@ function NoAccessScreen({ onSignOut }: NoAccessScreenProps) {
 
   return (
     <>
-      <div
-        className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] px-6"
-        data-testid="console-no-access"
-      >
-        <div className="max-w-lg rounded-xl border border-[var(--agyn-border-subtle)] bg-white p-8 text-center">
-          <h1 className="text-xl font-semibold text-[var(--agyn-dark)]">No organizations to manage</h1>
-          <p className="mt-2 text-sm text-[var(--agyn-gray)]">
-            Your account does not have console access yet. Contact a cluster admin or organization owner to
-            request access.
-          </p>
-          <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Button
-              size="sm"
-              onClick={() => handleOpenChange(true)}
-              data-testid="console-create-organization-button"
-            >
-              Create organization
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onSignOut}
-              data-testid="console-sign-out-button"
-            >
-              Sign out
-            </Button>
+      <div className="flex min-h-screen flex-col bg-[var(--agyn-bg-light)]">
+        <header className="flex items-center justify-end border-b border-[var(--agyn-border-subtle)] bg-white px-6 py-4">
+          {userMenu}
+        </header>
+        <div
+          className="flex flex-1 items-center justify-center bg-[var(--agyn-bg-light)] px-6"
+          data-testid="console-no-access"
+        >
+          <div className="max-w-lg rounded-xl border border-[var(--agyn-border-subtle)] bg-white p-8 text-center">
+            <h1 className="text-xl font-semibold text-[var(--agyn-dark)]">No organizations to manage</h1>
+            <p className="mt-2 text-sm text-[var(--agyn-gray)]">
+              {pendingMembershipsCount > 0
+                ? 'You have pending organization invites. Use the menu above to accept or decline them.'
+                : 'Your account does not have console access yet. Contact a cluster admin or organization owner to request access.'}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleOpenChange(true)}
+                data-testid="console-create-organization-button"
+              >
+                Create organization
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSignOut}
+                data-testid="console-sign-out-button"
+              >
+                Sign out
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -97,7 +107,8 @@ function NoAccessScreen({ onSignOut }: NoAccessScreenProps) {
 }
 
 export function AppLayout() {
-  const { selectedOrganization, hasConsoleAccess, status: orgStatus } = useOrganizationContext();
+  const { selectedOrganization, hasConsoleAccess, pendingMembershipsCount, status: orgStatus } =
+    useOrganizationContext();
   const { currentUser, isClusterAdmin, status: userStatus, error: userError, signOut } = useUserContext();
 
   if (userStatus === 'loading' || orgStatus === 'loading') {
@@ -116,8 +127,48 @@ export function AppLayout() {
     );
   }
 
+  const userMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="relative" data-testid="user-menu-trigger">
+          {currentUser?.name ?? 'Signed in'}
+          <ChevronDownIcon className="ml-2 h-4 w-4" />
+          {pendingMembershipsCount > 0 ? (
+            <span
+              className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--agyn-blue)] px-1 text-xs font-semibold text-white"
+              data-testid="pending-invites-badge"
+            >
+              {pendingMembershipsCount}
+            </span>
+          ) : null}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" data-testid="user-menu">
+        <DropdownMenuLabel data-testid="user-menu-name">{currentUser?.name ?? 'Signed in'}</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs text-[var(--agyn-gray)]" data-testid="user-menu-email">
+          {currentUser?.email ?? 'User profile'}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem disabled data-testid="user-menu-role">
+          Cluster role: {isClusterAdmin ? 'admin' : 'none'}
+        </DropdownMenuItem>
+        <PendingInvitesMenu />
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => signOut()} data-testid="user-menu-signout">
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   if (!hasConsoleAccess) {
-    return <NoAccessScreen onSignOut={signOut} />;
+    return (
+      <NoAccessScreen
+        onSignOut={signOut}
+        userMenu={userMenu}
+        pendingMembershipsCount={pendingMembershipsCount}
+      />
+    );
   }
 
   const origin = window.location.origin;
@@ -271,30 +322,7 @@ export function AppLayout() {
               </a>
             </Button>
             <OrganizationSwitcher />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" data-testid="user-menu-trigger">
-                  {currentUser?.name ?? 'Signed in'}
-                  <ChevronDownIcon className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" data-testid="user-menu">
-                <DropdownMenuLabel data-testid="user-menu-name">
-                  {currentUser?.name ?? 'Signed in'}
-                </DropdownMenuLabel>
-                <DropdownMenuLabel className="text-xs text-[var(--agyn-gray)]" data-testid="user-menu-email">
-                  {currentUser?.email ?? 'User profile'}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem disabled data-testid="user-menu-role">
-                  Cluster role: {isClusterAdmin ? 'admin' : 'none'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => signOut()} data-testid="user-menu-signout">
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {userMenu}
           </div>
         </header>
         <div className="flex-1 p-6">

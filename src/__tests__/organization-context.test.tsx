@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { useUserContext } from '@/context/UserContext';
 import { OrganizationProvider, useOrganizationContext } from '@/context/OrganizationContext';
 import {
+  type Membership,
   MembershipRole,
   MembershipStatus,
   MembershipSchema,
@@ -54,6 +55,15 @@ function renderWithProviders() {
   );
 }
 
+function mockMemberships(active: Membership[], pending: Membership[] = []) {
+  listMyMemberships.mockImplementation((request: { status?: MembershipStatus }) => {
+    if (request?.status === MembershipStatus.PENDING) {
+      return Promise.resolve({ memberships: pending });
+    }
+    return Promise.resolve({ memberships: active });
+  });
+}
+
 describe('OrganizationContext', () => {
   afterEach(() => {
     cleanup();
@@ -78,17 +88,15 @@ describe('OrganizationContext', () => {
   it('persists and restores the selected organization', async () => {
     window.localStorage.setItem('console.selectedOrganization', 'org-2');
 
-    listMyMemberships.mockResolvedValue({
-      memberships: [
-        create(MembershipSchema, {
-          id: 'membership-2',
-          organizationId: 'org-2',
-          identityId: 'identity-1',
-          role: MembershipRole.OWNER,
-          status: MembershipStatus.ACTIVE,
-        }),
-      ],
-    });
+    mockMemberships([
+      create(MembershipSchema, {
+        id: 'membership-2',
+        organizationId: 'org-2',
+        identityId: 'identity-1',
+        role: MembershipRole.OWNER,
+        status: MembershipStatus.ACTIVE,
+      }),
+    ]);
 
     listAccessibleOrganizations.mockResolvedValue({
       organizations: [
@@ -105,17 +113,15 @@ describe('OrganizationContext', () => {
   });
 
   it('auto-selects the first visible organization when none is stored', async () => {
-    listMyMemberships.mockResolvedValue({
-      memberships: [
-        create(MembershipSchema, {
-          id: 'membership-1',
-          organizationId: 'org-1',
-          identityId: 'identity-1',
-          role: MembershipRole.OWNER,
-          status: MembershipStatus.ACTIVE,
-        }),
-      ],
-    });
+    mockMemberships([
+      create(MembershipSchema, {
+        id: 'membership-1',
+        organizationId: 'org-1',
+        identityId: 'identity-1',
+        role: MembershipRole.OWNER,
+        status: MembershipStatus.ACTIVE,
+      }),
+    ]);
 
     listAccessibleOrganizations.mockResolvedValue({
       organizations: [
@@ -132,24 +138,22 @@ describe('OrganizationContext', () => {
   });
 
   it('filters visible organizations for non-admin users', async () => {
-    listMyMemberships.mockResolvedValue({
-      memberships: [
-        create(MembershipSchema, {
-          id: 'membership-1',
-          organizationId: 'org-1',
-          identityId: 'identity-1',
-          role: MembershipRole.OWNER,
-          status: MembershipStatus.ACTIVE,
-        }),
-        create(MembershipSchema, {
-          id: 'membership-2',
-          organizationId: 'org-2',
-          identityId: 'identity-1',
-          role: MembershipRole.MEMBER,
-          status: MembershipStatus.ACTIVE,
-        }),
-      ],
-    });
+    mockMemberships([
+      create(MembershipSchema, {
+        id: 'membership-1',
+        organizationId: 'org-1',
+        identityId: 'identity-1',
+        role: MembershipRole.OWNER,
+        status: MembershipStatus.ACTIVE,
+      }),
+      create(MembershipSchema, {
+        id: 'membership-2',
+        organizationId: 'org-2',
+        identityId: 'identity-1',
+        role: MembershipRole.MEMBER,
+        status: MembershipStatus.ACTIVE,
+      }),
+    ]);
 
     listAccessibleOrganizations.mockResolvedValue({
       organizations: [
@@ -168,7 +172,7 @@ describe('OrganizationContext', () => {
   it('exposes all accessible organizations for cluster admins', async () => {
     userContext.isClusterAdmin = true;
 
-    listMyMemberships.mockResolvedValue({ memberships: [] });
+    mockMemberships([]);
     listAccessibleOrganizations.mockResolvedValue({
       organizations: [
         create(OrganizationSchema, { id: 'org-1', name: 'Org One' }),

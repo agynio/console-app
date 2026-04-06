@@ -37,17 +37,15 @@ export function OrganizationsListPage() {
           </h2>
           <p className="text-sm text-[var(--agyn-gray)]">Manage organizations across the platform.</p>
         </div>
-        {isClusterAdmin ? (
-          <Button
-            variant="outline"
-            size="sm"
-            data-testid="organizations-create-button"
-            onClick={() => handleOpenChange(true)}
-          >
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Create organization
-          </Button>
-        ) : null}
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="organizations-create-button"
+          onClick={() => handleOpenChange(true)}
+        >
+          <PlusIcon className="mr-2 h-4 w-4" />
+          Create organization
+        </Button>
       </div>
 
       {status === 'loading' && (
@@ -113,7 +111,7 @@ export function OrganizationsListPage() {
         onOrganizationNameChange={handleNameChange}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
-        testIdPrefix="organizations-create"
+        testIdPrefix="create-organization"
       />
     </div>
   );

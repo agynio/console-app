@@ -20,6 +20,8 @@ export type OrganizationSummary = {
 type OrganizationContextValue = {
   organizations: OrganizationSummary[];
   memberships: Membership[];
+  pendingMemberships: Membership[];
+  pendingMembershipsCount: number;
   selectedOrganization: OrganizationSummary | null;
   status: 'loading' | 'ready' | 'error';
   error: Error | null;
@@ -80,6 +82,19 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: false,
   });
 
+  const pendingMembershipsQuery = useQuery({
+    queryKey: ['organizations', 'pendingMemberships'],
+    queryFn: () =>
+      organizationsClient.listMyMemberships({
+        status: MembershipStatus.PENDING,
+        pageSize: MAX_PAGE_SIZE,
+        pageToken: '',
+      }),
+    enabled: userStatus === 'ready' && Boolean(identityId),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   // Accessible orgs provide metadata even when memberships are filtered by status.
   const organizationsQuery = useQuery({
     queryKey: ['organizations', 'accessible', identityId],
@@ -92,6 +107,10 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const memberships = useMemo(
     () => membershipsQuery.data?.memberships ?? [],
     [membershipsQuery.data?.memberships],
+  );
+  const pendingMemberships = useMemo(
+    () => pendingMembershipsQuery.data?.memberships ?? [],
+    [pendingMembershipsQuery.data?.memberships],
   );
   const accessibleOrganizations = useMemo(
     () => organizationsQuery.data?.organizations ?? [],
@@ -132,19 +151,27 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedOrganization, selectedOrgId, userStatus, visibleOrganizations]);
 
-  const error = membershipsQuery.error ?? organizationsQuery.error ?? null;
+  const pendingMembershipsCount = pendingMemberships.length;
+
+  const error = membershipsQuery.error ?? pendingMembershipsQuery.error ?? organizationsQuery.error ?? null;
   const status: OrganizationContextValue['status'] =
-    userStatus === 'loading' || membershipsQuery.isPending || organizationsQuery.isPending
+    userStatus === 'loading' ||
+    membershipsQuery.isPending ||
+    pendingMembershipsQuery.isPending ||
+    organizationsQuery.isPending
       ? 'loading'
       : error
         ? 'error'
         : 'ready';
 
-  const hasConsoleAccess = isClusterAdmin || visibleOrganizations.length > 0;
+  const hasConsoleAccess =
+    isClusterAdmin || visibleOrganizations.length > 0 || pendingMemberships.length > 0;
 
   const value: OrganizationContextValue = {
     organizations: visibleOrganizations,
     memberships,
+    pendingMemberships,
+    pendingMembershipsCount,
     selectedOrganization,
     status,
     error,

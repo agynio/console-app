@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ConnectError } from '@connectrpc/connect';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { organizationsClient } from '@/api/client';
@@ -16,6 +17,7 @@ type UseCreateOrganizationResult = {
 
 export function useCreateOrganization(): UseCreateOrganizationResult {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [organizationName, setOrganizationName] = useState('');
   const [organizationNameError, setOrganizationNameError] = useState('');
@@ -27,13 +29,19 @@ export function useCreateOrganization(): UseCreateOrganizationResult {
 
   const createOrganizationMutation = useMutation({
     mutationFn: (payload: { name: string }) => organizationsClient.createOrganization(payload),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      const organizationId = response.organization?.id;
+      if (!organizationId) {
+        toast.error('Failed to create organization.');
+        return;
+      }
       toast.success('Organization created.');
       void queryClient.invalidateQueries({ queryKey: ['organizations', 'accessible'] });
       void queryClient.invalidateQueries({ queryKey: ['organizations', 'memberships'] });
       void queryClient.invalidateQueries({ queryKey: ['organizations', 'list'] });
       setOpen(false);
       resetState();
+      navigate(`/organizations/${organizationId}`);
     },
     onError: (error) => {
       if (error instanceof ConnectError) {
