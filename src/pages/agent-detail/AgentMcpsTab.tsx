@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -227,27 +228,27 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="agent-mcps-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-mcps-heading">
             MCPs
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Model context providers for this agent.</p>
+          <p className="text-sm text-muted-foreground">Model context providers for this agent.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="agent-mcps-create">
           Create MCP
         </Button>
       </div>
-      {mcpsQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading MCPs...</div> : null}
-      {mcpsQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load MCPs.</div> : null}
+      {mcpsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading MCPs...</div> : null}
+      {mcpsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load MCPs.</div> : null}
       {mcps.length === 0 && !mcpsQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-mcps-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">No MCPs configured.</CardContent>
+        <Card className="border-border" data-testid="agent-mcps-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">No MCPs configured.</CardContent>
         </Card>
       ) : null}
       {mcps.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-mcps-table">
+        <Card className="border-border" data-testid="agent-mcps-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[1fr_1fr_2fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_1fr_2fr_1fr_120px]"
               data-testid="agent-mcps-header"
             >
               <span>Name</span>
@@ -256,28 +257,28 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
               <span>Created</span>
               <span className="text-right">Manage</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {mcps.map((mcp) => (
                 <div
                   key={mcp.meta?.id ?? mcp.name}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[1fr_1fr_2fr_1fr_120px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_1fr_2fr_1fr_120px]"
                   data-testid="agent-mcp-row"
                 >
                   <div>
                     <div className="font-medium" data-testid="agent-mcp-name">
                       {mcp.name}
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="agent-mcp-description">
+                    <div className="text-xs text-muted-foreground" data-testid="agent-mcp-description">
                       {mcp.description || '—'}
                     </div>
                   </div>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-mcp-image">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-mcp-image">
                     {mcp.image || '—'}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-mcp-command">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-mcp-command">
                     {truncate(mcp.command)}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-mcp-created">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-mcp-created">
                     {formatDateOnly(mcp.meta?.createdAt)}
                   </span>
                   <div className="text-right">
@@ -319,40 +320,52 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Name"
-              value={createName}
-              onChange={(event) => {
-                setCreateName(event.target.value);
-                if (createNameError) setCreateNameError('');
-              }}
-              error={createNameError}
-              data-testid="agent-mcps-create-name"
-            />
-            <Input
-              label="Image"
-              value={createImage}
-              onChange={(event) => {
-                setCreateImage(event.target.value);
-                if (createImageError) setCreateImageError('');
-              }}
-              error={createImageError}
-              data-testid="agent-mcps-create-image"
-            />
-            <Input
-              label="Command"
-              value={createCommand}
-              onChange={(event) => setCreateCommand(event.target.value)}
-              data-testid="agent-mcps-create-command"
-            />
-            <Input
-              label="Description"
-              value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
-              data-testid="agent-mcps-create-description-input"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Compute Resources</div>
+              <Label htmlFor="agent-mcps-create-name">Name</Label>
+              <Input
+                id="agent-mcps-create-name"
+                value={createName}
+                onChange={(event) => {
+                  setCreateName(event.target.value);
+                  if (createNameError) setCreateNameError('');
+                }}
+                data-testid="agent-mcps-create-name"
+              />
+              {createNameError && <p className="text-sm text-destructive">{createNameError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-mcps-create-image">Image</Label>
+              <Input
+                id="agent-mcps-create-image"
+                value={createImage}
+                onChange={(event) => {
+                  setCreateImage(event.target.value);
+                  if (createImageError) setCreateImageError('');
+                }}
+                data-testid="agent-mcps-create-image"
+              />
+              {createImageError && <p className="text-sm text-destructive">{createImageError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-mcps-create-command">Command</Label>
+              <Input
+                id="agent-mcps-create-command"
+                value={createCommand}
+                onChange={(event) => setCreateCommand(event.target.value)}
+                data-testid="agent-mcps-create-command"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-mcps-create-description-input">Description</Label>
+              <Input
+                id="agent-mcps-create-description-input"
+                value={createDescription}
+                onChange={(event) => setCreateDescription(event.target.value)}
+                data-testid="agent-mcps-create-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-foreground">Compute Resources</div>
               <ComputeResourcesEditor
                 value={createResources}
                 onChange={setCreateResources}
@@ -367,7 +380,6 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createMcpMutation.isPending}
@@ -388,31 +400,43 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input label="Name" value={editName} disabled data-testid="agent-mcps-edit-name" />
-            <Input
-              label="Image"
-              value={editImage}
-              onChange={(event) => {
-                setEditImage(event.target.value);
-                if (editImageError) setEditImageError('');
-              }}
-              error={editImageError}
-              data-testid="agent-mcps-edit-image"
-            />
-            <Input
-              label="Command"
-              value={editCommand}
-              onChange={(event) => setEditCommand(event.target.value)}
-              data-testid="agent-mcps-edit-command"
-            />
-            <Input
-              label="Description"
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              data-testid="agent-mcps-edit-description-input"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Compute Resources</div>
+              <Label htmlFor="agent-mcps-edit-name">Name</Label>
+              <Input id="agent-mcps-edit-name" value={editName} disabled data-testid="agent-mcps-edit-name" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-mcps-edit-image">Image</Label>
+              <Input
+                id="agent-mcps-edit-image"
+                value={editImage}
+                onChange={(event) => {
+                  setEditImage(event.target.value);
+                  if (editImageError) setEditImageError('');
+                }}
+                data-testid="agent-mcps-edit-image"
+              />
+              {editImageError && <p className="text-sm text-destructive">{editImageError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-mcps-edit-command">Command</Label>
+              <Input
+                id="agent-mcps-edit-command"
+                value={editCommand}
+                onChange={(event) => setEditCommand(event.target.value)}
+                data-testid="agent-mcps-edit-command"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-mcps-edit-description-input">Description</Label>
+              <Input
+                id="agent-mcps-edit-description-input"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                data-testid="agent-mcps-edit-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-foreground">Compute Resources</div>
               <ComputeResourcesEditor
                 value={editResources}
                 onChange={setEditResources}
@@ -427,7 +451,6 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateMcpMutation.isPending}

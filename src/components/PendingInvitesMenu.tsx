@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { organizationsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import type { Membership } from '@/gen/agynio/api/organizations/v1/organizations_pb';
@@ -41,14 +41,14 @@ function PendingInviteRow({ membership, onAccept, onDecline, isPending }: Pendin
 
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-md border border-[var(--agyn-border-subtle)] bg-[var(--agyn-secondary)] px-2 py-2 text-xs text-[var(--agyn-dark)]"
+      className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted px-2 py-2 text-xs text-foreground"
       data-testid="pending-invite-row"
     >
       <div className="space-y-1">
-        <div className="font-medium text-[var(--agyn-dark)]" data-testid="pending-invite-org-id">
+        <div className="font-medium text-foreground" data-testid="pending-invite-org-id">
           {organizationName}
         </div>
-        <div className="text-[var(--agyn-gray)]" data-testid="pending-invite-role">
+        <div className="text-muted-foreground" data-testid="pending-invite-role">
           {formatMembershipRole(membership.role)}
         </div>
       </div>
@@ -63,7 +63,7 @@ function PendingInviteRow({ membership, onAccept, onDecline, isPending }: Pendin
           Accept
         </Button>
         <Button
-          variant="danger"
+          variant="destructive"
           size="sm"
           onClick={onDecline}
           disabled={isPending}

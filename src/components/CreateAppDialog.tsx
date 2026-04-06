@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScriptEditor } from '@/components/ScriptEditor';
 import {
   Dialog,
@@ -129,50 +130,56 @@ export function CreateAppDialog({ open, onOpenChange, organizationId }: CreateAp
         {serviceToken ? (
           <div className="space-y-4">
             <div>
-              <div className="text-sm font-medium text-[var(--agyn-dark)]">Service token</div>
+              <div className="text-sm font-medium text-foreground">Service token</div>
               <div
-                className="mt-2 rounded-md border border-[var(--agyn-border-subtle)] bg-[var(--agyn-secondary)] p-3 text-xs font-mono text-[var(--agyn-dark)] break-all"
+                className="mt-2 rounded-md border border-border bg-muted p-3 text-xs font-mono text-foreground break-all"
                 data-testid="create-app-token-value"
               >
                 {serviceToken}
               </div>
             </div>
-            <p className="text-xs text-[var(--agyn-gray)]" data-testid="create-app-token-warning">
+            <p className="text-xs text-muted-foreground" data-testid="create-app-token-warning">
               This token will not be shown again.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleCopyToken} data-testid="create-app-copy">
                 Copy token
               </Button>
-              <Button variant="primary" size="sm" onClick={closeDialog} data-testid="create-app-done">
+              <Button size="sm" onClick={closeDialog} data-testid="create-app-done">
                 Done
               </Button>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            <Input
-              label="Slug"
-              placeholder="my-app"
-              value={slug}
-              onChange={(event) => {
-                setSlug(event.target.value);
-                if (slugError) setSlugError('');
-              }}
-              error={slugError}
-              data-testid="create-app-slug"
-            />
-            <Input
-              label="Name"
-              placeholder="My App"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                if (nameError) setNameError('');
-              }}
-              error={nameError}
-              data-testid="create-app-name"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="create-app-slug">Slug</Label>
+              <Input
+                id="create-app-slug"
+                placeholder="my-app"
+                value={slug}
+                onChange={(event) => {
+                  setSlug(event.target.value);
+                  if (slugError) setSlugError('');
+                }}
+                data-testid="create-app-slug"
+              />
+              {slugError && <p className="text-sm text-destructive">{slugError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-app-name">Name</Label>
+              <Input
+                id="create-app-name"
+                placeholder="My App"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (nameError) setNameError('');
+                }}
+                data-testid="create-app-name"
+              />
+              {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+            </div>
             <ScriptEditor
               label="Description"
               placeholder="Describe what this app does"
@@ -182,15 +189,18 @@ export function CreateAppDialog({ open, onOpenChange, organizationId }: CreateAp
               minHeightClass="min-h-[100px]"
               data-testid="create-app-description-input"
             />
-            <Input
-              label="Icon"
-              placeholder="https://example.com/icon.png"
-              value={icon}
-              onChange={(event) => setIcon(event.target.value)}
-              data-testid="create-app-icon"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Visibility</div>
+              <Label htmlFor="create-app-icon">Icon</Label>
+              <Input
+                id="create-app-icon"
+                placeholder="https://example.com/icon.png"
+                value={icon}
+                onChange={(event) => setIcon(event.target.value)}
+                data-testid="create-app-icon"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-foreground">Visibility</div>
               <Select
                 value={visibility === AppVisibility.PUBLIC ? 'public' : 'internal'}
                 onValueChange={(value) =>
@@ -206,14 +216,17 @@ export function CreateAppDialog({ open, onOpenChange, organizationId }: CreateAp
                 </SelectContent>
               </Select>
             </div>
-            <Input
-              label="Permissions"
-              placeholder="read:models, write:models"
-              value={permissions}
-              onChange={(event) => setPermissions(event.target.value)}
-              helperText="Comma-separated permissions."
-              data-testid="create-app-permissions"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="create-app-permissions">Permissions</Label>
+              <Input
+                id="create-app-permissions"
+                placeholder="read:models, write:models"
+                value={permissions}
+                onChange={(event) => setPermissions(event.target.value)}
+                data-testid="create-app-permissions"
+              />
+              <p className="text-sm text-muted-foreground">Comma-separated permissions.</p>
+            </div>
           </div>
         )}
         {serviceToken ? null : (
@@ -224,7 +237,6 @@ export function CreateAppDialog({ open, onOpenChange, organizationId }: CreateAp
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreateApp}
               disabled={createAppMutation.isPending}

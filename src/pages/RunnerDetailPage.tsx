@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LabelsEditor } from '@/components/LabelsEditor';
 import { Badge } from '@/components/ui/badge';
@@ -91,10 +91,10 @@ export function RunnerDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="runner-heading">
+          <h2 className="text-2xl font-semibold text-foreground" data-testid="runner-heading">
             Runner
           </h2>
-          <p className="text-sm text-[var(--agyn-gray)]">Runner status and metadata.</p>
+          <p className="text-sm text-muted-foreground">Runner status and metadata.</p>
         </div>
         {runner ? (
           <div className="flex flex-wrap items-center gap-2" data-testid="runner-actions">
@@ -107,7 +107,7 @@ export function RunnerDetailPage() {
               Edit labels
             </Button>
             <Button
-              variant="danger"
+              variant="destructive"
               size="sm"
               onClick={() => setDeleteOpen(true)}
               data-testid="runner-delete"
@@ -117,47 +117,43 @@ export function RunnerDetailPage() {
           </div>
         ) : null}
       </div>
-      {runnerQuery.isPending ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading runner...</div>
-      ) : null}
-      {runnerQuery.isError ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load runner.</div>
-      ) : null}
+      {runnerQuery.isPending ? <div className="text-sm text-muted-foreground">Loading runner...</div> : null}
+      {runnerQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load runner.</div> : null}
       {runner ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="runner-details-card">
+        <Card className="border-border" data-testid="runner-details-card">
           <CardContent className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Details</h3>
-              <p className="text-sm text-[var(--agyn-gray)]">Runner configuration and scope.</p>
+              <h3 className="text-lg font-semibold text-foreground">Details</h3>
+              <p className="text-sm text-muted-foreground">Runner configuration and scope.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Name</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{runner.name}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Name</div>
+                <div className="text-sm text-foreground">{runner.name}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Runner ID</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{runner.meta?.id}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Runner ID</div>
+                <div className="text-sm text-foreground">{runner.meta?.id}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Status</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Status</div>
                 <Badge variant="secondary" data-testid="runner-status">
                   {formatRunnerStatus(runner.status)}
                 </Badge>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Scope</div>
-                <div className="text-sm text-[var(--agyn-dark)]">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Scope</div>
+                <div className="text-sm text-foreground">
                   {runner.organizationId ? `Organization ${runner.organizationId}` : 'Cluster'}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Identity ID</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{runner.identityId}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Identity ID</div>
+                <div className="text-sm text-foreground">{runner.identityId}</div>
               </div>
               <div className="md:col-span-2">
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Labels</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{formatLabelPairs(runner.labels)}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Labels</div>
+                <div className="text-sm text-foreground">{formatLabelPairs(runner.labels)}</div>
               </div>
             </div>
           </CardContent>
@@ -179,7 +175,6 @@ export function RunnerDetailPage() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleSaveLabels}
               disabled={updateRunnerMutation.isPending}

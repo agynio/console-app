@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AuthMethod, type LLMProvider } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { formatAuthMethod, formatDateOnly } from '@/lib/format';
@@ -200,13 +201,10 @@ export function OrganizationLlmProvidersTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-        <h3
-          className="text-lg font-semibold text-[var(--agyn-dark)]"
-          data-testid="organization-llm-providers-heading"
-        >
-          LLM Providers
-        </h3>
-        <p className="text-sm text-[var(--agyn-gray)]">Provider endpoints configured for this organization.</p>
+          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-llm-providers-heading">
+            LLM Providers
+          </h3>
+          <p className="text-sm text-muted-foreground">Provider endpoints configured for this organization.</p>
         </div>
         <Button
           variant="outline"
@@ -217,24 +215,20 @@ export function OrganizationLlmProvidersTab() {
           Add provider
         </Button>
       </div>
-      {providersQuery.isPending ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading providers...</div>
-      ) : null}
-      {providersQuery.isError ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load providers.</div>
-      ) : null}
+      {providersQuery.isPending ? <div className="text-sm text-muted-foreground">Loading providers...</div> : null}
+      {providersQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load providers.</div> : null}
       {providers.length === 0 && !providersQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-llm-providers-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="organization-llm-providers-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No providers configured.
           </CardContent>
         </Card>
       ) : null}
       {providers.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-llm-providers-table">
+        <Card className="border-border" data-testid="organization-llm-providers-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_140px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_140px]"
               data-testid="organization-llm-providers-header"
             >
               <span>Provider</span>
@@ -242,25 +236,25 @@ export function OrganizationLlmProvidersTab() {
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {providers.map((provider) => (
                 <div
                   key={provider.meta?.id ?? provider.endpoint}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_140px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_140px]"
                   data-testid="organization-llm-provider-row"
                 >
                   <div>
                     <div className="font-medium" data-testid="organization-llm-provider-endpoint">
                       {provider.endpoint}
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-llm-provider-id">
+                    <div className="text-xs text-muted-foreground" data-testid="organization-llm-provider-id">
                       {provider.meta?.id ?? '—'}
                     </div>
                   </div>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-llm-provider-auth">
+                  <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-auth">
                     {formatAuthMethod(provider.authMethod)}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-llm-provider-created">
+                  <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-created">
                     {formatDateOnly(provider.meta?.createdAt)}
                   </span>
                   <div className="flex items-center justify-end gap-2">
@@ -273,7 +267,7 @@ export function OrganizationLlmProvidersTab() {
                       Edit
                     </Button>
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteOpen(provider)}
                       data-testid="organization-llm-provider-delete"
@@ -296,26 +290,32 @@ export function OrganizationLlmProvidersTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Endpoint URL"
-              placeholder="https://api.example.com"
-              value={createEndpoint}
-              onChange={(event) => {
-                setCreateEndpoint(event.target.value);
-                if (createEndpointError) setCreateEndpointError('');
-              }}
-              error={createEndpointError}
-              data-testid="organization-llm-providers-create-endpoint"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Auth Method</div>
+              <Label htmlFor="organization-llm-providers-create-endpoint">Endpoint URL</Label>
+              <Input
+                id="organization-llm-providers-create-endpoint"
+                placeholder="https://api.example.com"
+                value={createEndpoint}
+                onChange={(event) => {
+                  setCreateEndpoint(event.target.value);
+                  if (createEndpointError) setCreateEndpointError('');
+                }}
+                data-testid="organization-llm-providers-create-endpoint"
+              />
+              {createEndpointError ? <p className="text-sm text-destructive">{createEndpointError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-llm-providers-create-auth">Auth Method</Label>
               <Select
                 value={createAuthMethod === AuthMethod.BEARER ? 'bearer' : 'unspecified'}
                 onValueChange={(value) =>
                   setCreateAuthMethod(value === 'bearer' ? AuthMethod.BEARER : AuthMethod.UNSPECIFIED)
                 }
               >
-                <SelectTrigger data-testid="organization-llm-providers-create-auth">
+                <SelectTrigger
+                  id="organization-llm-providers-create-auth"
+                  data-testid="organization-llm-providers-create-auth"
+                >
                   <SelectValue placeholder="Select auth method" />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,17 +323,20 @@ export function OrganizationLlmProvidersTab() {
                 </SelectContent>
               </Select>
             </div>
-            <Input
-              label="Token"
-              type="password"
-              value={createToken}
-              onChange={(event) => {
-                setCreateToken(event.target.value);
-                if (createTokenError) setCreateTokenError('');
-              }}
-              error={createTokenError}
-              data-testid="organization-llm-providers-create-token"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="organization-llm-providers-create-token">Token</Label>
+              <Input
+                id="organization-llm-providers-create-token"
+                type="password"
+                value={createToken}
+                onChange={(event) => {
+                  setCreateToken(event.target.value);
+                  if (createTokenError) setCreateTokenError('');
+                }}
+                data-testid="organization-llm-providers-create-token"
+              />
+              {createTokenError ? <p className="text-sm text-destructive">{createTokenError}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -342,7 +345,6 @@ export function OrganizationLlmProvidersTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createProviderMutation.isPending}
@@ -362,25 +364,31 @@ export function OrganizationLlmProvidersTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Endpoint URL"
-              value={editEndpoint}
-              onChange={(event) => {
-                setEditEndpoint(event.target.value);
-                if (editEndpointError) setEditEndpointError('');
-              }}
-              error={editEndpointError}
-              data-testid="organization-llm-providers-edit-endpoint"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Auth Method</div>
+              <Label htmlFor="organization-llm-providers-edit-endpoint">Endpoint URL</Label>
+              <Input
+                id="organization-llm-providers-edit-endpoint"
+                value={editEndpoint}
+                onChange={(event) => {
+                  setEditEndpoint(event.target.value);
+                  if (editEndpointError) setEditEndpointError('');
+                }}
+                data-testid="organization-llm-providers-edit-endpoint"
+              />
+              {editEndpointError ? <p className="text-sm text-destructive">{editEndpointError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-llm-providers-edit-auth">Auth Method</Label>
               <Select
                 value={editAuthMethod === AuthMethod.BEARER ? 'bearer' : 'unspecified'}
                 onValueChange={(value) =>
                   setEditAuthMethod(value === 'bearer' ? AuthMethod.BEARER : AuthMethod.UNSPECIFIED)
                 }
               >
-                <SelectTrigger data-testid="organization-llm-providers-edit-auth">
+                <SelectTrigger
+                  id="organization-llm-providers-edit-auth"
+                  data-testid="organization-llm-providers-edit-auth"
+                >
                   <SelectValue placeholder="Select auth method" />
                 </SelectTrigger>
                 <SelectContent>
@@ -388,14 +396,17 @@ export function OrganizationLlmProvidersTab() {
                 </SelectContent>
               </Select>
             </div>
-            <Input
-              label="Token"
-              type="password"
-              placeholder="Leave blank to keep current token"
-              value={editToken}
-              onChange={(event) => setEditToken(event.target.value)}
-              data-testid="organization-llm-providers-edit-token"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="organization-llm-providers-edit-token">Token</Label>
+              <Input
+                id="organization-llm-providers-edit-token"
+                type="password"
+                placeholder="Leave blank to keep current token"
+                value={editToken}
+                onChange={(event) => setEditToken(event.target.value)}
+                data-testid="organization-llm-providers-edit-token"
+              />
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -404,7 +415,6 @@ export function OrganizationLlmProvidersTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateProviderMutation.isPending}

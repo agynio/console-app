@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogClose,
@@ -162,32 +163,41 @@ export function NestedEnvsDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Input
-              label="Name"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                if (nameError) setNameError('');
-              }}
-              error={nameError}
-              data-testid="nested-envs-name"
-            />
-            <Input
-              label="Value"
-              value={value}
-              onChange={(event) => {
-                setValue(event.target.value);
-                if (valueError) setValueError('');
-              }}
-              error={valueError}
-              data-testid="nested-envs-value"
-            />
-            <Input
-              label="Description"
-              value={envDescription}
-              onChange={(event) => setEnvDescription(event.target.value)}
-              data-testid="nested-envs-description-input"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="nested-envs-name">Name</Label>
+              <Input
+                id="nested-envs-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (nameError) setNameError('');
+                }}
+                data-testid="nested-envs-name"
+              />
+              {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nested-envs-value">Value</Label>
+              <Input
+                id="nested-envs-value"
+                value={value}
+                onChange={(event) => {
+                  setValue(event.target.value);
+                  if (valueError) setValueError('');
+                }}
+                data-testid="nested-envs-value"
+              />
+              {valueError && <p className="text-sm text-destructive">{valueError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nested-envs-description-input">Description</Label>
+              <Input
+                id="nested-envs-description-input"
+                value={envDescription}
+                onChange={(event) => setEnvDescription(event.target.value)}
+                data-testid="nested-envs-description-input"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -199,23 +209,23 @@ export function NestedEnvsDialog({
             </Button>
           </div>
           <div className="space-y-2">
-            <div className="text-sm font-medium text-[var(--agyn-dark)]">Existing ENVs</div>
-            {envsQuery.isPending ? <div className="text-xs text-[var(--agyn-gray)]">Loading envs...</div> : null}
-            {envsQuery.isError ? <div className="text-xs text-[var(--agyn-gray)]">Failed to load envs.</div> : null}
+            <div className="text-sm font-medium text-foreground">Existing ENVs</div>
+            {envsQuery.isPending ? <div className="text-xs text-muted-foreground">Loading envs...</div> : null}
+            {envsQuery.isError ? <div className="text-xs text-muted-foreground">Failed to load envs.</div> : null}
             {envs.length === 0 && !envsQuery.isPending ? (
-              <div className="text-xs text-[var(--agyn-gray)]">No envs configured.</div>
+              <div className="text-xs text-muted-foreground">No envs configured.</div>
             ) : null}
             {envs.length > 0 ? (
-              <div className="divide-y divide-[var(--agyn-border-subtle)] rounded-md border border-[var(--agyn-border-subtle)]">
+              <div className="divide-y divide-border rounded-md border border-border">
                 {envs.map((env) => (
                   <div key={env.meta?.id ?? env.name} className="flex items-center justify-between px-3 py-2">
                     <div>
-                      <div className="text-sm text-[var(--agyn-dark)]">{env.name}</div>
-                      <div className="text-xs text-[var(--agyn-gray)]">{env.description || '—'}</div>
-                      <div className="text-xs text-[var(--agyn-gray)]">{resolveSource(env)}</div>
+                      <div className="text-sm text-foreground">{env.name}</div>
+                      <div className="text-xs text-muted-foreground">{env.description || '—'}</div>
+                      <div className="text-xs text-muted-foreground">{resolveSource(env)}</div>
                     </div>
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDelete(env)}
                       disabled={deleteEnvMutation.isPending}

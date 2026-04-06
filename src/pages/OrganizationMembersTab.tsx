@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
 import { organizationsClient, usersClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatMembershipRole, formatMembershipStatus } from '@/lib/format';
@@ -159,10 +160,10 @@ export function OrganizationMembersTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-members-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-members-heading">
             Members
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Invite and manage organization members.</p>
+          <p className="text-sm text-muted-foreground">Invite and manage organization members.</p>
         </div>
         <Button
           variant="outline"
@@ -175,23 +176,23 @@ export function OrganizationMembersTab() {
         </Button>
       </div>
       {(activeQuery.isPending || pendingQuery.isPending) && (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading members...</div>
+        <div className="text-sm text-muted-foreground">Loading members...</div>
       )}
       {(activeQuery.isError || pendingQuery.isError) && (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load members.</div>
+        <div className="text-sm text-muted-foreground">Failed to load members.</div>
       )}
       {memberships.length === 0 && !activeQuery.isPending && !pendingQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-members-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="organization-members-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No members yet.
           </CardContent>
         </Card>
       ) : null}
       {memberships.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-members-table">
+        <Card className="border-border" data-testid="organization-members-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
               data-testid="organization-members-header"
             >
               <span>Member</span>
@@ -199,20 +200,20 @@ export function OrganizationMembersTab() {
               <span>Status</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {memberships.map((membership) => {
                 const user = userMap.get(membership.identityId);
                 return (
                   <div
                     key={membership.id}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_120px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
                     data-testid="organization-member-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="organization-member-name">
                         {user?.name ?? membership.identityId}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-member-email">
+                      <div className="text-xs text-muted-foreground" data-testid="organization-member-email">
                         {user?.email ?? 'Unknown email'}
                       </div>
                     </div>
@@ -279,7 +280,7 @@ export function OrganizationMembersTab() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">User</div>
+              <Label htmlFor="organization-members-invite-user">User</Label>
               <Select
                 value={selectedUserId}
                 onValueChange={(value) => {
@@ -287,7 +288,7 @@ export function OrganizationMembersTab() {
                   if (inviteError) setInviteError('');
                 }}
               >
-                <SelectTrigger data-testid="organization-members-invite-user">
+                <SelectTrigger id="organization-members-invite-user" data-testid="organization-members-invite-user">
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
@@ -303,20 +304,20 @@ export function OrganizationMembersTab() {
                 </SelectContent>
               </Select>
               {inviteError ? (
-                <div className="text-xs text-[var(--agyn-danger)]" data-testid="organization-members-invite-error">
+                <p className="text-sm text-destructive" data-testid="organization-members-invite-error">
                   {inviteError}
-                </div>
+                </p>
               ) : null}
             </div>
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Role</div>
+              <Label htmlFor="organization-members-invite-role">Role</Label>
               <Select
                 value={selectedRole === MembershipRole.OWNER ? 'owner' : 'member'}
                 onValueChange={(value) =>
                   setSelectedRole(value === 'owner' ? MembershipRole.OWNER : MembershipRole.MEMBER)
                 }
               >
-                <SelectTrigger data-testid="organization-members-invite-role">
+                <SelectTrigger id="organization-members-invite-role" data-testid="organization-members-invite-role">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -333,7 +334,6 @@ export function OrganizationMembersTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleInviteMember}
               disabled={inviteMemberMutation.isPending}

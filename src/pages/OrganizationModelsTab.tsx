@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Model } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { formatDateOnly } from '@/lib/format';
@@ -251,10 +252,10 @@ export function OrganizationModelsTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-        <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-models-heading">
-          Models
-        </h3>
-        <p className="text-sm text-[var(--agyn-gray)]">Models available in this organization.</p>
+          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-models-heading">
+            Models
+          </h3>
+          <p className="text-sm text-muted-foreground">Models available in this organization.</p>
         </div>
         <Button
           variant="outline"
@@ -265,18 +266,18 @@ export function OrganizationModelsTab() {
           Add model
         </Button>
       </div>
-      {isLoading ? <div className="text-sm text-[var(--agyn-gray)]">Loading models...</div> : null}
-      {isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load models.</div> : null}
+      {isLoading ? <div className="text-sm text-muted-foreground">Loading models...</div> : null}
+      {isError ? <div className="text-sm text-muted-foreground">Failed to load models.</div> : null}
       {models.length === 0 && !isLoading ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-models-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">No models found.</CardContent>
+        <Card className="border-border" data-testid="organization-models-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">No models found.</CardContent>
         </Card>
       ) : null}
       {models.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-models-table">
+        <Card className="border-border" data-testid="organization-models-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
               data-testid="organization-models-header"
             >
               <span>Model</span>
@@ -285,30 +286,30 @@ export function OrganizationModelsTab() {
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {models.map((model) => {
                 const provider = providerMap.get(model.llmProviderId);
                 return (
                   <div
                     key={model.meta?.id ?? model.name}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
                     data-testid="organization-model-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="organization-model-name">
                         {model.name}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-model-id">
+                      <div className="text-xs text-muted-foreground" data-testid="organization-model-id">
                         {model.meta?.id ?? '—'}
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-model-provider">
+                    <span className="text-xs text-muted-foreground" data-testid="organization-model-provider">
                       {provider?.endpoint ?? (model.llmProviderId || '—')}
                     </span>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-model-remote">
+                    <span className="text-xs text-muted-foreground" data-testid="organization-model-remote">
                       {model.remoteName || '—'}
                     </span>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-model-created">
+                    <span className="text-xs text-muted-foreground" data-testid="organization-model-created">
                       {formatDateOnly(model.meta?.createdAt)}
                     </span>
                     <div className="flex items-center justify-end gap-2">
@@ -321,7 +322,7 @@ export function OrganizationModelsTab() {
                         Edit
                       </Button>
                       <Button
-                        variant="danger"
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleDeleteOpen(model)}
                         data-testid="organization-model-delete"
@@ -345,18 +346,21 @@ export function OrganizationModelsTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Name"
-              value={createName}
-              onChange={(event) => {
-                setCreateName(event.target.value);
-                if (createNameError) setCreateNameError('');
-              }}
-              error={createNameError}
-              data-testid="organization-models-create-name"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Provider</div>
+              <Label htmlFor="organization-models-create-name">Name</Label>
+              <Input
+                id="organization-models-create-name"
+                value={createName}
+                onChange={(event) => {
+                  setCreateName(event.target.value);
+                  if (createNameError) setCreateNameError('');
+                }}
+                data-testid="organization-models-create-name"
+              />
+              {createNameError ? <p className="text-sm text-destructive">{createNameError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-models-create-provider">Provider</Label>
               <Select
                 value={createProviderId}
                 onValueChange={(value) => {
@@ -364,7 +368,7 @@ export function OrganizationModelsTab() {
                   if (createProviderError) setCreateProviderError('');
                 }}
               >
-                <SelectTrigger data-testid="organization-models-create-provider">
+                <SelectTrigger id="organization-models-create-provider" data-testid="organization-models-create-provider">
                   <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
@@ -380,21 +384,24 @@ export function OrganizationModelsTab() {
                 </SelectContent>
               </Select>
               {createProviderError ? (
-                <div className="text-xs text-[var(--agyn-danger)]" data-testid="organization-models-create-error">
+                <p className="text-sm text-destructive" data-testid="organization-models-create-error">
                   {createProviderError}
-                </div>
+                </p>
               ) : null}
             </div>
-            <Input
-              label="Remote Model Name"
-              value={createRemoteName}
-              onChange={(event) => {
-                setCreateRemoteName(event.target.value);
-                if (createRemoteError) setCreateRemoteError('');
-              }}
-              error={createRemoteError}
-              data-testid="organization-models-create-remote"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="organization-models-create-remote">Remote Model Name</Label>
+              <Input
+                id="organization-models-create-remote"
+                value={createRemoteName}
+                onChange={(event) => {
+                  setCreateRemoteName(event.target.value);
+                  if (createRemoteError) setCreateRemoteError('');
+                }}
+                data-testid="organization-models-create-remote"
+              />
+              {createRemoteError ? <p className="text-sm text-destructive">{createRemoteError}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -403,7 +410,6 @@ export function OrganizationModelsTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createModelMutation.isPending}
@@ -423,18 +429,21 @@ export function OrganizationModelsTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Name"
-              value={editName}
-              onChange={(event) => {
-                setEditName(event.target.value);
-                if (editNameError) setEditNameError('');
-              }}
-              error={editNameError}
-              data-testid="organization-models-edit-name"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Provider</div>
+              <Label htmlFor="organization-models-edit-name">Name</Label>
+              <Input
+                id="organization-models-edit-name"
+                value={editName}
+                onChange={(event) => {
+                  setEditName(event.target.value);
+                  if (editNameError) setEditNameError('');
+                }}
+                data-testid="organization-models-edit-name"
+              />
+              {editNameError ? <p className="text-sm text-destructive">{editNameError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-models-edit-provider">Provider</Label>
               <Select
                 value={editProviderId}
                 onValueChange={(value) => {
@@ -442,7 +451,7 @@ export function OrganizationModelsTab() {
                   if (editProviderError) setEditProviderError('');
                 }}
               >
-                <SelectTrigger data-testid="organization-models-edit-provider">
+                <SelectTrigger id="organization-models-edit-provider" data-testid="organization-models-edit-provider">
                   <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
@@ -458,21 +467,24 @@ export function OrganizationModelsTab() {
                 </SelectContent>
               </Select>
               {editProviderError ? (
-                <div className="text-xs text-[var(--agyn-danger)]" data-testid="organization-models-edit-error">
+                <p className="text-sm text-destructive" data-testid="organization-models-edit-error">
                   {editProviderError}
-                </div>
+                </p>
               ) : null}
             </div>
-            <Input
-              label="Remote Model Name"
-              value={editRemoteName}
-              onChange={(event) => {
-                setEditRemoteName(event.target.value);
-                if (editRemoteError) setEditRemoteError('');
-              }}
-              error={editRemoteError}
-              data-testid="organization-models-edit-remote"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="organization-models-edit-remote">Remote Model Name</Label>
+              <Input
+                id="organization-models-edit-remote"
+                value={editRemoteName}
+                onChange={(event) => {
+                  setEditRemoteName(event.target.value);
+                  if (editRemoteError) setEditRemoteError('');
+                }}
+                data-testid="organization-models-edit-remote"
+              />
+              {editRemoteError ? <p className="text-sm text-destructive">{editRemoteError}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -481,7 +493,6 @@ export function OrganizationModelsTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateModelMutation.isPending}

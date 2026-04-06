@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
 import { ScriptEditor } from '@/components/ScriptEditor';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { formatAppVisibility, formatDateOnly } from '@/lib/format';
@@ -129,66 +130,66 @@ export function AppDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="app-detail-heading">
+          <h2 className="text-2xl font-semibold text-foreground" data-testid="app-detail-heading">
             {app?.name ?? 'App'}
           </h2>
-          <p className="text-sm text-[var(--agyn-gray)]">App metadata and installations.</p>
+          <p className="text-sm text-muted-foreground">App metadata and installations.</p>
         </div>
         {app ? (
           <div className="flex flex-wrap items-center gap-2" data-testid="app-detail-actions">
             <Button variant="outline" size="sm" onClick={() => handleEditOpenChange(true)}>
               Edit
             </Button>
-            <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
               Delete
             </Button>
           </div>
         ) : null}
       </div>
-      {appQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading app...</div> : null}
-      {appQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load app.</div> : null}
+      {appQuery.isPending ? <div className="text-sm text-muted-foreground">Loading app...</div> : null}
+      {appQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load app.</div> : null}
       {app ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="app-detail-card">
+        <Card className="border-border" data-testid="app-detail-card">
           <CardContent className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Details</h3>
-              <p className="text-sm text-[var(--agyn-gray)]">App identity and visibility.</p>
+              <h3 className="text-lg font-semibold text-foreground">Details</h3>
+              <p className="text-sm text-muted-foreground">App identity and visibility.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Name</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{app.name}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Name</div>
+                <div className="text-sm text-foreground">{app.name}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Slug</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{app.slug}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Slug</div>
+                <div className="text-sm text-foreground">{app.slug}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">App ID</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{app.meta?.id ?? '—'}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">App ID</div>
+                <div className="text-sm text-foreground">{app.meta?.id ?? '—'}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Organization ID</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{app.organizationId || '—'}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Organization ID</div>
+                <div className="text-sm text-foreground">{app.organizationId || '—'}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Identity ID</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{app.identityId || '—'}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Identity ID</div>
+                <div className="text-sm text-foreground">{app.identityId || '—'}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Visibility</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Visibility</div>
                 <Badge variant="secondary">{formatAppVisibility(app.visibility)}</Badge>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Created</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{formatDateOnly(app.meta?.createdAt)}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Created</div>
+                <div className="text-sm text-foreground">{formatDateOnly(app.meta?.createdAt)}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Updated</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{formatDateOnly(app.meta?.updatedAt)}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Updated</div>
+                <div className="text-sm text-foreground">{formatDateOnly(app.meta?.updatedAt)}</div>
               </div>
               <div className="md:col-span-2">
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Permissions</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Permissions</div>
                 {app.permissions.length > 0 ? (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {app.permissions.map((permission) => (
@@ -198,7 +199,7 @@ export function AppDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-sm text-[var(--agyn-dark)]">—</div>
+                  <div className="text-sm text-foreground">—</div>
                 )}
               </div>
             </div>
@@ -207,49 +208,49 @@ export function AppDetailPage() {
       ) : null}
       <div className="space-y-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Installations</h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Organizations using this app.</p>
+          <h3 className="text-lg font-semibold text-foreground">Installations</h3>
+          <p className="text-sm text-muted-foreground">Organizations using this app.</p>
         </div>
         {installationsQuery.isPending ? (
-          <div className="text-sm text-[var(--agyn-gray)]">Loading installations...</div>
+          <div className="text-sm text-muted-foreground">Loading installations...</div>
         ) : null}
         {installationsQuery.isError ? (
-          <div className="text-sm text-[var(--agyn-gray)]">Failed to load installations.</div>
+          <div className="text-sm text-muted-foreground">Failed to load installations.</div>
         ) : null}
         {installations.length === 0 && !installationsQuery.isPending ? (
-          <Card className="border-[var(--agyn-border-subtle)]" data-testid="app-installations-empty">
-            <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+          <Card className="border-border" data-testid="app-installations-empty">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
               No installations yet.
             </CardContent>
           </Card>
         ) : null}
         {installations.length > 0 ? (
-          <Card className="border-[var(--agyn-border-subtle)]" data-testid="app-installations-table">
+          <Card className="border-border" data-testid="app-installations-table">
             <CardContent className="px-0">
-              <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr]">
+              <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr]">
                 <span>Installation</span>
                 <span>Organization ID</span>
                 <span>Created</span>
               </div>
-              <div className="divide-y divide-[var(--agyn-border-subtle)]">
+              <div className="divide-y divide-border">
                 {installations.map((installation) => (
                   <div
                     key={installation.meta?.id ?? installation.slug}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr]"
                     data-testid="app-installation-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="app-installation-slug">
                         {installation.slug}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="app-installation-id">
+                      <div className="text-xs text-muted-foreground" data-testid="app-installation-id">
                         {installation.meta?.id ?? '—'}
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="app-installation-org">
+                    <span className="text-xs text-muted-foreground" data-testid="app-installation-org">
                       {installation.organizationId || '—'}
                     </span>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="app-installation-created">
+                    <span className="text-xs text-muted-foreground" data-testid="app-installation-created">
                       {formatDateOnly(installation.meta?.createdAt)}
                     </span>
                   </div>
@@ -268,16 +269,19 @@ export function AppDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Name"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                if (nameError) setNameError('');
-              }}
-              error={nameError}
-              data-testid="app-edit-name"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="app-edit-name">Name</Label>
+              <Input
+                id="app-edit-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (nameError) setNameError('');
+                }}
+                data-testid="app-edit-name"
+              />
+              {nameError ? <p className="text-sm text-destructive">{nameError}</p> : null}
+            </div>
             <ScriptEditor
               label="Description"
               value={description}
@@ -286,21 +290,24 @@ export function AppDetailPage() {
               minHeightClass="min-h-[100px]"
               data-testid="app-edit-description-input"
             />
-            <Input
-              label="Icon"
-              value={icon}
-              onChange={(event) => setIcon(event.target.value)}
-              data-testid="app-edit-icon"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Visibility</div>
+              <Label htmlFor="app-edit-icon">Icon</Label>
+              <Input
+                id="app-edit-icon"
+                value={icon}
+                onChange={(event) => setIcon(event.target.value)}
+                data-testid="app-edit-icon"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="app-edit-visibility">Visibility</Label>
               <Select
                 value={visibility === AppVisibility.PUBLIC ? 'public' : 'internal'}
                 onValueChange={(value) =>
                   setVisibility(value === 'public' ? AppVisibility.PUBLIC : AppVisibility.INTERNAL)
                 }
               >
-                <SelectTrigger data-testid="app-edit-visibility">
+                <SelectTrigger id="app-edit-visibility" data-testid="app-edit-visibility">
                   <SelectValue placeholder="Select visibility" />
                 </SelectTrigger>
                 <SelectContent>
@@ -317,7 +324,6 @@ export function AppDetailPage() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleSave}
               disabled={updateAppMutation.isPending}

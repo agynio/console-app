@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Volume, VolumeAttachment } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { formatDateOnly } from '@/lib/format';
@@ -115,7 +116,7 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
         <div className="font-medium" data-testid="agent-volume-attachment-description">
           {description}
         </div>
-        <div className="text-xs text-[var(--agyn-gray)]" data-testid="agent-volume-attachment-mount">
+        <div className="text-xs text-muted-foreground" data-testid="agent-volume-attachment-mount">
           Mount: {mountPath}
         </div>
       </div>
@@ -126,13 +127,10 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3
-            className="text-lg font-semibold text-[var(--agyn-dark)]"
-            data-testid="agent-volume-attachments-heading"
-          >
+          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-volume-attachments-heading">
             Volumes
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Attached storage volumes.</p>
+          <p className="text-sm text-muted-foreground">Attached storage volumes.</p>
         </div>
         <Button
           variant="outline"
@@ -144,43 +142,43 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
         </Button>
       </div>
       {attachmentsQuery.isPending ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading volume attachments...</div>
+        <div className="text-sm text-muted-foreground">Loading volume attachments...</div>
       ) : null}
       {attachmentsQuery.isError ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load volume attachments.</div>
+        <div className="text-sm text-muted-foreground">Failed to load volume attachments.</div>
       ) : null}
       {attachments.length === 0 && !attachmentsQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-volume-attachments-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="agent-volume-attachments-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No volumes attached.
           </CardContent>
         </Card>
       ) : null}
       {attachments.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-volume-attachments-table">
+        <Card className="border-border" data-testid="agent-volume-attachments-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_120px]"
               data-testid="agent-volume-attachments-header"
             >
               <span>Volume</span>
               <span>Created</span>
               <span className="text-right">Action</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {attachments.map((attachment) => (
                 <div
                   key={attachment.meta?.id ?? attachment.volumeId}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_120px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_120px]"
                   data-testid="agent-volume-attachment-row"
                 >
                   {renderVolumeSummary(attachment, volumeMap)}
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-volume-attachment-created">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-volume-attachment-created">
                     {formatDateOnly(attachment.meta?.createdAt)}
                   </span>
                   <div className="text-right">
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDetachOpen(attachment)}
                       data-testid="agent-volume-attachment-detach"
@@ -203,7 +201,7 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <div className="text-sm text-[var(--agyn-dark)]">Volume</div>
+            <Label htmlFor="agent-volume-attachments-attach-select">Volume</Label>
             <Select
               value={selectedVolumeId}
               onValueChange={(value) => {
@@ -211,7 +209,10 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
                 if (selectedVolumeError) setSelectedVolumeError('');
               }}
             >
-              <SelectTrigger data-testid="agent-volume-attachments-attach-select">
+              <SelectTrigger
+                id="agent-volume-attachments-attach-select"
+                data-testid="agent-volume-attachments-attach-select"
+              >
                 <SelectValue placeholder="Select volume" />
               </SelectTrigger>
               <SelectContent>
@@ -226,7 +227,7 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
                 })}
               </SelectContent>
             </Select>
-            {selectedVolumeError ? <div className="text-sm text-red-500">{selectedVolumeError}</div> : null}
+            {selectedVolumeError ? <p className="text-sm text-destructive">{selectedVolumeError}</p> : null}
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -235,7 +236,6 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleAttach}
               disabled={createAttachmentMutation.isPending}

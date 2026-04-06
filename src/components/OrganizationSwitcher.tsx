@@ -1,6 +1,6 @@
 import { ChevronDownIcon, PlusIcon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import {
   DropdownMenu,

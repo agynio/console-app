@@ -1,4 +1,6 @@
 import { type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ScriptEditorProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'size'> {
   label?: ReactNode;
@@ -19,21 +21,14 @@ export function ScriptEditor({
 }: ScriptEditorProps) {
   return (
     <div className="w-full">
-      {label ? <label className="mb-2 block text-[var(--agyn-dark)]">{label}</label> : null}
-      <textarea
-        className={`
-          w-full ${minHeightClass} rounded-[10px] border border-[var(--agyn-border-subtle)] bg-white px-4 py-3
-          text-sm text-[var(--agyn-dark)] placeholder:text-[var(--agyn-gray)]
-          focus:outline-none focus:ring-2 focus:ring-[var(--agyn-blue)] focus:border-transparent
-          disabled:bg-[var(--agyn-bg-light)] disabled:cursor-not-allowed
-          ${monospace ? 'font-mono' : ''}
-          ${error ? 'border-red-500 focus:ring-red-500' : ''}
-          ${className}
-        `}
+      {label ? <Label className="mb-2 block">{label}</Label> : null}
+      <Textarea
+        className={`${minHeightClass} ${monospace ? 'font-mono' : ''} ${className}`}
+        aria-invalid={Boolean(error)}
         {...props}
       />
-      {error ? <p className="mt-2 text-sm text-red-500">{error}</p> : null}
-      {helperText && !error ? <p className="mt-2 text-sm text-[var(--agyn-gray)]">{helperText}</p> : null}
+      {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
+      {helperText && !error ? <p className="mt-2 text-sm text-muted-foreground">{helperText}</p> : null}
     </div>
   );
 }

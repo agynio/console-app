@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -64,10 +64,10 @@ export function UserDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="user-heading">
+          <h2 className="text-2xl font-semibold text-foreground" data-testid="user-heading">
             User
           </h2>
-          <p className="text-sm text-[var(--agyn-gray)]">Manage user profile and cluster role.</p>
+          <p className="text-sm text-muted-foreground">Manage user profile and cluster role.</p>
         </div>
         {user ? (
           <div className="flex flex-wrap items-center gap-2" data-testid="user-actions">
@@ -81,7 +81,7 @@ export function UserDetailPage() {
               {isAdmin ? 'Revoke admin' : 'Grant admin'}
             </Button>
             <Button
-              variant="danger"
+              variant="destructive"
               size="sm"
               onClick={() => setDeleteConfirmOpen(true)}
               data-testid="user-delete"
@@ -92,48 +92,44 @@ export function UserDetailPage() {
           </div>
         ) : null}
       </div>
-      {userQuery.isPending ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading user...</div>
-      ) : null}
-      {userQuery.isError ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load user.</div>
-      ) : null}
+      {userQuery.isPending ? <div className="text-sm text-muted-foreground">Loading user...</div> : null}
+      {userQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load user.</div> : null}
       {user ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="user-profile-card">
+        <Card className="border-border" data-testid="user-profile-card">
           <CardContent className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Profile</h3>
-              <p className="text-sm text-[var(--agyn-gray)]">Identity and profile information.</p>
+              <h3 className="text-lg font-semibold text-foreground">Profile</h3>
+              <p className="text-sm text-muted-foreground">Identity and profile information.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Name</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{user.name}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Name</div>
+                <div className="text-sm text-foreground">{user.name}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Email</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{user.email}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Email</div>
+                <div className="text-sm text-foreground">{user.email}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Nickname</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{user.nickname || '—'}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Nickname</div>
+                <div className="text-sm text-foreground">{user.nickname || '—'}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Photo URL</div>
-                <div className="text-sm text-[var(--agyn-dark)]" data-testid="user-photo-url">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Photo URL</div>
+                <div className="text-sm text-foreground" data-testid="user-photo-url">
                   {user.photoUrl || '—'}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">OIDC Subject</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{user.oidcSubject}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">OIDC Subject</div>
+                <div className="text-sm text-foreground">{user.oidcSubject}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Identity ID</div>
-                <div className="text-sm text-[var(--agyn-dark)]">{user.meta?.id}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Identity ID</div>
+                <div className="text-sm text-foreground">{user.meta?.id}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Cluster role</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Cluster role</div>
                 <Badge
                   variant={clusterRole === ClusterRole.ADMIN ? 'default' : 'outline'}
                   data-testid="user-cluster-role"

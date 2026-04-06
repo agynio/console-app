@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { LabelsEditor } from '@/components/LabelsEditor';
 import {
   Dialog,
@@ -123,43 +124,46 @@ export function EnrollRunnerDialog({
         {serviceToken ? (
           <div className="space-y-4">
             <div>
-              <div className="text-sm font-medium text-[var(--agyn-dark)]" data-testid={testIds.tokenLabel}>
+              <div className="text-sm font-medium text-foreground" data-testid={testIds.tokenLabel}>
                 Service token
               </div>
               <div
-                className="mt-2 rounded-md border border-[var(--agyn-border-subtle)] bg-[var(--agyn-secondary)] p-3 text-xs font-mono text-[var(--agyn-dark)] break-all"
+                className="mt-2 rounded-md border border-border bg-muted p-3 text-xs font-mono text-foreground break-all"
                 data-testid={testIds.tokenValue}
               >
                 {serviceToken}
               </div>
             </div>
-            <p className="text-xs text-[var(--agyn-gray)]" data-testid={testIds.tokenWarning}>
+            <p className="text-xs text-muted-foreground" data-testid={testIds.tokenWarning}>
               This token will not be shown again.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleCopyToken} data-testid={testIds.tokenCopy}>
                 Copy token
               </Button>
-              <Button variant="primary" size="sm" onClick={closeDialog} data-testid={testIds.tokenDone}>
+              <Button size="sm" onClick={closeDialog} data-testid={testIds.tokenDone}>
                 Done
               </Button>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            <Input
-              label="Runner Name"
-              placeholder={namePlaceholder}
-              value={runnerName}
-              onChange={(event) => {
-                setRunnerName(event.target.value);
-                if (runnerNameError) setRunnerNameError('');
-              }}
-              error={runnerNameError}
-              data-testid={testIds.nameInput}
-            />
             <div className="space-y-2">
-              <div className="text-sm font-medium text-[var(--agyn-dark)]" data-testid={testIds.labelsHeading}>
+              <Label htmlFor={testIds.nameInput}>Runner Name</Label>
+              <Input
+                id={testIds.nameInput}
+                placeholder={namePlaceholder}
+                value={runnerName}
+                onChange={(event) => {
+                  setRunnerName(event.target.value);
+                  if (runnerNameError) setRunnerNameError('');
+                }}
+                data-testid={testIds.nameInput}
+              />
+              {runnerNameError && <p className="text-sm text-destructive">{runnerNameError}</p>}
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-foreground" data-testid={testIds.labelsHeading}>
                 Labels
               </div>
               <LabelsEditor value={labelEntries} onChange={setLabelEntries} testIdPrefix={testIds.labelsPrefix} />
@@ -174,7 +178,6 @@ export function EnrollRunnerDialog({
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEnrollRunner}
               disabled={registerRunnerMutation.isPending}

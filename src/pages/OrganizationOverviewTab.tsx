@@ -83,12 +83,12 @@ export function OrganizationOverviewTab() {
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2" data-testid="organization-overview-summary">
         {summary.map((item) => (
-          <Card key={item.label} className="border-[var(--agyn-border-subtle)]" data-testid="organization-overview-card">
+          <Card key={item.label} className="border-border" data-testid="organization-overview-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-[var(--agyn-gray)]">{item.label}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{item.label}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-[var(--agyn-dark)]">{item.value}</div>
+              <div className="text-2xl font-semibold text-foreground">{item.value}</div>
             </CardContent>
           </Card>
         ))}
@@ -99,7 +99,7 @@ export function OrganizationOverviewTab() {
         runnersQuery.isError ||
         agentsQuery.isError ||
         installationsQuery.isError) && (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load organization metrics.</div>
+        <div className="text-sm text-muted-foreground">Failed to load organization metrics.</div>
       )}
     </div>
   );

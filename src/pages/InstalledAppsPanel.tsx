@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { InstallAppDialog } from '@/components/InstallAppDialog';
 import { UpdateInstallationDialog } from '@/components/UpdateInstallationDialog';
@@ -58,23 +58,23 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
         </Button>
       </div>
       {installationsQuery.isPending ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading installations...</div>
+        <div className="text-sm text-muted-foreground">Loading installations...</div>
       ) : null}
       {installationsQuery.isError ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load installations.</div>
+        <div className="text-sm text-muted-foreground">Failed to load installations.</div>
       ) : null}
       {installations.length === 0 && !installationsQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-apps-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="organization-apps-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No apps installed.
           </CardContent>
         </Card>
       ) : null}
       {installations.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-apps-table">
+        <Card className="border-border" data-testid="organization-apps-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
               data-testid="organization-apps-header"
             >
               <span>Installation</span>
@@ -83,7 +83,7 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {installations.map((installation) => {
                 const installationId = installation.meta?.id;
                 const configCount = installation.configuration
@@ -94,25 +94,25 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
                 return (
                   <div
                     key={installationId ?? installation.slug}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
                     data-testid="organization-app-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="organization-installation-slug">
                         {installation.slug}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-installation-id">
+                      <div className="text-xs text-muted-foreground" data-testid="organization-installation-id">
                         {installationId ?? '—'}
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-installation-app">
+                    <span className="text-xs text-muted-foreground" data-testid="organization-installation-app">
                       {installation.appId || '—'}
                     </span>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-installation-config">
+                    <div className="text-xs text-muted-foreground" data-testid="organization-installation-config">
                       {configCount === null ? '—' : <Badge variant="secondary">{configLabel}</Badge>}
                     </div>
                     <span
-                      className="text-xs text-[var(--agyn-gray)]"
+                      className="text-xs text-muted-foreground"
                       data-testid="organization-installation-created"
                     >
                       {formatDateOnly(installation.meta?.createdAt)}
@@ -128,7 +128,7 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
                         Configure
                       </Button>
                       <Button
-                        variant="danger"
+                        variant="destructive"
                         size="sm"
                         onClick={() => setUninstallInstallation(installation)}
                         disabled={!installationId}

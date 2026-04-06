@@ -14,11 +14,11 @@ export function RequireClusterAdmin({ children }: GuardProps) {
   const location = useLocation();
 
   if (status === 'loading') {
-    return <div className="text-sm text-[var(--agyn-gray)]">Loading profile...</div>;
+    return <div className="text-sm text-muted-foreground">Loading profile...</div>;
   }
 
   if (status === 'error') {
-    return <div className="text-sm text-[var(--agyn-gray)]">{error?.message ?? 'Failed to load profile.'}</div>;
+    return <div className="text-sm text-muted-foreground">{error?.message ?? 'Failed to load profile.'}</div>;
   }
 
   if (!isClusterAdmin) {
@@ -47,11 +47,11 @@ export function RequireOrganization({ children }: GuardProps) {
   }, [matchingOrganization, orgId, selectedOrganization, setSelectedOrganization, status]);
 
   if (status === 'loading') {
-    return <div className="text-sm text-[var(--agyn-gray)]">Loading organizations...</div>;
+    return <div className="text-sm text-muted-foreground">Loading organizations...</div>;
   }
 
   if (status === 'error') {
-    return <div className="text-sm text-[var(--agyn-gray)]">{error?.message ?? 'Failed to load organizations.'}</div>;
+    return <div className="text-sm text-muted-foreground">{error?.message ?? 'Failed to load organizations.'}</div>;
   }
 
   if (!orgId) {

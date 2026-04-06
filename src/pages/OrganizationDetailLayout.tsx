@@ -43,15 +43,15 @@ export function OrganizationDetailLayout() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="organization-heading">
+        <h2 className="text-2xl font-semibold text-foreground" data-testid="organization-heading">
           {organization?.name ?? 'Organization'}
         </h2>
-        <p className="text-sm text-[var(--agyn-gray)]">Manage organization details and resources.</p>
+        <p className="text-sm text-muted-foreground">Manage organization details and resources.</p>
         {organization ? (
-          <p className="mt-1 text-xs text-[var(--agyn-gray)]">ID: {organization.id}</p>
+          <p className="mt-1 text-xs text-muted-foreground">ID: {organization.id}</p>
         ) : null}
         {orgQuery.isError ? (
-          <p className="mt-2 text-sm text-[var(--agyn-gray)]">Failed to load organization details.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Failed to load organization details.</p>
         ) : null}
       </div>
       <Tabs value={activeTab}>

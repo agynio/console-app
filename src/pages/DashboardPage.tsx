@@ -36,21 +36,21 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="dashboard-heading">
+        <h2 className="text-2xl font-semibold text-foreground" data-testid="dashboard-heading">
           Dashboard
         </h2>
-        <p className="text-sm text-[var(--agyn-gray)]">Platform overview and status.</p>
+        <p className="text-sm text-muted-foreground">Platform overview and status.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-3" data-testid="dashboard-summary">
         {summaryCards.map((card) => (
-          <Card key={card.label} className="border-[var(--agyn-border-subtle)]" data-testid="dashboard-stat-card">
+          <Card key={card.label} className="border-border" data-testid="dashboard-stat-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-[var(--agyn-gray)]" data-testid="dashboard-stat-label">
+              <CardTitle className="text-sm font-medium text-muted-foreground" data-testid="dashboard-stat-label">
                 {card.label}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="dashboard-stat-value">
+              <div className="text-2xl font-semibold text-foreground" data-testid="dashboard-stat-value">
                 {card.value}
               </div>
             </CardContent>
@@ -58,7 +58,7 @@ export function DashboardPage() {
         ))}
       </div>
       {(usersQuery.isError || orgsQuery.isError || runnersQuery.isError) && (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load dashboard metrics.</div>
+        <div className="text-sm text-muted-foreground">Failed to load dashboard metrics.</div>
       )}
     </div>
   );

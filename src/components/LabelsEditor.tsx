@@ -1,5 +1,5 @@
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { LabelEntry } from '@/lib/labels';
 import { createLabelEntry } from '@/lib/labels';
 
@@ -28,7 +28,7 @@ export function LabelsEditor({ value, onChange, disabled = false, testIdPrefix }
   return (
     <div className="space-y-2" data-testid={`${testIdPrefix}-labels`}>
       {value.length === 0 ? (
-        <div className="text-xs text-[var(--agyn-gray)]" data-testid={`${testIdPrefix}-labels-empty`}>
+        <div className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-labels-empty`}>
           No labels configured.
         </div>
       ) : null}
@@ -39,19 +39,19 @@ export function LabelsEditor({ value, onChange, disabled = false, testIdPrefix }
           data-testid={`${testIdPrefix}-labels-row`}
         >
           <Input
-            size="sm"
             placeholder="Key"
             value={entry.key}
             onChange={(event) => handleUpdate(entry.id, 'key', event.target.value)}
             disabled={disabled}
+            className="h-8 text-sm"
             data-testid={`${testIdPrefix}-labels-key-${index}`}
           />
           <Input
-            size="sm"
             placeholder="Value"
             value={entry.value}
             onChange={(event) => handleUpdate(entry.id, 'value', event.target.value)}
             disabled={disabled}
+            className="h-8 text-sm"
             data-testid={`${testIdPrefix}-labels-value-${index}`}
           />
           <Button

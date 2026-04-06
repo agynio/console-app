@@ -1,4 +1,4 @@
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -32,7 +32,7 @@ export function ConfirmDialog({
   isPending = false,
   onConfirm,
 }: ConfirmDialogProps) {
-  const confirmVariant = variant === 'danger' ? 'danger' : 'primary';
+  const confirmVariant = variant === 'danger' ? 'destructive' : 'default';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

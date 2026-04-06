@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -249,27 +250,27 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="agent-hooks-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-hooks-heading">
             Hooks
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Event-driven execution hooks.</p>
+          <p className="text-sm text-muted-foreground">Event-driven execution hooks.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="agent-hooks-create">
           Create hook
         </Button>
       </div>
-      {hooksQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading hooks...</div> : null}
-      {hooksQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load hooks.</div> : null}
+      {hooksQuery.isPending ? <div className="text-sm text-muted-foreground">Loading hooks...</div> : null}
+      {hooksQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load hooks.</div> : null}
       {hooks.length === 0 && !hooksQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-hooks-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">No hooks configured.</CardContent>
+        <Card className="border-border" data-testid="agent-hooks-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">No hooks configured.</CardContent>
         </Card>
       ) : null}
       {hooks.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-hooks-table">
+        <Card className="border-border" data-testid="agent-hooks-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[1fr_1fr_1fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_1fr_1fr_1fr_120px]"
               data-testid="agent-hooks-header"
             >
               <span>Event</span>
@@ -278,28 +279,28 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
               <span>Created</span>
               <span className="text-right">Manage</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {hooks.map((hook) => (
                 <div
                   key={hook.meta?.id ?? hook.event}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[1fr_1fr_1fr_1fr_120px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_1fr_1fr_1fr_120px]"
                   data-testid="agent-hook-row"
                 >
                   <div>
                     <div className="font-medium" data-testid="agent-hook-event">
                       {hook.event}
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="agent-hook-description">
+                    <div className="text-xs text-muted-foreground" data-testid="agent-hook-description">
                       {hook.description || '—'}
                     </div>
                   </div>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-hook-function">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-hook-function">
                     {truncate(hook.function)}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-hook-image">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-hook-image">
                     {hook.image || '—'}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-hook-created">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-hook-created">
                     {formatDateOnly(hook.meta?.createdAt)}
                   </span>
                   <div className="text-right">
@@ -341,44 +342,56 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Event"
-              value={createEvent}
-              onChange={(event) => {
-                setCreateEvent(event.target.value);
-                if (createEventError) setCreateEventError('');
-              }}
-              error={createEventError}
-              data-testid="agent-hooks-create-event"
-            />
-            <Input
-              label="Function"
-              value={createFunction}
-              onChange={(event) => {
-                setCreateFunction(event.target.value);
-                if (createFunctionError) setCreateFunctionError('');
-              }}
-              error={createFunctionError}
-              data-testid="agent-hooks-create-function"
-            />
-            <Input
-              label="Image"
-              value={createImage}
-              onChange={(event) => {
-                setCreateImage(event.target.value);
-                if (createImageError) setCreateImageError('');
-              }}
-              error={createImageError}
-              data-testid="agent-hooks-create-image"
-            />
-            <Input
-              label="Description"
-              value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
-              data-testid="agent-hooks-create-description-input"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Compute Resources</div>
+              <Label htmlFor="agent-hooks-create-event">Event</Label>
+              <Input
+                id="agent-hooks-create-event"
+                value={createEvent}
+                onChange={(event) => {
+                  setCreateEvent(event.target.value);
+                  if (createEventError) setCreateEventError('');
+                }}
+                data-testid="agent-hooks-create-event"
+              />
+              {createEventError && <p className="text-sm text-destructive">{createEventError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-hooks-create-function">Function</Label>
+              <Input
+                id="agent-hooks-create-function"
+                value={createFunction}
+                onChange={(event) => {
+                  setCreateFunction(event.target.value);
+                  if (createFunctionError) setCreateFunctionError('');
+                }}
+                data-testid="agent-hooks-create-function"
+              />
+              {createFunctionError && <p className="text-sm text-destructive">{createFunctionError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-hooks-create-image">Image</Label>
+              <Input
+                id="agent-hooks-create-image"
+                value={createImage}
+                onChange={(event) => {
+                  setCreateImage(event.target.value);
+                  if (createImageError) setCreateImageError('');
+                }}
+                data-testid="agent-hooks-create-image"
+              />
+              {createImageError && <p className="text-sm text-destructive">{createImageError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-hooks-create-description-input">Description</Label>
+              <Input
+                id="agent-hooks-create-description-input"
+                value={createDescription}
+                onChange={(event) => setCreateDescription(event.target.value)}
+                data-testid="agent-hooks-create-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-foreground">Compute Resources</div>
               <ComputeResourcesEditor
                 value={createResources}
                 onChange={setCreateResources}
@@ -393,7 +406,6 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createHookMutation.isPending}
@@ -414,44 +426,56 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Event"
-              value={editEvent}
-              onChange={(event) => {
-                setEditEvent(event.target.value);
-                if (editEventError) setEditEventError('');
-              }}
-              error={editEventError}
-              data-testid="agent-hooks-edit-event"
-            />
-            <Input
-              label="Function"
-              value={editFunction}
-              onChange={(event) => {
-                setEditFunction(event.target.value);
-                if (editFunctionError) setEditFunctionError('');
-              }}
-              error={editFunctionError}
-              data-testid="agent-hooks-edit-function"
-            />
-            <Input
-              label="Image"
-              value={editImage}
-              onChange={(event) => {
-                setEditImage(event.target.value);
-                if (editImageError) setEditImageError('');
-              }}
-              error={editImageError}
-              data-testid="agent-hooks-edit-image"
-            />
-            <Input
-              label="Description"
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              data-testid="agent-hooks-edit-description-input"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Compute Resources</div>
+              <Label htmlFor="agent-hooks-edit-event">Event</Label>
+              <Input
+                id="agent-hooks-edit-event"
+                value={editEvent}
+                onChange={(event) => {
+                  setEditEvent(event.target.value);
+                  if (editEventError) setEditEventError('');
+                }}
+                data-testid="agent-hooks-edit-event"
+              />
+              {editEventError && <p className="text-sm text-destructive">{editEventError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-hooks-edit-function">Function</Label>
+              <Input
+                id="agent-hooks-edit-function"
+                value={editFunction}
+                onChange={(event) => {
+                  setEditFunction(event.target.value);
+                  if (editFunctionError) setEditFunctionError('');
+                }}
+                data-testid="agent-hooks-edit-function"
+              />
+              {editFunctionError && <p className="text-sm text-destructive">{editFunctionError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-hooks-edit-image">Image</Label>
+              <Input
+                id="agent-hooks-edit-image"
+                value={editImage}
+                onChange={(event) => {
+                  setEditImage(event.target.value);
+                  if (editImageError) setEditImageError('');
+                }}
+                data-testid="agent-hooks-edit-image"
+              />
+              {editImageError && <p className="text-sm text-destructive">{editImageError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-hooks-edit-description-input">Description</Label>
+              <Input
+                id="agent-hooks-edit-description-input"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                data-testid="agent-hooks-edit-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-foreground">Compute Resources</div>
               <ComputeResourcesEditor value={editResources} onChange={setEditResources} testIdPrefix="agent-hooks-edit" />
             </div>
           </div>
@@ -462,7 +486,6 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateHookMutation.isPending}

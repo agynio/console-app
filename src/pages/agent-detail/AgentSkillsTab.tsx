@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScriptEditor } from '@/components/ScriptEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -175,29 +176,29 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="agent-skills-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-skills-heading">
             Skills
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Reusable prompts and instructions.</p>
+          <p className="text-sm text-muted-foreground">Reusable prompts and instructions.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="agent-skills-create">
           Create skill
         </Button>
       </div>
-      {skillsQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading skills...</div> : null}
-      {skillsQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load skills.</div> : null}
+      {skillsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading skills...</div> : null}
+      {skillsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load skills.</div> : null}
       {skills.length === 0 && !skillsQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-skills-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="agent-skills-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No skills configured.
           </CardContent>
         </Card>
       ) : null}
       {skills.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-skills-table">
+        <Card className="border-border" data-testid="agent-skills-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[1fr_2fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_2fr_1fr_120px]"
               data-testid="agent-skills-header"
             >
               <span>Name</span>
@@ -205,25 +206,25 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {skills.map((skill) => (
                 <div
                   key={skill.meta?.id ?? skill.name}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[1fr_2fr_1fr_120px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_2fr_1fr_120px]"
                   data-testid="agent-skill-row"
                 >
                   <div>
                     <div className="font-medium" data-testid="agent-skill-name">
                       {skill.name}
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="agent-skill-description">
+                    <div className="text-xs text-muted-foreground" data-testid="agent-skill-description">
                       {skill.description || '—'}
                     </div>
                   </div>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-skill-body">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-skill-body">
                     {truncate(skill.body)}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-skill-created">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-skill-created">
                     {formatDateOnly(skill.meta?.createdAt)}
                   </span>
                   <div className="flex items-center justify-end gap-2">
@@ -236,7 +237,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
                       Edit
                     </Button>
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteOpen(skill)}
                       data-testid="agent-skill-delete"
@@ -254,107 +255,117 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
         <DialogContent data-testid="agent-skills-create-dialog">
           <DialogHeader>
             <DialogTitle data-testid="agent-skills-create-title">Create skill</DialogTitle>
-            <DialogDescription data-testid="agent-skills-create-description">
-              Add a new skill prompt for this agent.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
+          <DialogDescription data-testid="agent-skills-create-description">
+            Add a new skill prompt for this agent.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="agent-skills-create-name">Name</Label>
             <Input
-              label="Name"
+              id="agent-skills-create-name"
               value={createName}
               onChange={(event) => {
                 setCreateName(event.target.value);
                 if (createNameError) setCreateNameError('');
               }}
-              error={createNameError}
               data-testid="agent-skills-create-name"
             />
-            <ScriptEditor
-              label="Body"
-              value={createBody}
+            {createNameError && <p className="text-sm text-destructive">{createNameError}</p>}
+          </div>
+          <ScriptEditor
+            label="Body"
+            value={createBody}
               onChange={(event) => {
                 setCreateBody(event.target.value);
                 if (createBodyError) setCreateBodyError('');
               }}
-              error={createBodyError}
-              data-testid="agent-skills-create-body"
-            />
+            error={createBodyError}
+            data-testid="agent-skills-create-body"
+          />
+          <div className="space-y-2">
+            <Label htmlFor="agent-skills-create-description-input">Description</Label>
             <Input
-              label="Description"
+              id="agent-skills-create-description-input"
               value={createDescription}
               onChange={(event) => setCreateDescription(event.target.value)}
               data-testid="agent-skills-create-description-input"
             />
           </div>
+        </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" size="sm" data-testid="agent-skills-create-cancel">
                 Cancel
               </Button>
             </DialogClose>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleCreate}
-              disabled={createSkillMutation.isPending}
-              data-testid="agent-skills-create-submit"
-            >
-              {createSkillMutation.isPending ? 'Creating...' : 'Create skill'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <Button
+            size="sm"
+            onClick={handleCreate}
+            disabled={createSkillMutation.isPending}
+            data-testid="agent-skills-create-submit"
+          >
+            {createSkillMutation.isPending ? 'Creating...' : 'Create skill'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
       <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
         <DialogContent data-testid="agent-skills-edit-dialog">
           <DialogHeader>
             <DialogTitle data-testid="agent-skills-edit-title">Edit skill</DialogTitle>
-            <DialogDescription data-testid="agent-skills-edit-description">
-              Update skill details.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
+          <DialogDescription data-testid="agent-skills-edit-description">
+            Update skill details.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="agent-skills-edit-name">Name</Label>
             <Input
-              label="Name"
+              id="agent-skills-edit-name"
               value={editName}
               onChange={(event) => {
                 setEditName(event.target.value);
                 if (editNameError) setEditNameError('');
               }}
-              error={editNameError}
               data-testid="agent-skills-edit-name"
             />
-            <ScriptEditor
-              label="Body"
-              value={editBody}
+            {editNameError && <p className="text-sm text-destructive">{editNameError}</p>}
+          </div>
+          <ScriptEditor
+            label="Body"
+            value={editBody}
               onChange={(event) => {
                 setEditBody(event.target.value);
                 if (editBodyError) setEditBodyError('');
               }}
-              error={editBodyError}
-              data-testid="agent-skills-edit-body"
-            />
+            error={editBodyError}
+            data-testid="agent-skills-edit-body"
+          />
+          <div className="space-y-2">
+            <Label htmlFor="agent-skills-edit-description-input">Description</Label>
             <Input
-              label="Description"
+              id="agent-skills-edit-description-input"
               value={editDescription}
               onChange={(event) => setEditDescription(event.target.value)}
               data-testid="agent-skills-edit-description-input"
             />
           </div>
+        </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" size="sm" data-testid="agent-skills-edit-cancel">
                 Cancel
               </Button>
             </DialogClose>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleEditSave}
-              disabled={updateSkillMutation.isPending}
-              data-testid="agent-skills-edit-submit"
-            >
-              {updateSkillMutation.isPending ? 'Saving...' : 'Save changes'}
-            </Button>
+          <Button
+            size="sm"
+            onClick={handleEditSave}
+            disabled={updateSkillMutation.isPending}
+            data-testid="agent-skills-edit-submit"
+          >
+            {updateSkillMutation.isPending ? 'Saving...' : 'Save changes'}
+          </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

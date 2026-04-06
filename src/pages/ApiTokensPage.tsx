@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CreateApiTokenDialog } from '@/components/CreateApiTokenDialog';
 import { Card, CardContent } from '@/components/ui/card';
@@ -39,27 +39,27 @@ export function ApiTokensPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">API Tokens</h2>
-          <p className="text-sm text-[var(--agyn-gray)]">Issue and revoke platform API tokens.</p>
+          <h2 className="text-2xl font-semibold text-foreground">API Tokens</h2>
+          <p className="text-sm text-muted-foreground">Issue and revoke platform API tokens.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="api-tokens-create">
           Create token
         </Button>
       </div>
-      {tokensQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading tokens...</div> : null}
-      {tokensQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load tokens.</div> : null}
+      {tokensQuery.isPending ? <div className="text-sm text-muted-foreground">Loading tokens...</div> : null}
+      {tokensQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load tokens.</div> : null}
       {tokens.length === 0 && !tokensQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="api-tokens-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="api-tokens-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No API tokens. Create one to enable programmatic API access.
           </CardContent>
         </Card>
       ) : null}
       {tokens.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="api-tokens-table">
+        <Card className="border-border" data-testid="api-tokens-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
               data-testid="api-tokens-header"
             >
               <span>Name</span>
@@ -69,31 +69,31 @@ export function ApiTokensPage() {
               <span>Last Used</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {tokens.map((token) => (
                 <div
                   key={token.id}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
                   data-testid="api-token-row"
                 >
                   <span className="font-medium" data-testid="api-token-name">
                     {token.name}
                   </span>
-                  <span className="text-xs font-mono text-[var(--agyn-gray)]" data-testid="api-token-prefix">
+                  <span className="text-xs font-mono text-muted-foreground" data-testid="api-token-prefix">
                     {token.tokenPrefix}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="api-token-created">
+                  <span className="text-xs text-muted-foreground" data-testid="api-token-created">
                     {formatDateOnly(token.createdAt)}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="api-token-expires">
+                  <span className="text-xs text-muted-foreground" data-testid="api-token-expires">
                     {token.expiresAt ? formatDateOnly(token.expiresAt) : 'Never'}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="api-token-last-used">
+                  <span className="text-xs text-muted-foreground" data-testid="api-token-last-used">
                     {token.lastUsedAt ? formatDateOnly(token.lastUsedAt) : 'Never'}
                   </span>
                   <div className="text-right">
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => setRevokeToken(token)}
                       data-testid="api-token-revoke"

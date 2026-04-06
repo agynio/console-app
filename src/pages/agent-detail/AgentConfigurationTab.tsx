@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, llmClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { JsonEditor } from '@/components/JsonEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -156,12 +157,12 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
 
   return (
     <div className="space-y-4">
-      <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-configuration-card">
+      <Card className="border-border" data-testid="agent-configuration-card">
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-semibold text-[var(--agyn-dark)]">Configuration</h3>
-              <p className="text-sm text-[var(--agyn-gray)]">Agent metadata and runtime settings.</p>
+              <h3 className="text-lg font-semibold text-foreground">Configuration</h3>
+              <p className="text-sm text-muted-foreground">Agent metadata and runtime settings.</p>
             </div>
             <Button
               variant="outline"
@@ -174,45 +175,45 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Name</div>
-              <div className="text-sm text-[var(--agyn-dark)]">{agent.name || '—'}</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Name</div>
+              <div className="text-sm text-foreground">{agent.name || '—'}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Role</div>
-              <div className="text-sm text-[var(--agyn-dark)]">{agent.role || '—'}</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Role</div>
+              <div className="text-sm text-foreground">{agent.role || '—'}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Model</div>
-              <div className="text-sm text-[var(--agyn-dark)]">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Model</div>
+              <div className="text-sm text-foreground">
                 {modelMap.get(agent.model)?.name ?? (agent.model || '—')}
               </div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Description</div>
-              <div className="text-sm text-[var(--agyn-dark)]">{agent.description || '—'}</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Description</div>
+              <div className="text-sm text-foreground">{agent.description || '—'}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Image</div>
-              <div className="text-sm text-[var(--agyn-dark)]">{agent.image || '—'}</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Image</div>
+              <div className="text-sm text-foreground">{agent.image || '—'}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Init Image</div>
-              <div className="text-sm text-[var(--agyn-dark)]">{agent.initImage || '—'}</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Init Image</div>
+              <div className="text-sm text-foreground">{agent.initImage || '—'}</div>
             </div>
             <div className="md:col-span-2">
-              <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Compute Resources</div>
-              <div className="text-sm text-[var(--agyn-dark)]">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compute Resources</div>
+              <div className="text-sm text-foreground">
                 {formatComputeResources(agent.resources)}
               </div>
             </div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Configuration</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Configuration</div>
             {configurationPreview.hasError ? (
-              <div className="mt-1 text-xs text-[var(--agyn-danger)]">Invalid JSON format</div>
+              <div className="mt-1 text-xs text-destructive">Invalid JSON format</div>
             ) : null}
             <pre
-              className="mt-2 whitespace-pre-wrap rounded-md border border-[var(--agyn-border-subtle)] bg-[var(--agyn-secondary)] p-3 text-xs font-mono text-[var(--agyn-dark)]"
+              className="mt-2 whitespace-pre-wrap rounded-md border border-border bg-muted p-3 text-xs font-mono text-foreground"
               data-testid="agent-configuration-preview"
             >
               {configurationPreview.value}
@@ -229,26 +230,32 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Name"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                if (nameError) setNameError('');
-              }}
-              error={nameError}
-              data-testid="agent-configuration-name"
-            />
-            <Input
-              label="Role"
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-              data-testid="agent-configuration-role"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Model</div>
+              <Label htmlFor="agent-configuration-name">Name</Label>
+              <Input
+                id="agent-configuration-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (nameError) setNameError('');
+                }}
+                data-testid="agent-configuration-name"
+              />
+              {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-role">Role</Label>
+              <Input
+                id="agent-configuration-role"
+                value={role}
+                onChange={(event) => setRole(event.target.value)}
+                data-testid="agent-configuration-role"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-model">Model</Label>
               <Select value={modelId} onValueChange={(value) => setModelId(value)}>
-                <SelectTrigger data-testid="agent-configuration-model">
+                <SelectTrigger id="agent-configuration-model" data-testid="agent-configuration-model">
                   <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
@@ -265,24 +272,33 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                 </SelectContent>
               </Select>
             </div>
-            <Input
-              label="Description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              data-testid="agent-configuration-description"
-            />
-            <Input
-              label="Image"
-              value={image}
-              onChange={(event) => setImage(event.target.value)}
-              data-testid="agent-configuration-image"
-            />
-            <Input
-              label="Init Image"
-              value={initImage}
-              onChange={(event) => setInitImage(event.target.value)}
-              data-testid="agent-configuration-init-image"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-description">Description</Label>
+              <Input
+                id="agent-configuration-description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                data-testid="agent-configuration-description"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-image">Image</Label>
+              <Input
+                id="agent-configuration-image"
+                value={image}
+                onChange={(event) => setImage(event.target.value)}
+                data-testid="agent-configuration-image"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-init-image">Init Image</Label>
+              <Input
+                id="agent-configuration-init-image"
+                value={initImage}
+                onChange={(event) => setInitImage(event.target.value)}
+                data-testid="agent-configuration-init-image"
+              />
+            </div>
             <JsonEditor
               label="Configuration"
               value={configuration}
@@ -294,7 +310,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
               testId="agent-configuration-config"
             />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Compute Resources</div>
+              <Label>Compute Resources</Label>
               <ComputeResourcesEditor
                 value={resources}
                 onChange={setResources}
@@ -309,7 +325,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleSave}
               disabled={updateAgentMutation.isPending}

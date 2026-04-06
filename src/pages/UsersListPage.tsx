@@ -2,8 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { organizationsClient, usersClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
@@ -179,24 +180,20 @@ export function UsersListPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="users-heading">
+          <h2 className="text-2xl font-semibold text-foreground" data-testid="users-heading">
             Users
           </h2>
-          <p className="text-sm text-[var(--agyn-gray)]">Manage platform users.</p>
+          <p className="text-sm text-muted-foreground">Manage platform users.</p>
         </div>
         <Button variant="outline" size="sm" data-testid="users-create-button" onClick={() => setCreateOpen(true)}>
           Create user
         </Button>
       </div>
 
-      {usersQuery.isPending && (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading users...</div>
-      )}
-      {usersQuery.isError && (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load users.</div>
-      )}
+      {usersQuery.isPending && <div className="text-sm text-muted-foreground">Loading users...</div>}
+      {usersQuery.isError && <div className="text-sm text-muted-foreground">Failed to load users.</div>}
       {isMembershipsError && (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load organization memberships.</div>
+        <div className="text-sm text-muted-foreground">Failed to load organization memberships.</div>
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -208,47 +205,59 @@ export function UsersListPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="OIDC Subject"
-              placeholder="auth0|abc123"
-              value={oidcSubject}
-              onChange={(event) => {
-                setOidcSubject(event.target.value);
-                if (oidcError) setOidcError('');
-              }}
-              error={oidcError}
-              data-testid="users-create-oidc"
-            />
-            <Input
-              label="Name"
-              placeholder="Jane Doe"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              data-testid="users-create-name"
-            />
-            <Input
-              label="Nickname"
-              placeholder="jane"
-              value={nickname}
-              onChange={(event) => setNickname(event.target.value)}
-              data-testid="users-create-nickname"
-            />
-            <Input
-              label="Photo URL"
-              placeholder="https://..."
-              value={photoUrl}
-              onChange={(event) => setPhotoUrl(event.target.value)}
-              data-testid="users-create-photo-url"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Cluster Role</div>
+              <Label htmlFor="users-create-oidc">OIDC Subject</Label>
+              <Input
+                id="users-create-oidc"
+                placeholder="auth0|abc123"
+                value={oidcSubject}
+                onChange={(event) => {
+                  setOidcSubject(event.target.value);
+                  if (oidcError) setOidcError('');
+                }}
+                data-testid="users-create-oidc"
+              />
+              {oidcError ? <p className="text-sm text-destructive">{oidcError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="users-create-name">Name</Label>
+              <Input
+                id="users-create-name"
+                placeholder="Jane Doe"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                data-testid="users-create-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="users-create-nickname">Nickname</Label>
+              <Input
+                id="users-create-nickname"
+                placeholder="jane"
+                value={nickname}
+                onChange={(event) => setNickname(event.target.value)}
+                data-testid="users-create-nickname"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="users-create-photo-url">Photo URL</Label>
+              <Input
+                id="users-create-photo-url"
+                placeholder="https://..."
+                value={photoUrl}
+                onChange={(event) => setPhotoUrl(event.target.value)}
+                data-testid="users-create-photo-url"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="users-create-cluster-role">Cluster Role</Label>
               <Select
                 value={clusterRole === ClusterRole.ADMIN ? 'admin' : 'none'}
                 onValueChange={(value) =>
                   setClusterRole(value === 'admin' ? ClusterRole.ADMIN : ClusterRole.UNSPECIFIED)
                 }
               >
-                <SelectTrigger data-testid="users-create-cluster-role">
+                <SelectTrigger id="users-create-cluster-role" data-testid="users-create-cluster-role">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -265,7 +274,6 @@ export function UsersListPage() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreateUser}
               disabled={createUserMutation.isPending}
@@ -277,10 +285,10 @@ export function UsersListPage() {
         </DialogContent>
       </Dialog>
 
-      <Card className="border-[var(--agyn-border-subtle)]" data-testid="users-table">
+      <Card className="border-border" data-testid="users-table">
         <CardContent className="px-0">
           <div
-            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1.5fr_2fr_1fr_120px]"
+            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1.5fr_2fr_1fr_120px]"
             data-testid="users-header"
           >
             <span>User</span>
@@ -289,9 +297,9 @@ export function UsersListPage() {
             <span>Cluster Admin</span>
             <span className="text-right">Action</span>
           </div>
-          <div className="divide-y divide-[var(--agyn-border-subtle)]">
+          <div className="divide-y divide-border">
             {users.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]">No users found.</div>
+              <div className="px-6 py-6 text-sm text-muted-foreground">No users found.</div>
             ) : (
               users.map((user) => {
                 const identityId = user.meta?.id;
@@ -304,22 +312,22 @@ export function UsersListPage() {
                 return (
                   <div
                     key={rowKey}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1.5fr_2fr_1fr_120px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1.5fr_2fr_1fr_120px]"
                     data-testid="users-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="users-name">
                         {user.name || 'Unnamed user'}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="users-email">
+                      <div className="text-xs text-muted-foreground" data-testid="users-email">
                         {user.email}
                       </div>
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]">{identityId || '—'}</div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="users-organizations">
+                    <div className="text-xs text-muted-foreground">{identityId || '—'}</div>
+                    <div className="text-xs text-muted-foreground" data-testid="users-organizations">
                       {isMembershipsLoading ? 'Loading...' : memberships.length > 0 ? memberships.join(', ') : '—'}
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="users-cluster-role">
+                    <div className="text-xs text-muted-foreground" data-testid="users-cluster-role">
                       {isRoleLoading ? (
                         'Loading...'
                       ) : (
@@ -339,7 +347,7 @@ export function UsersListPage() {
                           </NavLink>
                         </Button>
                       ) : (
-                        <span className="text-xs text-[var(--agyn-gray)]">—</span>
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
                   </div>
