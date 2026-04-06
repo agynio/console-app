@@ -59,6 +59,7 @@ export default function App() {
           <Route path="secret-providers" element={<OrganizationSecretProvidersTab />} />
           <Route path="runners" element={<OrganizationRunnersTab />} />
           <Route path="apps" element={<OrganizationAppsTab />} />
+          <Route path="apps/:appId" element={<AppDetailPage />} />
           <Route path="monitoring" element={<OrganizationMonitoringTab />} />
         </Route>
         <Route
