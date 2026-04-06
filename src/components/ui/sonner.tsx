@@ -9,7 +9,7 @@ import {
 import { useTheme } from '@/components/theme-provider';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 
-const Toaster = ({ ...props }: ToasterProps) => {
+function Toaster({ ...props }: ToasterProps) {
   const { resolvedTheme } = useTheme();
 
   return (
@@ -34,6 +34,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
       {...props}
     />
   );
-};
+}
 
 export { Toaster };

@@ -13,6 +13,7 @@ type ThemeProviderContextValue = {
 const ThemeProviderContext = createContext<ThemeProviderContextValue | undefined>(undefined);
 
 const STORAGE_KEY = 'console-theme';
+const VALID_THEMES = new Set<Theme>(['light', 'dark', 'system']);
 
 function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -20,11 +21,13 @@ function getSystemTheme(): 'light' | 'dark' {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    return stored ?? 'system';
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored && VALID_THEMES.has(stored as Theme) ? (stored as Theme) : 'system';
   });
 
-  const resolvedTheme = theme === 'system' ? getSystemTheme() : theme;
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme);
+
+  const resolvedTheme = theme === 'system' ? systemTheme : theme;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -33,16 +36,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [resolvedTheme]);
 
   useEffect(() => {
-    if (theme !== 'system') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => {
-      const root = document.documentElement;
-      root.classList.remove('light', 'dark');
-      root.classList.add(getSystemTheme());
-    };
+    const handler = () => setSystemTheme(mq.matches ? 'dark' : 'light');
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
-  }, [theme]);
+  }, []);
 
   const setTheme = (nextTheme: Theme) => {
     localStorage.setItem(STORAGE_KEY, nextTheme);
