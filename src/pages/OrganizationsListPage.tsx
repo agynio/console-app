@@ -1,26 +1,14 @@
-import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { BuildingIcon, PlusIcon } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { organizationsClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/Button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/Input';
+import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import type { MembershipRole } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { useCreateOrganization } from '@/hooks/useCreateOrganization';
 import { formatDateOnly, formatMembershipRole } from '@/lib/format';
-import { toast } from 'sonner';
 
 function describeRole(role?: MembershipRole, isClusterAdmin?: boolean): string {
   if (!role) return isClusterAdmin ? 'Admin' : '—';
@@ -30,44 +18,15 @@ function describeRole(role?: MembershipRole, isClusterAdmin?: boolean): string {
 export function OrganizationsListPage() {
   const { organizations, status, error } = useOrganizationContext();
   const { isClusterAdmin } = useUserContext();
-  const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [orgName, setOrgName] = useState('');
-  const [orgNameError, setOrgNameError] = useState('');
-
-  const createOrganizationMutation = useMutation({
-    mutationFn: (payload: { name: string }) => organizationsClient.createOrganization(payload),
-    onSuccess: () => {
-      toast.success('Organization created.');
-      void queryClient.invalidateQueries({ queryKey: ['organizations', 'accessible'] });
-      void queryClient.invalidateQueries({ queryKey: ['organizations', 'memberships'] });
-      void queryClient.invalidateQueries({ queryKey: ['organizations', 'list'] });
-      setCreateOpen(false);
-      setOrgName('');
-      setOrgNameError('');
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to create organization.');
-    },
-  });
-
-  const handleCreateOrganization = () => {
-    const trimmedName = orgName.trim();
-    if (!trimmedName) {
-      setOrgNameError('Organization name is required.');
-      return;
-    }
-    setOrgNameError('');
-    createOrganizationMutation.mutate({ name: trimmedName });
-  };
-
-  const handleCreateOpenChange = (open: boolean) => {
-    setCreateOpen(open);
-    if (!open) {
-      setOrgName('');
-      setOrgNameError('');
-    }
-  };
+  const {
+    open: createOpen,
+    handleOpenChange,
+    organizationName,
+    organizationNameError,
+    handleNameChange,
+    handleSubmit,
+    isSubmitting,
+  } = useCreateOrganization();
 
   return (
     <div className="space-y-6">
@@ -83,7 +42,7 @@ export function OrganizationsListPage() {
             variant="outline"
             size="sm"
             data-testid="organizations-create-button"
-            onClick={() => handleCreateOpenChange(true)}
+            onClick={() => handleOpenChange(true)}
           >
             <PlusIcon className="mr-2 h-4 w-4" />
             Create organization
@@ -146,45 +105,16 @@ export function OrganizationsListPage() {
           </CardContent>
         </Card>
       ) : null}
-      <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
-        <DialogContent data-testid="organizations-create-dialog">
-          <DialogHeader>
-            <DialogTitle data-testid="organizations-create-title">Create organization</DialogTitle>
-            <DialogDescription data-testid="organizations-create-description">
-              Set the organization name.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              label="Organization Name"
-              placeholder="Acme AI"
-              value={orgName}
-              onChange={(event) => {
-                setOrgName(event.target.value);
-                if (orgNameError) setOrgNameError('');
-              }}
-              error={orgNameError}
-              data-testid="organizations-create-name"
-            />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="organizations-create-cancel">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleCreateOrganization}
-              disabled={createOrganizationMutation.isPending}
-              data-testid="organizations-create-submit"
-            >
-              {createOrganizationMutation.isPending ? 'Creating...' : 'Create organization'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateOrganizationDialog
+        open={createOpen}
+        onOpenChange={handleOpenChange}
+        organizationName={organizationName}
+        organizationNameError={organizationNameError}
+        onOrganizationNameChange={handleNameChange}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        testIdPrefix="organizations-create"
+      />
     </div>
   );
 }

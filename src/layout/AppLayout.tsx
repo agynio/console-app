@@ -16,9 +16,11 @@ import {
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { Button } from '@/components/Button';
+import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import { OrganizationSwitcher } from '@/components/OrganizationSwitcher';
+import { useCreateOrganization } from '@/hooks/useCreateOrganization';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +34,67 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
     isActive ? 'bg-[var(--agyn-bg-blue)] text-[var(--agyn-blue)]' : 'text-[var(--agyn-dark)] hover:bg-[var(--agyn-bg-light)]'
   }`;
+
+type NoAccessScreenProps = {
+  onSignOut: () => void;
+};
+
+function NoAccessScreen({ onSignOut }: NoAccessScreenProps) {
+  const {
+    open,
+    handleOpenChange,
+    organizationName,
+    organizationNameError,
+    handleNameChange,
+    handleSubmit,
+    isSubmitting,
+  } = useCreateOrganization();
+
+  return (
+    <>
+      <div
+        className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] px-6"
+        data-testid="console-no-access"
+      >
+        <div className="max-w-lg rounded-xl border border-[var(--agyn-border-subtle)] bg-white p-8 text-center">
+          <h1 className="text-xl font-semibold text-[var(--agyn-dark)]">No organizations to manage</h1>
+          <p className="mt-2 text-sm text-[var(--agyn-gray)]">
+            Your account does not have console access yet. Contact a cluster admin or organization owner to
+            request access.
+          </p>
+          <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Button
+              size="sm"
+              onClick={() => handleOpenChange(true)}
+              data-testid="console-create-organization-button"
+            >
+              Create organization
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSignOut}
+              data-testid="console-sign-out-button"
+            >
+              Sign out
+            </Button>
+          </div>
+        </div>
+      </div>
+      <CreateOrganizationDialog
+        open={open}
+        onOpenChange={handleOpenChange}
+        organizationName={organizationName}
+        organizationNameError={organizationNameError}
+        onOrganizationNameChange={handleNameChange}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        testIdPrefix="console-create-organization"
+      />
+      <Toaster richColors position="top-right" />
+    </>
+  );
+}
 
 export function AppLayout() {
   const { selectedOrganization, hasConsoleAccess, status: orgStatus } = useOrganizationContext();
@@ -54,23 +117,7 @@ export function AppLayout() {
   }
 
   if (!hasConsoleAccess) {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] px-6"
-        data-testid="console-no-access"
-      >
-        <div className="max-w-lg rounded-xl border border-[var(--agyn-border-subtle)] bg-white p-8 text-center">
-          <h1 className="text-xl font-semibold text-[var(--agyn-dark)]">No organizations to manage</h1>
-          <p className="mt-2 text-sm text-[var(--agyn-gray)]">
-            Your account does not have console access yet. Contact a cluster admin or organization owner to
-            request access.
-          </p>
-          <Button className="mt-4" variant="outline" onClick={signOut}>
-            Sign out
-          </Button>
-        </div>
-      </div>
-    );
+    return <NoAccessScreen onSignOut={signOut} />;
   }
 
   const origin = window.location.origin;
