@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   ActivityIcon,
@@ -15,23 +14,13 @@ import {
   ServerIcon,
   UsersIcon,
 } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Toaster, toast } from 'sonner';
-import { organizationsClient } from '@/api/client';
+import { Toaster } from 'sonner';
 import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import { OrganizationSwitcher } from '@/components/OrganizationSwitcher';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { useCreateOrganization } from '@/hooks/useCreateOrganization';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,47 +35,70 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-[var(--agyn-bg-blue)] text-[var(--agyn-blue)]' : 'text-[var(--agyn-dark)] hover:bg-[var(--agyn-bg-light)]'
   }`;
 
+type NoAccessScreenProps = {
+  onSignOut: () => void;
+};
+
+function NoAccessScreen({ onSignOut }: NoAccessScreenProps) {
+  const {
+    open,
+    handleOpenChange,
+    organizationName,
+    organizationNameError,
+    handleNameChange,
+    handleSubmit,
+    isSubmitting,
+  } = useCreateOrganization();
+
+  return (
+    <>
+      <div
+        className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] px-6"
+        data-testid="console-no-access"
+      >
+        <div className="max-w-lg rounded-xl border border-[var(--agyn-border-subtle)] bg-white p-8 text-center">
+          <h1 className="text-xl font-semibold text-[var(--agyn-dark)]">No organizations to manage</h1>
+          <p className="mt-2 text-sm text-[var(--agyn-gray)]">
+            Your account does not have console access yet. Contact a cluster admin or organization owner to
+            request access.
+          </p>
+          <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Button
+              size="sm"
+              onClick={() => handleOpenChange(true)}
+              data-testid="console-create-organization-button"
+            >
+              Create organization
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSignOut}
+              data-testid="console-sign-out-button"
+            >
+              Sign out
+            </Button>
+          </div>
+        </div>
+      </div>
+      <CreateOrganizationDialog
+        open={open}
+        onOpenChange={handleOpenChange}
+        organizationName={organizationName}
+        organizationNameError={organizationNameError}
+        onOrganizationNameChange={handleNameChange}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        testIdPrefix="console-create-organization"
+      />
+      <Toaster richColors position="top-right" />
+    </>
+  );
+}
+
 export function AppLayout() {
   const { selectedOrganization, hasConsoleAccess, status: orgStatus } = useOrganizationContext();
   const { currentUser, isClusterAdmin, status: userStatus, error: userError, signOut } = useUserContext();
-  const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [orgName, setOrgName] = useState('');
-  const [orgNameError, setOrgNameError] = useState('');
-
-  const createOrganizationMutation = useMutation({
-    mutationFn: (payload: { name: string }) => organizationsClient.createOrganization(payload),
-    onSuccess: () => {
-      toast.success('Organization created.');
-      void queryClient.invalidateQueries({ queryKey: ['organizations', 'accessible'] });
-      void queryClient.invalidateQueries({ queryKey: ['organizations', 'memberships'] });
-      void queryClient.invalidateQueries({ queryKey: ['organizations', 'list'] });
-      setCreateOpen(false);
-      setOrgName('');
-      setOrgNameError('');
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to create organization.');
-    },
-  });
-
-  const handleCreateOrganization = () => {
-    const trimmedName = orgName.trim();
-    if (!trimmedName) {
-      setOrgNameError('Organization name is required.');
-      return;
-    }
-    setOrgNameError('');
-    createOrganizationMutation.mutate({ name: trimmedName });
-  };
-
-  const handleCreateOpenChange = (open: boolean) => {
-    setCreateOpen(open);
-    if (!open) {
-      setOrgName('');
-      setOrgNameError('');
-    }
-  };
 
   if (userStatus === 'loading' || orgStatus === 'loading') {
     return (
@@ -105,79 +117,7 @@ export function AppLayout() {
   }
 
   if (!hasConsoleAccess) {
-    return (
-      <>
-        <div
-          className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] px-6"
-          data-testid="console-no-access"
-        >
-          <div className="max-w-lg rounded-xl border border-[var(--agyn-border-subtle)] bg-white p-8 text-center">
-            <h1 className="text-xl font-semibold text-[var(--agyn-dark)]">No organizations to manage</h1>
-            <p className="mt-2 text-sm text-[var(--agyn-gray)]">
-              Your account does not have console access yet. Contact a cluster admin or organization owner to
-              request access.
-            </p>
-            <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Button
-                size="sm"
-                onClick={() => handleCreateOpenChange(true)}
-                data-testid="console-create-organization-button"
-              >
-                Create organization
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={signOut}
-                data-testid="console-sign-out-button"
-              >
-                Sign out
-              </Button>
-            </div>
-          </div>
-        </div>
-        <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
-          <DialogContent data-testid="console-create-organization-dialog">
-            <DialogHeader>
-              <DialogTitle data-testid="console-create-organization-title">Create organization</DialogTitle>
-              <DialogDescription data-testid="console-create-organization-description">
-                Set the organization name.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Input
-                label="Organization Name"
-                placeholder="Acme AI"
-                value={orgName}
-                onChange={(event) => {
-                  setOrgName(event.target.value);
-                  if (orgNameError) setOrgNameError('');
-                }}
-                error={orgNameError}
-                data-testid="console-create-organization-name"
-              />
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline" size="sm" data-testid="console-create-organization-cancel">
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleCreateOrganization}
-                disabled={createOrganizationMutation.isPending}
-                data-testid="console-create-organization-submit"
-              >
-                {createOrganizationMutation.isPending ? 'Creating...' : 'Create organization'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        <Toaster richColors position="top-right" />
-      </>
-    );
+    return <NoAccessScreen onSignOut={signOut} />;
   }
 
   const origin = window.location.origin;
