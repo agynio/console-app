@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import type { SecretProvider } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { formatDateOnly, formatSecretProviderType } from '@/lib/format';
@@ -268,13 +269,10 @@ export function OrganizationSecretProvidersTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3
-            className="text-lg font-semibold text-[var(--agyn-dark)]"
-            data-testid="organization-secret-providers-heading"
-          >
+          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-secret-providers-heading">
             Secret Providers
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Vault-backed secret providers for this organization.</p>
+          <p className="text-sm text-muted-foreground">Vault-backed secret providers for this organization.</p>
         </div>
         <Button
           variant="outline"
@@ -286,23 +284,23 @@ export function OrganizationSecretProvidersTab() {
         </Button>
       </div>
       {providersQuery.isPending ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading secret providers...</div>
+        <div className="text-sm text-muted-foreground">Loading secret providers...</div>
       ) : null}
       {providersQuery.isError ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load secret providers.</div>
+        <div className="text-sm text-muted-foreground">Failed to load secret providers.</div>
       ) : null}
       {providers.length === 0 && !providersQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="secret-providers-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="secret-providers-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No secret providers configured.
           </CardContent>
         </Card>
       ) : null}
       {providers.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-secret-providers-table">
+        <Card className="border-border" data-testid="organization-secret-providers-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
               data-testid="organization-secret-providers-header"
             >
               <span>Title</span>
@@ -311,35 +309,35 @@ export function OrganizationSecretProvidersTab() {
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {providers.map((provider) => {
                 const vaultAddress =
                   provider.config?.provider.case === 'vault' ? provider.config.provider.value.address : '—';
                 return (
                   <div
                     key={provider.meta?.id ?? provider.title}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
                     data-testid="secret-provider-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="organization-secret-provider-title">
                         {provider.title}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-secret-provider-id">
+                      <div className="text-xs text-muted-foreground" data-testid="organization-secret-provider-id">
                         {provider.meta?.id ?? '—'}
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-secret-provider-type">
+                    <span className="text-xs text-muted-foreground" data-testid="organization-secret-provider-type">
                       {formatSecretProviderType(provider.type)}
                     </span>
                     <span
-                      className="text-xs text-[var(--agyn-gray)]"
+                      className="text-xs text-muted-foreground"
                       data-testid="organization-secret-provider-address"
                     >
                       {vaultAddress}
                     </span>
                     <span
-                      className="text-xs text-[var(--agyn-gray)]"
+                      className="text-xs text-muted-foreground"
                       data-testid="organization-secret-provider-created"
                     >
                       {formatDateOnly(provider.meta?.createdAt)}
@@ -354,7 +352,7 @@ export function OrganizationSecretProvidersTab() {
                         Edit
                       </Button>
                       <Button
-                        variant="danger"
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleDeleteOpen(provider)}
                         data-testid="organization-secret-provider-delete"
@@ -378,44 +376,56 @@ export function OrganizationSecretProvidersTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Title"
-              value={createTitle}
-              onChange={(event) => {
-                setCreateTitle(event.target.value);
-                if (createTitleError) setCreateTitleError('');
-              }}
-              error={createTitleError}
-              data-testid="organization-secret-providers-create-title-input"
-            />
-            <Input
-              label="Description"
-              value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
-              data-testid="organization-secret-providers-create-description-input"
-            />
-            <Input
-              label="Vault Address"
-              placeholder="http://vault:8200"
-              value={createVaultAddress}
-              onChange={(event) => {
-                setCreateVaultAddress(event.target.value);
-                if (createAddressError) setCreateAddressError('');
-              }}
-              error={createAddressError}
-              data-testid="organization-secret-providers-create-address"
-            />
-            <Input
-              label="Vault Token"
-              type="password"
-              value={createVaultToken}
-              onChange={(event) => {
-                setCreateVaultToken(event.target.value);
-                if (createTokenError) setCreateTokenError('');
-              }}
-              error={createTokenError}
-              data-testid="organization-secret-providers-create-token"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="organization-secret-providers-create-title-input">Title</Label>
+              <Input
+                id="organization-secret-providers-create-title-input"
+                value={createTitle}
+                onChange={(event) => {
+                  setCreateTitle(event.target.value);
+                  if (createTitleError) setCreateTitleError('');
+                }}
+                data-testid="organization-secret-providers-create-title-input"
+              />
+              {createTitleError ? <p className="text-sm text-destructive">{createTitleError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-secret-providers-create-description-input">Description</Label>
+              <Input
+                id="organization-secret-providers-create-description-input"
+                value={createDescription}
+                onChange={(event) => setCreateDescription(event.target.value)}
+                data-testid="organization-secret-providers-create-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-secret-providers-create-address">Vault Address</Label>
+              <Input
+                id="organization-secret-providers-create-address"
+                placeholder="http://vault:8200"
+                value={createVaultAddress}
+                onChange={(event) => {
+                  setCreateVaultAddress(event.target.value);
+                  if (createAddressError) setCreateAddressError('');
+                }}
+                data-testid="organization-secret-providers-create-address"
+              />
+              {createAddressError ? <p className="text-sm text-destructive">{createAddressError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-secret-providers-create-token">Vault Token</Label>
+              <Input
+                id="organization-secret-providers-create-token"
+                type="password"
+                value={createVaultToken}
+                onChange={(event) => {
+                  setCreateVaultToken(event.target.value);
+                  if (createTokenError) setCreateTokenError('');
+                }}
+                data-testid="organization-secret-providers-create-token"
+              />
+              {createTokenError ? <p className="text-sm text-destructive">{createTokenError}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -424,7 +434,6 @@ export function OrganizationSecretProvidersTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createProviderMutation.isPending}
@@ -444,46 +453,58 @@ export function OrganizationSecretProvidersTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Title"
-              value={editTitle}
-              onChange={(event) => {
-                setEditTitle(event.target.value);
-                if (editTitleError) setEditTitleError('');
-              }}
-              error={editTitleError}
-              data-testid="organization-secret-providers-edit-title-input"
-            />
-            <Input
-              label="Description"
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              data-testid="organization-secret-providers-edit-description-input"
-            />
-            <Input
-              label="Vault Address"
-              placeholder="http://vault:8200"
-              value={editVaultAddress}
-              onChange={(event) => {
-                setEditVaultAddress(event.target.value);
-                if (editAddressError) setEditAddressError('');
-                if (editTokenError) setEditTokenError('');
-              }}
-              error={editAddressError}
-              data-testid="organization-secret-providers-edit-address"
-            />
-            <Input
-              label="Vault Token"
-              type="password"
-              placeholder="Leave blank to keep current token"
-              value={editVaultToken}
-              onChange={(event) => {
-                setEditVaultToken(event.target.value);
-                if (editTokenError) setEditTokenError('');
-              }}
-              error={editTokenError}
-              data-testid="organization-secret-providers-edit-token"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="organization-secret-providers-edit-title-input">Title</Label>
+              <Input
+                id="organization-secret-providers-edit-title-input"
+                value={editTitle}
+                onChange={(event) => {
+                  setEditTitle(event.target.value);
+                  if (editTitleError) setEditTitleError('');
+                }}
+                data-testid="organization-secret-providers-edit-title-input"
+              />
+              {editTitleError ? <p className="text-sm text-destructive">{editTitleError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-secret-providers-edit-description-input">Description</Label>
+              <Input
+                id="organization-secret-providers-edit-description-input"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                data-testid="organization-secret-providers-edit-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-secret-providers-edit-address">Vault Address</Label>
+              <Input
+                id="organization-secret-providers-edit-address"
+                placeholder="http://vault:8200"
+                value={editVaultAddress}
+                onChange={(event) => {
+                  setEditVaultAddress(event.target.value);
+                  if (editAddressError) setEditAddressError('');
+                  if (editTokenError) setEditTokenError('');
+                }}
+                data-testid="organization-secret-providers-edit-address"
+              />
+              {editAddressError ? <p className="text-sm text-destructive">{editAddressError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-secret-providers-edit-token">Vault Token</Label>
+              <Input
+                id="organization-secret-providers-edit-token"
+                type="password"
+                placeholder="Leave blank to keep current token"
+                value={editVaultToken}
+                onChange={(event) => {
+                  setEditVaultToken(event.target.value);
+                  if (editTokenError) setEditTokenError('');
+                }}
+                data-testid="organization-secret-providers-edit-token"
+              />
+              {editTokenError ? <p className="text-sm text-destructive">{editTokenError}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -492,7 +513,6 @@ export function OrganizationSecretProvidersTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateProviderMutation.isPending}

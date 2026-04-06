@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CreateAppDialog } from '@/components/CreateAppDialog';
 import { Badge } from '@/components/ui/badge';
@@ -55,10 +55,8 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h4 className="text-sm font-semibold text-[var(--agyn-dark)]">Published apps</h4>
-          <p className="text-sm text-[var(--agyn-gray)]">
-            Manage apps published by this organization.
-          </p>
+          <h4 className="text-sm font-semibold text-foreground">Published apps</h4>
+          <p className="text-sm text-muted-foreground">Manage apps published by this organization.</p>
         </div>
         <Button
           variant="outline"
@@ -69,20 +67,20 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
           Create app
         </Button>
       </div>
-      {appsQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading apps...</div> : null}
-      {appsQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load apps.</div> : null}
+      {appsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading apps...</div> : null}
+      {appsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load apps.</div> : null}
       {apps.length === 0 && !appsQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="published-apps-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="published-apps-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No apps published by this organization.
           </CardContent>
         </Card>
       ) : null}
       {apps.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="published-apps-table">
+        <Card className="border-border" data-testid="published-apps-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
               data-testid="published-apps-header"
             >
               <span>App</span>
@@ -91,30 +89,30 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {apps.map((app) => {
                 const appId = app.meta?.id;
                 return (
                   <div
                     key={appId ?? app.slug}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
                     data-testid="published-app-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="published-app-name">
                         {app.name}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="published-app-id">
+                      <div className="text-xs text-muted-foreground" data-testid="published-app-id">
                         {appId ?? '—'}
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="published-app-slug">
+                    <span className="text-xs text-muted-foreground" data-testid="published-app-slug">
                       {app.slug}
                     </span>
                     <Badge variant="secondary" data-testid="published-app-visibility">
                       {formatAppVisibility(app.visibility)}
                     </Badge>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="published-app-created">
+                    <span className="text-xs text-muted-foreground" data-testid="published-app-created">
                       {formatDateOnly(app.meta?.createdAt)}
                     </span>
                     <div className="flex items-center justify-end gap-2">
@@ -133,7 +131,7 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
                         </Button>
                       )}
                       <Button
-                        variant="danger"
+                        variant="destructive"
                         size="sm"
                         onClick={() => setDeleteApp(app)}
                         disabled={!appId}

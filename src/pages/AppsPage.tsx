@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { RegisterAppDialog } from '@/components/RegisterAppDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,27 +25,27 @@ export function AppsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]">Apps</h2>
-          <p className="text-sm text-[var(--agyn-gray)]">Register and manage platform apps.</p>
+          <h2 className="text-2xl font-semibold text-foreground">Apps</h2>
+          <p className="text-sm text-muted-foreground">Register and manage platform apps.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setRegisterOpen(true)} data-testid="apps-register">
           Register app
         </Button>
       </div>
-      {appsQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading apps...</div> : null}
-      {appsQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load apps.</div> : null}
+      {appsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading apps...</div> : null}
+      {appsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load apps.</div> : null}
       {apps.length === 0 && !appsQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="apps-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="apps-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No apps registered.
           </CardContent>
         </Card>
       ) : null}
       {apps.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="apps-table">
+        <Card className="border-border" data-testid="apps-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
               data-testid="apps-header"
             >
               <span>App</span>
@@ -55,36 +55,36 @@ export function AppsPage() {
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {apps.map((app) => {
                 const appId = app.meta?.id;
                 return (
                   <div
                     key={appId ?? app.slug}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
                     data-testid="apps-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="apps-name">
                         {app.name}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="apps-slug">
+                      <div className="text-xs text-muted-foreground" data-testid="apps-slug">
                         {app.slug}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="apps-id">
+                      <div className="text-xs text-muted-foreground" data-testid="apps-id">
                         {appId ?? '—'}
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="apps-organization">
+                    <span className="text-xs text-muted-foreground" data-testid="apps-organization">
                       {app.organizationId || '—'}
                     </span>
                     <Badge variant="secondary" data-testid="apps-visibility">
                       {formatAppVisibility(app.visibility)}
                     </Badge>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="apps-permissions">
+                    <span className="text-xs text-muted-foreground" data-testid="apps-permissions">
                       {app.permissions.length > 0 ? app.permissions.join(', ') : '—'}
                     </span>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="apps-created">
+                    <span className="text-xs text-muted-foreground" data-testid="apps-created">
                       {formatDateOnly(app.meta?.createdAt)}
                     </span>
                     <div className="text-right">

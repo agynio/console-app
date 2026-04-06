@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient, organizationsClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScriptEditor } from '@/components/ScriptEditor';
 import {
   Dialog,
@@ -152,24 +153,24 @@ export function RegisterAppDialog({ open, onOpenChange }: RegisterAppDialogProps
         {serviceToken ? (
           <div className="space-y-4">
             <div>
-              <div className="text-sm font-medium text-[var(--agyn-dark)]" data-testid="apps-register-token-label">
+              <div className="text-sm font-medium text-foreground" data-testid="apps-register-token-label">
                 Service token
               </div>
               <div
-                className="mt-2 rounded-md border border-[var(--agyn-border-subtle)] bg-[var(--agyn-secondary)] p-3 text-xs font-mono text-[var(--agyn-dark)] break-all"
+                className="mt-2 rounded-md border border-border bg-muted p-3 text-xs font-mono text-foreground break-all"
                 data-testid="apps-register-token-value"
               >
                 {serviceToken}
               </div>
             </div>
-            <p className="text-xs text-[var(--agyn-gray)]" data-testid="apps-register-token-warning">
+            <p className="text-xs text-muted-foreground" data-testid="apps-register-token-warning">
               This token will not be shown again.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleCopyToken} data-testid="apps-register-copy">
                 Copy token
               </Button>
-              <Button variant="primary" size="sm" onClick={closeDialog} data-testid="apps-register-done">
+              <Button size="sm" onClick={closeDialog} data-testid="apps-register-done">
                 Done
               </Button>
             </div>
@@ -177,7 +178,7 @@ export function RegisterAppDialog({ open, onOpenChange }: RegisterAppDialogProps
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Organization</div>
+              <Label htmlFor="apps-register-organization">Organization</Label>
               <Select
                 value={organizationId}
                 onValueChange={(value) => {
@@ -185,7 +186,7 @@ export function RegisterAppDialog({ open, onOpenChange }: RegisterAppDialogProps
                   if (organizationError) setOrganizationError('');
                 }}
               >
-                <SelectTrigger data-testid="apps-register-organization">
+                <SelectTrigger id="apps-register-organization" data-testid="apps-register-organization">
                   <SelectValue placeholder="Select organization" />
                 </SelectTrigger>
                 <SelectContent>
@@ -202,30 +203,36 @@ export function RegisterAppDialog({ open, onOpenChange }: RegisterAppDialogProps
                   )}
                 </SelectContent>
               </Select>
-              {organizationError ? <p className="text-sm text-red-500">{organizationError}</p> : null}
+              {organizationError ? <p className="text-sm text-destructive">{organizationError}</p> : null}
             </div>
-            <Input
-              label="Slug"
-              placeholder="my-app"
-              value={slug}
-              onChange={(event) => {
-                setSlug(event.target.value);
-                if (slugError) setSlugError('');
-              }}
-              error={slugError}
-              data-testid="apps-register-slug"
-            />
-            <Input
-              label="Name"
-              placeholder="My App"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                if (nameError) setNameError('');
-              }}
-              error={nameError}
-              data-testid="apps-register-name"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="apps-register-slug">Slug</Label>
+              <Input
+                id="apps-register-slug"
+                placeholder="my-app"
+                value={slug}
+                onChange={(event) => {
+                  setSlug(event.target.value);
+                  if (slugError) setSlugError('');
+                }}
+                data-testid="apps-register-slug"
+              />
+              {slugError && <p className="text-sm text-destructive">{slugError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="apps-register-name">Name</Label>
+              <Input
+                id="apps-register-name"
+                placeholder="My App"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (nameError) setNameError('');
+                }}
+                data-testid="apps-register-name"
+              />
+              {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+            </div>
             <ScriptEditor
               label="Description"
               placeholder="Describe what this app does"
@@ -235,22 +242,25 @@ export function RegisterAppDialog({ open, onOpenChange }: RegisterAppDialogProps
               minHeightClass="min-h-[100px]"
               data-testid="apps-register-description-input"
             />
-            <Input
-              label="Icon"
-              placeholder="https://example.com/icon.png"
-              value={icon}
-              onChange={(event) => setIcon(event.target.value)}
-              data-testid="apps-register-icon"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Visibility</div>
+              <Label htmlFor="apps-register-icon">Icon</Label>
+              <Input
+                id="apps-register-icon"
+                placeholder="https://example.com/icon.png"
+                value={icon}
+                onChange={(event) => setIcon(event.target.value)}
+                data-testid="apps-register-icon"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="apps-register-visibility">Visibility</Label>
               <Select
                 value={visibility === AppVisibility.PUBLIC ? 'public' : 'internal'}
                 onValueChange={(value) =>
                   setVisibility(value === 'public' ? AppVisibility.PUBLIC : AppVisibility.INTERNAL)
                 }
               >
-                <SelectTrigger data-testid="apps-register-visibility">
+                <SelectTrigger id="apps-register-visibility" data-testid="apps-register-visibility">
                   <SelectValue placeholder="Select visibility" />
                 </SelectTrigger>
                 <SelectContent>
@@ -259,14 +269,17 @@ export function RegisterAppDialog({ open, onOpenChange }: RegisterAppDialogProps
                 </SelectContent>
               </Select>
             </div>
-            <Input
-              label="Permissions"
-              placeholder="read:models, write:models"
-              value={permissions}
-              onChange={(event) => setPermissions(event.target.value)}
-              helperText="Comma-separated permissions."
-              data-testid="apps-register-permissions"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="apps-register-permissions">Permissions</Label>
+              <Input
+                id="apps-register-permissions"
+                placeholder="read:models, write:models"
+                value={permissions}
+                onChange={(event) => setPermissions(event.target.value)}
+                data-testid="apps-register-permissions"
+              />
+              <p className="text-sm text-muted-foreground">Comma-separated permissions.</p>
+            </div>
           </div>
         )}
         {serviceToken ? null : (
@@ -277,7 +290,6 @@ export function RegisterAppDialog({ open, onOpenChange }: RegisterAppDialogProps
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreateApp}
               disabled={createAppMutation.isPending}

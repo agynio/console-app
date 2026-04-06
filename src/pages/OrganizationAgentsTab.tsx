@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { agentsClient, llmClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDateOnly } from '@/lib/format';
@@ -46,29 +46,29 @@ export function OrganizationAgentsTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-agents-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-agents-heading">
             Agents
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Agents configured for this organization.</p>
+          <p className="text-sm text-muted-foreground">Agents configured for this organization.</p>
         </div>
         <Button variant="outline" size="sm" asChild data-testid="organization-agents-create">
           <NavLink to={`/organizations/${organizationId}/agents/new`}>Create agent</NavLink>
         </Button>
       </div>
-      {isLoading ? <div className="text-sm text-[var(--agyn-gray)]">Loading agents...</div> : null}
-      {isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load agents.</div> : null}
+      {isLoading ? <div className="text-sm text-muted-foreground">Loading agents...</div> : null}
+      {isError ? <div className="text-sm text-muted-foreground">Failed to load agents.</div> : null}
       {agents.length === 0 && !isLoading ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-agents-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="organization-agents-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No agents configured.
           </CardContent>
         </Card>
       ) : null}
       {agents.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-agents-table">
+        <Card className="border-border" data-testid="organization-agents-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
               data-testid="organization-agents-header"
             >
               <span>Agent</span>
@@ -77,7 +77,7 @@ export function OrganizationAgentsTab() {
               <span>Model</span>
               <span>Created</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {agents.map((agent) => {
                 const agentId = agent.meta?.id;
                 const model = modelMap.get(agent.model);
@@ -87,7 +87,7 @@ export function OrganizationAgentsTab() {
                       <div className="font-medium" data-testid="organization-agent-name">
                         {agent.name}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-agent-id">
+                      <div className="text-xs text-muted-foreground" data-testid="organization-agent-id">
                         {agentId ?? '—'}
                       </div>
                     </div>
@@ -97,16 +97,16 @@ export function OrganizationAgentsTab() {
                     {/* TODO: replace with live agent status when available. */}
                     <Badge
                       variant="secondary"
-                      className="text-[var(--agyn-gray)]"
+                      className="text-muted-foreground"
                       title="Status is not yet available."
                       data-testid="organization-agent-status"
                     >
                       TBD
                     </Badge>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-agent-model">
+                    <span className="text-xs text-muted-foreground" data-testid="organization-agent-model">
                       {model?.name ?? (agent.model || '—')}
                     </span>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-agent-created">
+                    <span className="text-xs text-muted-foreground" data-testid="organization-agent-created">
                       {formatDateOnly(agent.meta?.createdAt)}
                     </span>
                   </>
@@ -116,7 +116,7 @@ export function OrganizationAgentsTab() {
                   <NavLink
                     key={agentId}
                     to={`/organizations/${organizationId}/agents/${agentId}`}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_1fr] hover:bg-[var(--agyn-bg-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--agyn-blue)]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     data-testid="organization-agent-row"
                   >
                     {rowContent}
@@ -124,7 +124,7 @@ export function OrganizationAgentsTab() {
                 ) : (
                   <div
                     key={agent.name}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
                     data-testid="organization-agent-row"
                   >
                     {rowContent}

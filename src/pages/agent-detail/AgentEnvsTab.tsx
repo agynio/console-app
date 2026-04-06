@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, secretsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -265,29 +266,29 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="agent-envs-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-envs-heading">
             ENVs
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Agent environment variables.</p>
+          <p className="text-sm text-muted-foreground">Agent environment variables.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="agent-envs-create">
           Add ENV
         </Button>
       </div>
-      {envsQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading envs...</div> : null}
-      {envsQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load envs.</div> : null}
+      {envsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading envs...</div> : null}
+      {envsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load envs.</div> : null}
       {envs.length === 0 && !envsQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-envs-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="agent-envs-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No environment variables configured.
           </CardContent>
         </Card>
       ) : null}
       {envs.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-envs-table">
+        <Card className="border-border" data-testid="agent-envs-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[1fr_2fr_1fr_140px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_2fr_1fr_140px]"
               data-testid="agent-envs-header"
             >
               <span>Name</span>
@@ -295,25 +296,25 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {envs.map((env) => (
                 <div
                   key={env.meta?.id ?? env.name}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[1fr_2fr_1fr_140px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_2fr_1fr_140px]"
                   data-testid="agent-env-row"
                 >
                   <div>
                     <div className="font-medium" data-testid="agent-env-name">
                       {env.name}
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="agent-env-description">
+                    <div className="text-xs text-muted-foreground" data-testid="agent-env-description">
                       {env.description || '—'}
                     </div>
                   </div>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-env-source">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-env-source">
                     {resolveSource(env, secretMap)}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-env-created">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-env-created">
                     {formatDateOnly(env.meta?.createdAt)}
                   </span>
                   <div className="flex items-center justify-end gap-2">
@@ -326,7 +327,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                       Edit
                     </Button>
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteOpen(env)}
                       data-testid="agent-env-delete"
@@ -349,26 +350,32 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Name"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                if (nameError) setNameError('');
-              }}
-              error={nameError}
-              data-testid="agent-envs-create-name"
-            />
-            <Input
-              label="Description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              data-testid="agent-envs-create-description-input"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Source type</div>
+              <Label htmlFor="agent-envs-create-name">Name</Label>
+              <Input
+                id="agent-envs-create-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (nameError) setNameError('');
+                }}
+                data-testid="agent-envs-create-name"
+              />
+              {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-envs-create-description-input">Description</Label>
+              <Input
+                id="agent-envs-create-description-input"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                data-testid="agent-envs-create-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Source type</Label>
               <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-sm text-[var(--agyn-dark)]">
+                <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
                     name="agent-env-source"
@@ -378,7 +385,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                   />
                   Plain value
                 </label>
-                <label className="flex items-center gap-2 text-sm text-[var(--agyn-dark)]">
+                <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
                     name="agent-env-source"
@@ -391,19 +398,22 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               </div>
             </div>
             {sourceType === 'value' ? (
-              <Input
-                label="Value"
-                value={plainValue}
-                onChange={(event) => {
-                  setPlainValue(event.target.value);
-                  if (sourceError) setSourceError('');
-                }}
-                error={sourceError}
-                data-testid="agent-envs-create-value"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="agent-envs-create-value">Value</Label>
+                <Input
+                  id="agent-envs-create-value"
+                  value={plainValue}
+                  onChange={(event) => {
+                    setPlainValue(event.target.value);
+                    if (sourceError) setSourceError('');
+                  }}
+                  data-testid="agent-envs-create-value"
+                />
+                {sourceError && <p className="text-sm text-destructive">{sourceError}</p>}
+              </div>
             ) : (
               <div className="space-y-2">
-                <div className="text-sm text-[var(--agyn-dark)]">Secret</div>
+                <Label htmlFor="agent-envs-create-secret">Secret</Label>
                 <Select
                   value={secretId}
                   onValueChange={(value) => {
@@ -411,7 +421,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                     if (sourceError) setSourceError('');
                   }}
                 >
-                  <SelectTrigger data-testid="agent-envs-create-secret">
+                  <SelectTrigger id="agent-envs-create-secret" data-testid="agent-envs-create-secret">
                     <SelectValue placeholder="Select secret" />
                   </SelectTrigger>
                   <SelectContent>
@@ -426,7 +436,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                     })}
                   </SelectContent>
                 </Select>
-                {sourceError ? <div className="text-sm text-red-500">{sourceError}</div> : null}
+                {sourceError ? <p className="text-sm text-destructive">{sourceError}</p> : null}
               </div>
             )}
           </div>
@@ -437,7 +447,6 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createEnvMutation.isPending}
@@ -457,26 +466,32 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Name"
-              value={editName}
-              onChange={(event) => {
-                setEditName(event.target.value);
-                if (editNameError) setEditNameError('');
-              }}
-              error={editNameError}
-              data-testid="agent-envs-edit-name"
-            />
-            <Input
-              label="Description"
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              data-testid="agent-envs-edit-description-input"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Source type</div>
+              <Label htmlFor="agent-envs-edit-name">Name</Label>
+              <Input
+                id="agent-envs-edit-name"
+                value={editName}
+                onChange={(event) => {
+                  setEditName(event.target.value);
+                  if (editNameError) setEditNameError('');
+                }}
+                data-testid="agent-envs-edit-name"
+              />
+              {editNameError && <p className="text-sm text-destructive">{editNameError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-envs-edit-description-input">Description</Label>
+              <Input
+                id="agent-envs-edit-description-input"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                data-testid="agent-envs-edit-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Source type</Label>
               <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-sm text-[var(--agyn-dark)]">
+                <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
                     name="agent-env-edit-source"
@@ -486,7 +501,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                   />
                   Plain value
                 </label>
-                <label className="flex items-center gap-2 text-sm text-[var(--agyn-dark)]">
+                <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
                     name="agent-env-edit-source"
@@ -499,19 +514,22 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               </div>
             </div>
             {editSourceType === 'value' ? (
-              <Input
-                label="Value"
-                value={editPlainValue}
-                onChange={(event) => {
-                  setEditPlainValue(event.target.value);
-                  if (editSourceError) setEditSourceError('');
-                }}
-                error={editSourceError}
-                data-testid="agent-envs-edit-value"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="agent-envs-edit-value">Value</Label>
+                <Input
+                  id="agent-envs-edit-value"
+                  value={editPlainValue}
+                  onChange={(event) => {
+                    setEditPlainValue(event.target.value);
+                    if (editSourceError) setEditSourceError('');
+                  }}
+                  data-testid="agent-envs-edit-value"
+                />
+                {editSourceError && <p className="text-sm text-destructive">{editSourceError}</p>}
+              </div>
             ) : (
               <div className="space-y-2">
-                <div className="text-sm text-[var(--agyn-dark)]">Secret</div>
+                <Label htmlFor="agent-envs-edit-secret">Secret</Label>
                 <Select
                   value={editSecretId}
                   onValueChange={(value) => {
@@ -519,7 +537,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                     if (editSourceError) setEditSourceError('');
                   }}
                 >
-                  <SelectTrigger data-testid="agent-envs-edit-secret">
+                  <SelectTrigger id="agent-envs-edit-secret" data-testid="agent-envs-edit-secret">
                     <SelectValue placeholder="Select secret" />
                   </SelectTrigger>
                   <SelectContent>
@@ -534,7 +552,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                     })}
                   </SelectContent>
                 </Select>
-                {editSourceError ? <div className="text-sm text-red-500">{editSourceError}</div> : null}
+                {editSourceError ? <p className="text-sm text-destructive">{editSourceError}</p> : null}
               </div>
             )}
           </div>
@@ -545,7 +563,6 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateEnvMutation.isPending}

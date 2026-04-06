@@ -3,8 +3,9 @@ import { create } from '@bufbuild/protobuf';
 import { TimestampSchema, type Timestamp } from '@bufbuild/protobuf/wkt';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogClose,
@@ -108,43 +109,46 @@ export function CreateApiTokenDialog({ open, onOpenChange }: CreateApiTokenDialo
         {plaintextToken ? (
           <div className="space-y-4">
             <div>
-              <div className="text-sm font-medium text-[var(--agyn-dark)]" data-testid="api-token-token-label">
+              <div className="text-sm font-medium text-foreground" data-testid="api-token-token-label">
                 API token
               </div>
               <div
-                className="mt-2 rounded-md border border-[var(--agyn-border-subtle)] bg-[var(--agyn-secondary)] p-3 text-xs font-mono text-[var(--agyn-dark)] break-all"
+                className="mt-2 rounded-md border border-border bg-muted p-3 text-xs font-mono text-foreground break-all"
                 data-testid="api-token-token-value"
               >
                 {plaintextToken}
               </div>
             </div>
-            <p className="text-xs text-[var(--agyn-gray)]" data-testid="api-token-token-warning">
+            <p className="text-xs text-muted-foreground" data-testid="api-token-token-warning">
               This token will not be shown again.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleCopyToken} data-testid="api-token-copy">
                 Copy token
               </Button>
-              <Button variant="primary" size="sm" onClick={closeDialog} data-testid="api-token-done">
+              <Button size="sm" onClick={closeDialog} data-testid="api-token-done">
                 Done
               </Button>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            <Input
-              label="Name"
-              placeholder="Automation token"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                if (nameError) setNameError('');
-              }}
-              error={nameError}
-              data-testid="api-token-name"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Expires</div>
+              <Label htmlFor="api-token-name">Name</Label>
+              <Input
+                id="api-token-name"
+                placeholder="Automation token"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (nameError) setNameError('');
+                }}
+                data-testid="api-token-name"
+              />
+              {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm text-foreground">Expires</div>
               <Select value={expiresOption} onValueChange={(value) => setExpiresOption(value as ExpirationOption)}>
                 <SelectTrigger data-testid="api-token-expires">
                   <SelectValue placeholder="Select expiration" />
@@ -168,7 +172,6 @@ export function CreateApiTokenDialog({ open, onOpenChange }: CreateApiTokenDialo
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreateToken}
               disabled={createTokenMutation.isPending}

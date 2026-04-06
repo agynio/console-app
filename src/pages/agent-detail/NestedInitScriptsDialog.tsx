@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScriptEditor } from '@/components/ScriptEditor';
 import {
   Dialog,
@@ -154,12 +155,15 @@ export function NestedInitScriptsDialog({
               minHeightClass="min-h-[120px]"
               data-testid="nested-init-script"
             />
-            <Input
-              label="Description"
-              value={scriptDescription}
-              onChange={(event) => setScriptDescription(event.target.value)}
-              data-testid="nested-init-description-input"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="nested-init-description-input">Description</Label>
+              <Input
+                id="nested-init-description-input"
+                value={scriptDescription}
+                onChange={(event) => setScriptDescription(event.target.value)}
+                data-testid="nested-init-description-input"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -171,26 +175,26 @@ export function NestedInitScriptsDialog({
             </Button>
           </div>
           <div className="space-y-2">
-            <div className="text-sm font-medium text-[var(--agyn-dark)]">Existing init scripts</div>
+            <div className="text-sm font-medium text-foreground">Existing init scripts</div>
             {initScriptsQuery.isPending ? (
-              <div className="text-xs text-[var(--agyn-gray)]">Loading init scripts...</div>
+              <div className="text-xs text-muted-foreground">Loading init scripts...</div>
             ) : null}
             {initScriptsQuery.isError ? (
-              <div className="text-xs text-[var(--agyn-gray)]">Failed to load init scripts.</div>
+              <div className="text-xs text-muted-foreground">Failed to load init scripts.</div>
             ) : null}
             {initScripts.length === 0 && !initScriptsQuery.isPending ? (
-              <div className="text-xs text-[var(--agyn-gray)]">No init scripts configured.</div>
+              <div className="text-xs text-muted-foreground">No init scripts configured.</div>
             ) : null}
             {initScripts.length > 0 ? (
-              <div className="divide-y divide-[var(--agyn-border-subtle)] rounded-md border border-[var(--agyn-border-subtle)]">
+              <div className="divide-y divide-border rounded-md border border-border">
                 {initScripts.map((scriptEntry) => (
                   <div key={scriptEntry.meta?.id ?? scriptEntry.script} className="flex items-center justify-between px-3 py-2">
                     <div>
-                      <div className="text-sm text-[var(--agyn-dark)]">{truncate(scriptEntry.script)}</div>
-                      <div className="text-xs text-[var(--agyn-gray)]">{scriptEntry.description || '—'}</div>
+                      <div className="text-sm text-foreground">{truncate(scriptEntry.script)}</div>
+                      <div className="text-xs text-muted-foreground">{scriptEntry.description || '—'}</div>
                     </div>
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDelete(scriptEntry)}
                       disabled={deleteInitScriptMutation.isPending}

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { JsonEditor } from '@/components/JsonEditor';
 import {
   Dialog,
@@ -111,16 +112,19 @@ export function UpdateInstallationDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
-            label="Slug"
-            value={slug}
-            onChange={(event) => {
-              setSlug(event.target.value);
-              if (slugError) setSlugError('');
-            }}
-            error={slugError}
-            data-testid="update-installation-slug"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="update-installation-slug">Slug</Label>
+            <Input
+              id="update-installation-slug"
+              value={slug}
+              onChange={(event) => {
+                setSlug(event.target.value);
+                if (slugError) setSlugError('');
+              }}
+              data-testid="update-installation-slug"
+            />
+            {slugError && <p className="text-sm text-destructive">{slugError}</p>}
+          </div>
           <JsonEditor
             label="Configuration"
             value={configuration}
@@ -139,7 +143,6 @@ export function UpdateInstallationDialog({
             </Button>
           </DialogClose>
           <Button
-            variant="primary"
             size="sm"
             onClick={handleSave}
             disabled={updateMutation.isPending || !installation?.meta?.id}

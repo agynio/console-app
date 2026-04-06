@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, llmClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
 import { JsonEditor } from '@/components/JsonEditor';
 import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { NO_MODEL } from '@/lib/constants';
@@ -109,39 +110,45 @@ export function AgentCreatePage() {
         <Button variant="link" asChild data-testid="agent-create-back">
           <NavLink to={`/organizations/${organizationId}/agents`}>← Back to Agents</NavLink>
         </Button>
-        <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="agent-create-heading">
+        <h2 className="text-2xl font-semibold text-foreground" data-testid="agent-create-heading">
           Create agent
         </h2>
-        <p className="text-sm text-[var(--agyn-gray)]">Define agent configuration and resources.</p>
+        <p className="text-sm text-muted-foreground">Define agent configuration and resources.</p>
       </div>
-      <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-create-form">
+      <Card className="border-border" data-testid="agent-create-form">
         <CardContent className="space-y-4">
-          <Input
-            label="Name"
-            placeholder="Support agent"
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-              if (nameError) setNameError('');
-            }}
-            error={nameError}
-            data-testid="agent-create-name"
-          />
-          <Input
-            label="Role"
-            placeholder="Customer support"
-            value={role}
-            onChange={(event) => setRole(event.target.value)}
-            data-testid="agent-create-role"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-name">Name</Label>
+            <Input
+              id="agent-create-name"
+              placeholder="Support agent"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (nameError) setNameError('');
+              }}
+              data-testid="agent-create-name"
+            />
+            {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-role">Role</Label>
+            <Input
+              id="agent-create-role"
+              placeholder="Customer support"
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+              data-testid="agent-create-role"
+            />
+          </div>
           <div className="space-y-2" data-testid="agent-create-model">
-            <div className="text-sm text-[var(--agyn-dark)]">Model</div>
+            <Label htmlFor="agent-create-model-select">Model</Label>
             <Select
               value={modelId}
               onValueChange={(value) => setModelId(value)}
               disabled={modelsQuery.isPending}
             >
-              <SelectTrigger data-testid="agent-create-model-select">
+              <SelectTrigger id="agent-create-model-select" data-testid="agent-create-model-select">
                 <SelectValue placeholder={modelsQuery.isPending ? 'Loading models...' : 'Select model'} />
               </SelectTrigger>
               <SelectContent>
@@ -158,27 +165,36 @@ export function AgentCreatePage() {
               </SelectContent>
             </Select>
           </div>
-          <Input
-            label="Description"
-            placeholder="Explain what this agent does"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            data-testid="agent-create-description"
-          />
-          <Input
-            label="Image"
-            placeholder="ghcr.io/org/agent:latest"
-            value={image}
-            onChange={(event) => setImage(event.target.value)}
-            data-testid="agent-create-image"
-          />
-          <Input
-            label="Init Image"
-            placeholder="ghcr.io/org/agent-init:latest"
-            value={initImage}
-            onChange={(event) => setInitImage(event.target.value)}
-            data-testid="agent-create-init-image"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-description">Description</Label>
+            <Input
+              id="agent-create-description"
+              placeholder="Explain what this agent does"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              data-testid="agent-create-description"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-image">Image</Label>
+            <Input
+              id="agent-create-image"
+              placeholder="ghcr.io/org/agent:latest"
+              value={image}
+              onChange={(event) => setImage(event.target.value)}
+              data-testid="agent-create-image"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-init-image">Init Image</Label>
+            <Input
+              id="agent-create-init-image"
+              placeholder="ghcr.io/org/agent-init:latest"
+              value={initImage}
+              onChange={(event) => setInitImage(event.target.value)}
+              data-testid="agent-create-init-image"
+            />
+          </div>
           <JsonEditor
             label="Configuration"
             value={configuration}
@@ -190,7 +206,7 @@ export function AgentCreatePage() {
             testId="agent-create-configuration"
           />
           <div className="space-y-2" data-testid="agent-create-resources">
-            <div className="text-sm text-[var(--agyn-dark)]">Compute Resources</div>
+            <Label>Compute Resources</Label>
             <ComputeResourcesEditor
               value={resources}
               onChange={setResources}
@@ -202,7 +218,6 @@ export function AgentCreatePage() {
               <NavLink to={`/organizations/${organizationId}/agents`}>Cancel</NavLink>
             </Button>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleSubmit}
               disabled={createAgentMutation.isPending}

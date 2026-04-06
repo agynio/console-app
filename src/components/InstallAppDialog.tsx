@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { JsonEditor } from '@/components/JsonEditor';
 import {
   Dialog,
@@ -147,9 +148,9 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <div className="text-sm text-[var(--agyn-dark)]">App</div>
+            <Label htmlFor="install-app-select">App</Label>
             <Select value={appId} onValueChange={handleAppChange}>
-              <SelectTrigger data-testid="install-app-select">
+              <SelectTrigger id="install-app-select" data-testid="install-app-select">
                 <SelectValue placeholder="Select app" />
               </SelectTrigger>
               <SelectContent>
@@ -166,18 +167,21 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
                 )}
               </SelectContent>
             </Select>
-            {appError ? <p className="text-sm text-red-500">{appError}</p> : null}
+            {appError ? <p className="text-sm text-destructive">{appError}</p> : null}
           </div>
-          <Input
-            label="Slug"
-            value={slug}
-            onChange={(event) => {
-              setSlug(event.target.value);
-              if (slugError) setSlugError('');
-            }}
-            error={slugError}
-            data-testid="install-app-slug"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="install-app-slug">Slug</Label>
+            <Input
+              id="install-app-slug"
+              value={slug}
+              onChange={(event) => {
+                setSlug(event.target.value);
+                if (slugError) setSlugError('');
+              }}
+              data-testid="install-app-slug"
+            />
+            {slugError && <p className="text-sm text-destructive">{slugError}</p>}
+          </div>
           <JsonEditor
             label="Configuration"
             value={configuration}
@@ -196,7 +200,6 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
             </Button>
           </DialogClose>
           <Button
-            variant="primary"
             size="sm"
             onClick={handleInstall}
             disabled={installMutation.isPending}

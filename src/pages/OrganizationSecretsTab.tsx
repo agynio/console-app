@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Secret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { formatDateOnly } from '@/lib/format';
@@ -272,10 +273,10 @@ export function OrganizationSecretsTab() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-secrets-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-secrets-heading">
             Secrets
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Manage organization secrets.</p>
+          <p className="text-sm text-muted-foreground">Manage organization secrets.</p>
         </div>
         <Button
           variant="outline"
@@ -286,20 +287,20 @@ export function OrganizationSecretsTab() {
           Add secret
         </Button>
       </div>
-      {isLoading ? <div className="text-sm text-[var(--agyn-gray)]">Loading secrets...</div> : null}
-      {isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load secrets.</div> : null}
+      {isLoading ? <div className="text-sm text-muted-foreground">Loading secrets...</div> : null}
+      {isError ? <div className="text-sm text-muted-foreground">Failed to load secrets.</div> : null}
       {secrets.length === 0 && !isLoading ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="secrets-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="secrets-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No secrets configured.
           </CardContent>
         </Card>
       ) : null}
       {secrets.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="secrets-table">
+        <Card className="border-border" data-testid="secrets-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
               data-testid="secrets-header"
             >
               <span>Title</span>
@@ -308,30 +309,30 @@ export function OrganizationSecretsTab() {
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {secrets.map((secret) => {
                 const provider = providerMap.get(secret.secretProviderId);
                 return (
                   <div
                     key={secret.meta?.id ?? secret.title}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
                     data-testid="secret-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="secret-title">
                         {secret.title}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="secret-id">
+                      <div className="text-xs text-muted-foreground" data-testid="secret-id">
                         {secret.meta?.id ?? '—'}
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="secret-provider">
+                    <span className="text-xs text-muted-foreground" data-testid="secret-provider">
                       {provider?.title ?? secret.secretProviderId}
                     </span>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="secret-remote">
+                    <span className="text-xs text-muted-foreground" data-testid="secret-remote">
                       {secret.remoteName}
                     </span>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="secret-created">
+                    <span className="text-xs text-muted-foreground" data-testid="secret-created">
                       {formatDateOnly(secret.meta?.createdAt)}
                     </span>
                     <div className="flex items-center justify-end gap-2">
@@ -344,7 +345,7 @@ export function OrganizationSecretsTab() {
                         Edit
                       </Button>
                       <Button
-                        variant="danger"
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleDeleteOpen(secret)}
                         data-testid="secret-delete"
@@ -368,24 +369,30 @@ export function OrganizationSecretsTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Title"
-              value={createTitle}
-              onChange={(event) => {
-                setCreateTitle(event.target.value);
-                if (createTitleError) setCreateTitleError('');
-              }}
-              error={createTitleError}
-              data-testid="secrets-create-title-input"
-            />
-            <Input
-              label="Description"
-              value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
-              data-testid="secrets-create-description-input"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Secret Provider</div>
+              <Label htmlFor="secrets-create-title-input">Title</Label>
+              <Input
+                id="secrets-create-title-input"
+                value={createTitle}
+                onChange={(event) => {
+                  setCreateTitle(event.target.value);
+                  if (createTitleError) setCreateTitleError('');
+                }}
+                data-testid="secrets-create-title-input"
+              />
+              {createTitleError ? <p className="text-sm text-destructive">{createTitleError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="secrets-create-description-input">Description</Label>
+              <Input
+                id="secrets-create-description-input"
+                value={createDescription}
+                onChange={(event) => setCreateDescription(event.target.value)}
+                data-testid="secrets-create-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="secrets-create-provider">Secret Provider</Label>
               <Select
                 value={createProviderId}
                 onValueChange={(value) => {
@@ -393,7 +400,7 @@ export function OrganizationSecretsTab() {
                   if (createProviderError) setCreateProviderError('');
                 }}
               >
-                <SelectTrigger data-testid="secrets-create-provider">
+                <SelectTrigger id="secrets-create-provider" data-testid="secrets-create-provider">
                   <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
@@ -409,22 +416,25 @@ export function OrganizationSecretsTab() {
                 </SelectContent>
               </Select>
               {createProviderError ? (
-                <div className="text-xs text-[var(--agyn-danger)]" data-testid="secrets-create-provider-error">
+                <p className="text-sm text-destructive" data-testid="secrets-create-provider-error">
                   {createProviderError}
-                </div>
+                </p>
               ) : null}
             </div>
-            <Input
-              label="Remote Name"
-              placeholder="secret/data/my-secret"
-              value={createRemoteName}
-              onChange={(event) => {
-                setCreateRemoteName(event.target.value);
-                if (createRemoteError) setCreateRemoteError('');
-              }}
-              error={createRemoteError}
-              data-testid="secrets-create-remote"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="secrets-create-remote">Remote Name</Label>
+              <Input
+                id="secrets-create-remote"
+                placeholder="secret/data/my-secret"
+                value={createRemoteName}
+                onChange={(event) => {
+                  setCreateRemoteName(event.target.value);
+                  if (createRemoteError) setCreateRemoteError('');
+                }}
+                data-testid="secrets-create-remote"
+              />
+              {createRemoteError ? <p className="text-sm text-destructive">{createRemoteError}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -433,7 +443,6 @@ export function OrganizationSecretsTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createSecretMutation.isPending}
@@ -453,24 +462,30 @@ export function OrganizationSecretsTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Title"
-              value={editTitle}
-              onChange={(event) => {
-                setEditTitle(event.target.value);
-                if (editTitleError) setEditTitleError('');
-              }}
-              error={editTitleError}
-              data-testid="secrets-edit-title-input"
-            />
-            <Input
-              label="Description"
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              data-testid="secrets-edit-description-input"
-            />
             <div className="space-y-2">
-              <div className="text-sm text-[var(--agyn-dark)]">Secret Provider</div>
+              <Label htmlFor="secrets-edit-title-input">Title</Label>
+              <Input
+                id="secrets-edit-title-input"
+                value={editTitle}
+                onChange={(event) => {
+                  setEditTitle(event.target.value);
+                  if (editTitleError) setEditTitleError('');
+                }}
+                data-testid="secrets-edit-title-input"
+              />
+              {editTitleError ? <p className="text-sm text-destructive">{editTitleError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="secrets-edit-description-input">Description</Label>
+              <Input
+                id="secrets-edit-description-input"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                data-testid="secrets-edit-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="secrets-edit-provider">Secret Provider</Label>
               <Select
                 value={editProviderId}
                 onValueChange={(value) => {
@@ -478,7 +493,7 @@ export function OrganizationSecretsTab() {
                   if (editProviderError) setEditProviderError('');
                 }}
               >
-                <SelectTrigger data-testid="secrets-edit-provider">
+                <SelectTrigger id="secrets-edit-provider" data-testid="secrets-edit-provider">
                   <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
@@ -494,22 +509,25 @@ export function OrganizationSecretsTab() {
                 </SelectContent>
               </Select>
               {editProviderError ? (
-                <div className="text-xs text-[var(--agyn-danger)]" data-testid="secrets-edit-provider-error">
+                <p className="text-sm text-destructive" data-testid="secrets-edit-provider-error">
                   {editProviderError}
-                </div>
+                </p>
               ) : null}
             </div>
-            <Input
-              label="Remote Name"
-              placeholder="secret/data/my-secret"
-              value={editRemoteName}
-              onChange={(event) => {
-                setEditRemoteName(event.target.value);
-                if (editRemoteError) setEditRemoteError('');
-              }}
-              error={editRemoteError}
-              data-testid="secrets-edit-remote"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="secrets-edit-remote">Remote Name</Label>
+              <Input
+                id="secrets-edit-remote"
+                placeholder="secret/data/my-secret"
+                value={editRemoteName}
+                onChange={(event) => {
+                  setEditRemoteName(event.target.value);
+                  if (editRemoteError) setEditRemoteError('');
+                }}
+                data-testid="secrets-edit-remote"
+              />
+              {editRemoteError ? <p className="text-sm text-destructive">{editRemoteError}</p> : null}
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -518,7 +536,6 @@ export function OrganizationSecretsTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateSecretMutation.isPending}

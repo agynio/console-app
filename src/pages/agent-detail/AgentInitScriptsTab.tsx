@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScriptEditor } from '@/components/ScriptEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -155,10 +156,10 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="agent-init-scripts-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-init-scripts-heading">
             Init Scripts
           </h3>
-          <p className="text-sm text-[var(--agyn-gray)]">Scripts executed when the agent starts.</p>
+          <p className="text-sm text-muted-foreground">Scripts executed when the agent starts.</p>
         </div>
         <Button
           variant="outline"
@@ -170,23 +171,23 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
         </Button>
       </div>
       {initScriptsQuery.isPending ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading init scripts...</div>
+        <div className="text-sm text-muted-foreground">Loading init scripts...</div>
       ) : null}
       {initScriptsQuery.isError ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load init scripts.</div>
+        <div className="text-sm text-muted-foreground">Failed to load init scripts.</div>
       ) : null}
       {initScripts.length === 0 && !initScriptsQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-init-scripts-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="agent-init-scripts-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No init scripts configured.
           </CardContent>
         </Card>
       ) : null}
       {initScripts.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="agent-init-scripts-table">
+        <Card className="border-border" data-testid="agent-init-scripts-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
               data-testid="agent-init-scripts-header"
             >
               <span>Script</span>
@@ -194,20 +195,20 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
               <span>Created</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {initScripts.map((initScript) => (
                 <div
                   key={initScript.meta?.id ?? initScript.script}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_120px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
                   data-testid="agent-init-script-row"
                 >
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-init-script-value">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-init-script-value">
                     {truncate(initScript.script)}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-init-script-description">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-init-script-description">
                     {initScript.description || '—'}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="agent-init-script-created">
+                  <span className="text-xs text-muted-foreground" data-testid="agent-init-script-created">
                     {formatDateOnly(initScript.meta?.createdAt)}
                   </span>
                   <div className="flex items-center justify-end gap-2">
@@ -220,7 +221,7 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
                       Edit
                     </Button>
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteOpen(initScript)}
                       data-testid="agent-init-script-delete"
@@ -254,12 +255,15 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
               monospace
               data-testid="agent-init-scripts-create-script"
             />
-            <Input
-              label="Description"
-              value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
-              data-testid="agent-init-scripts-create-description-input"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="agent-init-scripts-create-description-input">Description</Label>
+              <Input
+                id="agent-init-scripts-create-description-input"
+                value={createDescription}
+                onChange={(event) => setCreateDescription(event.target.value)}
+                data-testid="agent-init-scripts-create-description-input"
+              />
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -268,7 +272,6 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createInitScriptMutation.isPending}
@@ -299,12 +302,15 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
               monospace
               data-testid="agent-init-scripts-edit-script"
             />
-            <Input
-              label="Description"
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              data-testid="agent-init-scripts-edit-description-input"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="agent-init-scripts-edit-description-input">Description</Label>
+              <Input
+                id="agent-init-scripts-edit-description-input"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                data-testid="agent-init-scripts-edit-description-input"
+              />
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -313,7 +319,6 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateInitScriptMutation.isPending}

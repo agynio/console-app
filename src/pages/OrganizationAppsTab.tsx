@@ -10,10 +10,10 @@ export function OrganizationAppsTab() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-apps-heading">
+        <h3 className="text-lg font-semibold text-foreground" data-testid="organization-apps-heading">
           Apps
         </h3>
-        <p className="text-sm text-[var(--agyn-gray)]" data-testid="organization-apps-scope">
+        <p className="text-sm text-muted-foreground" data-testid="organization-apps-scope">
           Manage app installations for this organization.
         </p>
       </div>

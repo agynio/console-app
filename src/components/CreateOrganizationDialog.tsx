@@ -1,5 +1,6 @@
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogClose,
@@ -41,14 +42,19 @@ export function CreateOrganizationDialog({
           <DialogDescription data-testid={testId('description')}>Set the organization name.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
-            label="Organization Name"
-            placeholder="Acme AI"
-            value={organizationName}
-            onChange={(event) => onOrganizationNameChange(event.target.value)}
-            error={organizationNameError}
-            data-testid={testId('name')}
-          />
+          <div className="space-y-2">
+            <Label htmlFor={testId('name')}>Organization Name</Label>
+            <Input
+              id={testId('name')}
+              placeholder="Acme AI"
+              value={organizationName}
+              onChange={(event) => onOrganizationNameChange(event.target.value)}
+              data-testid={testId('name')}
+            />
+            {organizationNameError && (
+              <p className="text-sm text-destructive">{organizationNameError}</p>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -56,13 +62,7 @@ export function CreateOrganizationDialog({
               Cancel
             </Button>
           </DialogClose>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onSubmit}
-            disabled={isSubmitting}
-            data-testid={testId('submit')}
-          >
+          <Button size="sm" onClick={onSubmit} disabled={isSubmitting} data-testid={testId('submit')}>
             {isSubmitting ? 'Creating...' : 'Create organization'}
           </Button>
         </DialogFooter>

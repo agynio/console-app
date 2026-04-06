@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { EnrollRunnerDialog } from '@/components/EnrollRunnerDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,17 +19,16 @@ export function RunnersListPage() {
     refetchOnWindowFocus: false,
   });
 
-
   const runners = (runnersQuery.data?.runners ?? []).filter((runner) => !runner.organizationId);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="runners-heading">
+          <h2 className="text-2xl font-semibold text-foreground" data-testid="runners-heading">
             Cluster Runners
           </h2>
-          <p className="text-sm text-[var(--agyn-gray)]">Runners enrolled at the cluster level.</p>
+          <p className="text-sm text-muted-foreground">Runners enrolled at the cluster level.</p>
         </div>
         <Button
           variant="outline"
@@ -41,15 +40,15 @@ export function RunnersListPage() {
         </Button>
       </div>
       {runnersQuery.isPending ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Loading runners...</div>
+        <div className="text-sm text-muted-foreground">Loading runners...</div>
       ) : null}
       {runnersQuery.isError ? (
-        <div className="text-sm text-[var(--agyn-gray)]">Failed to load runners.</div>
+        <div className="text-sm text-muted-foreground">Failed to load runners.</div>
       ) : null}
-      <Card className="border-[var(--agyn-border-subtle)]" data-testid="runners-table">
+      <Card className="border-border" data-testid="runners-table">
         <CardContent className="px-0">
           <div
-            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_2fr_120px]"
+            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_2fr_120px]"
             data-testid="runners-header"
           >
             <span>Runner</span>
@@ -57,30 +56,30 @@ export function RunnersListPage() {
             <span>Labels</span>
             <span className="text-right">Action</span>
           </div>
-          <div className="divide-y divide-[var(--agyn-border-subtle)]">
+          <div className="divide-y divide-border">
             {runners.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-[var(--agyn-gray)]">No cluster runners yet.</div>
+              <div className="px-6 py-6 text-sm text-muted-foreground">No cluster runners yet.</div>
             ) : (
               runners.map((runner) => {
                 const runnerId = runner.meta?.id;
                 return (
                   <div
                     key={runner.meta?.id ?? runner.name}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_2fr_120px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_2fr_120px]"
                     data-testid="runners-row"
                   >
                     <div>
                       <div className="font-medium" data-testid="runners-name">
                         {runner.name}
                       </div>
-                      <div className="text-xs text-[var(--agyn-gray)]" data-testid="runners-id">
+                      <div className="text-xs text-muted-foreground" data-testid="runners-id">
                         {runner.meta?.id}
                       </div>
                     </div>
                     <Badge variant="secondary" data-testid="runners-status">
                       {formatRunnerStatus(runner.status)}
                     </Badge>
-                    <span className="text-xs text-[var(--agyn-gray)]" data-testid="runners-labels">
+                    <span className="text-xs text-muted-foreground" data-testid="runners-labels">
                       {formatLabelPairs(runner.labels)}
                     </span>
                     <div className="text-right">

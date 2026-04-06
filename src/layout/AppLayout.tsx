@@ -15,10 +15,11 @@ import {
   ServerIcon,
   UsersIcon,
 } from 'lucide-react';
-import { Toaster } from 'sonner';
-import { Button } from '@/components/Button';
+import { Toaster } from '@/components/ui/sonner';
+import { Button } from '@/components/ui/button';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { PendingInvitesMenu } from '@/components/PendingInvitesMenu';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import { OrganizationSwitcher } from '@/components/OrganizationSwitcher';
@@ -34,7 +35,9 @@ import {
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-    isActive ? 'bg-[var(--agyn-bg-blue)] text-[var(--agyn-blue)]' : 'text-[var(--agyn-dark)] hover:bg-[var(--agyn-bg-light)]'
+    isActive
+      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+      : 'text-sidebar-foreground hover:bg-sidebar-accent'
   }`;
 
 type NoAccessScreenProps = {
@@ -56,17 +59,20 @@ function NoAccessScreen({ onSignOut, userMenu, pendingMembershipsCount }: NoAcce
 
   return (
     <>
-      <div className="flex min-h-screen flex-col bg-[var(--agyn-bg-light)]">
-        <header className="flex items-center justify-end border-b border-[var(--agyn-border-subtle)] bg-white px-6 py-4">
-          {userMenu}
+      <div className="flex min-h-screen flex-col bg-muted/40">
+        <header className="flex items-center justify-end border-b border-border bg-background px-6 py-4">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {userMenu}
+          </div>
         </header>
         <div
-          className="flex flex-1 items-center justify-center bg-[var(--agyn-bg-light)] px-6"
+          className="flex flex-1 items-center justify-center bg-muted/40 px-6"
           data-testid="console-no-access"
         >
-          <div className="max-w-lg rounded-xl border border-[var(--agyn-border-subtle)] bg-white p-8 text-center">
-            <h1 className="text-xl font-semibold text-[var(--agyn-dark)]">No organizations to manage</h1>
-            <p className="mt-2 text-sm text-[var(--agyn-gray)]">
+          <div className="max-w-lg rounded-xl border border-border bg-card p-8 text-center">
+            <h1 className="text-xl font-semibold text-foreground">No organizations to manage</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               {pendingMembershipsCount > 0
                 ? 'You have pending organization invites. Use the menu above to accept or decline them.'
                 : 'Your account does not have console access yet. Contact a cluster admin or organization owner to request access.'}
@@ -113,7 +119,7 @@ export function AppLayout() {
 
   if (userStatus === 'loading' || orgStatus === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] text-sm text-[var(--agyn-gray)]">
+      <div className="flex min-h-screen items-center justify-center bg-muted/40 text-sm text-muted-foreground">
         Loading console...
       </div>
     );
@@ -121,7 +127,7 @@ export function AppLayout() {
 
   if (userStatus === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--agyn-bg-light)] text-sm text-[var(--agyn-gray)]">
+      <div className="flex min-h-screen items-center justify-center bg-muted/40 text-sm text-muted-foreground">
         {userError?.message ?? 'Failed to load profile.'}
       </div>
     );
@@ -135,7 +141,7 @@ export function AppLayout() {
           <ChevronDownIcon className="ml-2 h-4 w-4" />
           {pendingMembershipsCount > 0 ? (
             <span
-              className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--agyn-blue)] px-1 text-xs font-semibold text-white"
+              className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground"
               data-testid="pending-invites-badge"
             >
               {pendingMembershipsCount}
@@ -145,7 +151,7 @@ export function AppLayout() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" data-testid="user-menu">
         <DropdownMenuLabel data-testid="user-menu-name">{currentUser?.name ?? 'Signed in'}</DropdownMenuLabel>
-        <DropdownMenuLabel className="text-xs text-[var(--agyn-gray)]" data-testid="user-menu-email">
+        <DropdownMenuLabel className="text-xs text-muted-foreground" data-testid="user-menu-email">
           {currentUser?.email ?? 'User profile'}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -176,14 +182,14 @@ export function AppLayout() {
   const tracingUrl = origin.replace('console.', 'tracing.');
 
   return (
-    <div className="flex min-h-screen bg-[var(--agyn-bg-light)]">
+    <div className="flex min-h-screen bg-muted/40">
       <aside
-        className="flex w-64 flex-col border-r border-[var(--agyn-border-subtle)] bg-white px-4 py-6"
+        className="flex w-64 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6 text-sidebar-foreground"
         data-testid="console-sidebar"
       >
         {isClusterAdmin ? (
           <div className="mb-6">
-            <p className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Platform</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Platform</p>
             <nav className="mt-3 flex flex-col gap-1">
               <NavLink to="/" className={navLinkClass} data-testid="nav-dashboard">
                 <HomeIcon className="h-4 w-4" />
@@ -209,7 +215,7 @@ export function AppLayout() {
           </div>
         ) : null}
         <div className="mb-6">
-          <p className="text-xs uppercase tracking-wide text-[var(--agyn-gray)]">Organization</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Organization</p>
           <nav className="mt-3 flex flex-col gap-1">
             <NavLink
               to={selectedOrganization ? `/organizations/${selectedOrganization.id}` : '/organizations'}
@@ -305,10 +311,10 @@ export function AppLayout() {
         </div>
       </aside>
       <main className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-[var(--agyn-border-subtle)] bg-white px-6 py-4">
+        <header className="flex items-center justify-between border-b border-border bg-background px-6 py-4">
           <div>
-            <h1 className="text-lg font-semibold text-[var(--agyn-dark)]">Agyn Console</h1>
-            <p className="text-sm text-[var(--agyn-gray)]">Platform administration</p>
+            <h1 className="text-lg font-semibold text-foreground">Agyn Console</h1>
+            <p className="text-sm text-muted-foreground">Platform administration</p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" asChild>
@@ -321,6 +327,7 @@ export function AppLayout() {
                 Tracing
               </a>
             </Button>
+            <ThemeToggle />
             <OrganizationSwitcher />
             {userMenu}
           </div>

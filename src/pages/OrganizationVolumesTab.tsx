@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Input } from '@/components/Input';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogClose,
@@ -16,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import type { Volume } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
@@ -225,10 +227,10 @@ export function OrganizationVolumesTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-        <h3 className="text-lg font-semibold text-[var(--agyn-dark)]" data-testid="organization-volumes-heading">
-          Volumes
-        </h3>
-        <p className="text-sm text-[var(--agyn-gray)]">Storage volumes for this organization.</p>
+          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-volumes-heading">
+            Volumes
+          </h3>
+          <p className="text-sm text-muted-foreground">Storage volumes for this organization.</p>
         </div>
         <Button
           variant="outline"
@@ -239,20 +241,20 @@ export function OrganizationVolumesTab() {
           Add volume
         </Button>
       </div>
-      {volumesQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading volumes...</div> : null}
-      {volumesQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load volumes.</div> : null}
+      {volumesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading volumes...</div> : null}
+      {volumesQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load volumes.</div> : null}
       {volumes.length === 0 && !volumesQuery.isPending ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-volumes-empty">
-          <CardContent className="py-10 text-center text-sm text-[var(--agyn-gray)]">
+        <Card className="border-border" data-testid="organization-volumes-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No volumes provisioned.
           </CardContent>
         </Card>
       ) : null}
       {volumes.length > 0 ? (
-        <Card className="border-[var(--agyn-border-subtle)]" data-testid="organization-volumes-table">
+        <Card className="border-border" data-testid="organization-volumes-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[var(--agyn-gray)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
               data-testid="organization-volumes-header"
             >
               <span>Volume</span>
@@ -261,25 +263,25 @@ export function OrganizationVolumesTab() {
               <span>Persistent</span>
               <span className="text-right">Actions</span>
             </div>
-            <div className="divide-y divide-[var(--agyn-border-subtle)]">
+            <div className="divide-y divide-border">
               {volumes.map((volume) => (
                 <div
                   key={volume.meta?.id ?? volume.mountPath}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-[var(--agyn-dark)] md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
                   data-testid="organization-volume-row"
                 >
                   <div>
                     <div className="font-medium" data-testid="organization-volume-description">
                       {volume.description || 'Volume'}
                     </div>
-                    <div className="text-xs text-[var(--agyn-gray)]" data-testid="organization-volume-id">
+                    <div className="text-xs text-muted-foreground" data-testid="organization-volume-id">
                       {volume.meta?.id ?? '—'}
                     </div>
                   </div>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-volume-mount">
+                  <span className="text-xs text-muted-foreground" data-testid="organization-volume-mount">
                     {volume.mountPath || '—'}
                   </span>
-                  <span className="text-xs text-[var(--agyn-gray)]" data-testid="organization-volume-size">
+                  <span className="text-xs text-muted-foreground" data-testid="organization-volume-size">
                     {volume.size || '—'}
                   </span>
                   <Badge
@@ -298,7 +300,7 @@ export function OrganizationVolumesTab() {
                       Edit
                     </Button>
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteOpen(volume)}
                       data-testid="organization-volume-delete"
@@ -321,44 +323,52 @@ export function OrganizationVolumesTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Description"
-              value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
-              data-testid="organization-volumes-create-description-input"
-            />
-            <Input
-              label="Mount Path"
-              placeholder="/data"
-              value={createMountPath}
-              onChange={(event) => {
-                setCreateMountPath(event.target.value);
-                if (createMountError) setCreateMountError('');
-              }}
-              error={createMountError}
-              data-testid="organization-volumes-create-mount"
-            />
-            <Input
-              label="Size"
-              placeholder="10Gi"
-              value={createSize}
-              onChange={(event) => {
-                setCreateSize(event.target.value);
-                if (createSizeError) setCreateSizeError('');
-              }}
-              error={createSizeError}
-              data-testid="organization-volumes-create-size"
-            />
-            <label className="flex items-center gap-2 text-sm text-[var(--agyn-dark)]">
-              <input
-                type="checkbox"
+            <div className="space-y-2">
+              <Label htmlFor="organization-volumes-create-description-input">Description</Label>
+              <Input
+                id="organization-volumes-create-description-input"
+                value={createDescription}
+                onChange={(event) => setCreateDescription(event.target.value)}
+                data-testid="organization-volumes-create-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-volumes-create-mount">Mount Path</Label>
+              <Input
+                id="organization-volumes-create-mount"
+                placeholder="/data"
+                value={createMountPath}
+                onChange={(event) => {
+                  setCreateMountPath(event.target.value);
+                  if (createMountError) setCreateMountError('');
+                }}
+                data-testid="organization-volumes-create-mount"
+              />
+              {createMountError ? <p className="text-sm text-destructive">{createMountError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-volumes-create-size">Size</Label>
+              <Input
+                id="organization-volumes-create-size"
+                placeholder="10Gi"
+                value={createSize}
+                onChange={(event) => {
+                  setCreateSize(event.target.value);
+                  if (createSizeError) setCreateSizeError('');
+                }}
+                data-testid="organization-volumes-create-size"
+              />
+              {createSizeError ? <p className="text-sm text-destructive">{createSizeError}</p> : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="organization-volumes-create-persistent"
                 checked={createPersistent}
-                onChange={(event) => setCreatePersistent(event.target.checked)}
-                className="h-4 w-4 rounded border border-[var(--agyn-border-subtle)] accent-[var(--agyn-blue)]"
+                onCheckedChange={(checked) => setCreatePersistent(Boolean(checked))}
                 data-testid="organization-volumes-create-persistent"
               />
-              Persistent
-            </label>
+              <Label htmlFor="organization-volumes-create-persistent">Persistent</Label>
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -367,7 +377,6 @@ export function OrganizationVolumesTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleCreate}
               disabled={createVolumeMutation.isPending}
@@ -387,43 +396,51 @@ export function OrganizationVolumesTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              label="Description"
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              data-testid="organization-volumes-edit-description-input"
-            />
-            <Input
-              label="Mount Path"
-              value={editMountPath}
-              onChange={(event) => {
-                setEditMountPath(event.target.value);
-                if (editMountError) setEditMountError('');
-              }}
-              error={editMountError}
-              data-testid="organization-volumes-edit-mount"
-            />
-            <Input
-              label="Size"
-              placeholder="10Gi"
-              value={editSize}
-              onChange={(event) => {
-                setEditSize(event.target.value);
-                if (editSizeError) setEditSizeError('');
-              }}
-              error={editSizeError}
-              data-testid="organization-volumes-edit-size"
-            />
-            <label className="flex items-center gap-2 text-sm text-[var(--agyn-dark)]">
-              <input
-                type="checkbox"
+            <div className="space-y-2">
+              <Label htmlFor="organization-volumes-edit-description-input">Description</Label>
+              <Input
+                id="organization-volumes-edit-description-input"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                data-testid="organization-volumes-edit-description-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-volumes-edit-mount">Mount Path</Label>
+              <Input
+                id="organization-volumes-edit-mount"
+                value={editMountPath}
+                onChange={(event) => {
+                  setEditMountPath(event.target.value);
+                  if (editMountError) setEditMountError('');
+                }}
+                data-testid="organization-volumes-edit-mount"
+              />
+              {editMountError ? <p className="text-sm text-destructive">{editMountError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organization-volumes-edit-size">Size</Label>
+              <Input
+                id="organization-volumes-edit-size"
+                placeholder="10Gi"
+                value={editSize}
+                onChange={(event) => {
+                  setEditSize(event.target.value);
+                  if (editSizeError) setEditSizeError('');
+                }}
+                data-testid="organization-volumes-edit-size"
+              />
+              {editSizeError ? <p className="text-sm text-destructive">{editSizeError}</p> : null}
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="organization-volumes-edit-persistent"
                 checked={editPersistent}
-                onChange={(event) => setEditPersistent(event.target.checked)}
-                className="h-4 w-4 rounded border border-[var(--agyn-border-subtle)] accent-[var(--agyn-blue)]"
+                onCheckedChange={(checked) => setEditPersistent(Boolean(checked))}
                 data-testid="organization-volumes-edit-persistent"
               />
-              Persistent
-            </label>
+              <Label htmlFor="organization-volumes-edit-persistent">Persistent</Label>
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -432,7 +449,6 @@ export function OrganizationVolumesTab() {
               </Button>
             </DialogClose>
             <Button
-              variant="primary"
               size="sm"
               onClick={handleEditSave}
               disabled={updateVolumeMutation.isPending}

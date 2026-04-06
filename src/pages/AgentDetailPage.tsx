@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentConfigurationTab } from '@/pages/agent-detail/AgentConfigurationTab';
@@ -64,14 +64,14 @@ export function AgentDetailPage() {
           <Button variant="link" asChild data-testid="agent-detail-back">
             <NavLink to={`/organizations/${organizationId}/agents`}>← Back to Agents</NavLink>
           </Button>
-          <h2 className="text-2xl font-semibold text-[var(--agyn-dark)]" data-testid="agent-detail-heading">
+          <h2 className="text-2xl font-semibold text-foreground" data-testid="agent-detail-heading">
             {agent?.name ?? 'Agent'}
           </h2>
-          <p className="text-sm text-[var(--agyn-gray)]">Agent configuration and resources.</p>
+          <p className="text-sm text-muted-foreground">Agent configuration and resources.</p>
         </div>
         {agent ? (
           <Button
-            variant="danger"
+            variant="destructive"
             size="sm"
             onClick={() => setDeleteOpen(true)}
             data-testid="agent-detail-delete"
@@ -80,8 +80,8 @@ export function AgentDetailPage() {
           </Button>
         ) : null}
       </div>
-      {agentQuery.isPending ? <div className="text-sm text-[var(--agyn-gray)]">Loading agent...</div> : null}
-      {agentQuery.isError ? <div className="text-sm text-[var(--agyn-gray)]">Failed to load agent.</div> : null}
+      {agentQuery.isPending ? <div className="text-sm text-muted-foreground">Loading agent...</div> : null}
+      {agentQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load agent.</div> : null}
       {agent ? (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList data-testid="agent-detail-tabs">
