@@ -1,15 +1,9 @@
 import { useParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
-import { SortableHeader } from '@/components/SortableHeader';
-import { LoadMoreButton } from '@/components/LoadMoreButton';
-import { Badge } from '@/components/ui/badge';
+import { WorkloadsTable } from '@/components/WorkloadsTable';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
-import { useListControls } from '@/hooks/useListControls';
 import { useNotifications } from '@/hooks/useNotifications';
-import { formatTimestamp, formatWorkloadStatus, summarizeContainers, timestampToMillis } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationMonitoringTab() {
@@ -39,35 +33,6 @@ export function OrganizationMonitoringTab() {
   });
 
   const workloads = workloadsQuery.data?.pages.flatMap((page) => page.workloads) ?? [];
-  const listControls = useListControls({
-    items: workloads,
-    searchFields: [
-      (workload) => workload.agentId,
-      (workload) => workload.runnerId,
-      (workload) => workload.threadId,
-      (workload) => formatWorkloadStatus(workload.status),
-    ],
-    sortOptions: {
-      agentId: (workload) => workload.agentId,
-      runnerId: (workload) => workload.runnerId,
-      threadId: (workload) => workload.threadId,
-      status: (workload) => formatWorkloadStatus(workload.status),
-      started: (workload) => timestampToMillis(workload.meta?.createdAt),
-    },
-    defaultSortKey: 'started',
-    defaultSortDirection: 'desc',
-  });
-
-  const visibleWorkloads = listControls.filteredItems;
-  const hasSearch = listControls.searchTerm.trim().length > 0;
-
-  const getStatusVariant = (status: WorkloadStatus) => {
-    if (status === WorkloadStatus.RUNNING) return 'default';
-    if (status === WorkloadStatus.STARTING || status === WorkloadStatus.STOPPING) return 'secondary';
-    if (status === WorkloadStatus.STOPPED) return 'outline';
-    if (status === WorkloadStatus.FAILED) return 'destructive';
-    return 'outline';
-  };
 
   const stubSections = [
     {
@@ -98,108 +63,11 @@ export function OrganizationMonitoringTab() {
             <h4 className="text-base font-semibold text-foreground">Active Workloads</h4>
             <p className="text-sm text-muted-foreground">Track running workloads deployed for this organization.</p>
           </div>
-          <div className="max-w-sm">
-            <Input
-              placeholder="Search workloads..."
-              value={listControls.searchTerm}
-              onChange={(event) => listControls.setSearchTerm(event.target.value)}
-              data-testid="organization-workloads-search"
-            />
-          </div>
-          {workloadsQuery.isPending ? (
-            <div className="text-sm text-muted-foreground">Loading workloads...</div>
-          ) : null}
-          {workloadsQuery.isError ? (
-            <div className="text-sm text-muted-foreground">Failed to load workloads.</div>
-          ) : null}
-          <Card className="border-border" data-testid="organization-workloads-table">
-            <CardContent className="px-0">
-              <div
-                className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1.4fr_1.4fr_1.4fr_140px_200px_170px]"
-                data-testid="organization-workloads-header"
-              >
-                <SortableHeader
-                  label="Agent ID"
-                  sortKey="agentId"
-                  activeSortKey={listControls.sortKey}
-                  sortDirection={listControls.sortDirection}
-                  onSort={listControls.handleSort}
-                />
-                <SortableHeader
-                  label="Runner ID"
-                  sortKey="runnerId"
-                  activeSortKey={listControls.sortKey}
-                  sortDirection={listControls.sortDirection}
-                  onSort={listControls.handleSort}
-                />
-                <SortableHeader
-                  label="Thread ID"
-                  sortKey="threadId"
-                  activeSortKey={listControls.sortKey}
-                  sortDirection={listControls.sortDirection}
-                  onSort={listControls.handleSort}
-                />
-                <SortableHeader
-                  label="Status"
-                  sortKey="status"
-                  activeSortKey={listControls.sortKey}
-                  sortDirection={listControls.sortDirection}
-                  onSort={listControls.handleSort}
-                />
-                <span>Containers</span>
-                <SortableHeader
-                  label="Started"
-                  sortKey="started"
-                  activeSortKey={listControls.sortKey}
-                  sortDirection={listControls.sortDirection}
-                  onSort={listControls.handleSort}
-                />
-              </div>
-              <div className="divide-y divide-border">
-                {visibleWorkloads.length === 0 ? (
-                  <div className="px-6 py-6 text-sm text-muted-foreground" data-testid="organization-workloads-empty">
-                    {hasSearch ? 'No results found.' : 'No workloads found.'}
-                  </div>
-                ) : (
-                  visibleWorkloads.map((workload) => {
-                    const rowKey = workload.meta?.id || `${workload.runnerId}:${workload.threadId}:${workload.agentId}`;
-                    return (
-                      <div
-                        key={rowKey}
-                        className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1.4fr_1.4fr_1.4fr_140px_200px_170px]"
-                        data-testid="organization-workloads-row"
-                      >
-                        <span className="text-xs text-muted-foreground" data-testid="organization-workloads-agent">
-                          {workload.agentId || '—'}
-                        </span>
-                        <span className="text-xs text-muted-foreground" data-testid="organization-workloads-runner">
-                          {workload.runnerId || '—'}
-                        </span>
-                        <span className="text-xs text-muted-foreground" data-testid="organization-workloads-thread">
-                          {workload.threadId || '—'}
-                        </span>
-                        <Badge variant={getStatusVariant(workload.status)} data-testid="organization-workloads-status">
-                          {formatWorkloadStatus(workload.status)}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground" data-testid="organization-workloads-containers">
-                          {summarizeContainers(workload.containers)}
-                        </span>
-                        <span className="text-xs text-muted-foreground" data-testid="organization-workloads-started">
-                          {formatTimestamp(workload.meta?.createdAt)}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          <LoadMoreButton
-            hasMore={Boolean(workloadsQuery.hasNextPage)}
-            isLoading={workloadsQuery.isFetchingNextPage}
-            onClick={() => {
-              void workloadsQuery.fetchNextPage();
-            }}
+          <WorkloadsTable
+            workloads={workloads}
+            query={workloadsQuery}
+            showRunnerColumn
+            testIdPrefix="organization-workloads"
           />
         </div>
         {stubSections.map((section) => (

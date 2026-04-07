@@ -72,21 +72,21 @@ export function formatWorkloadStatus(status: WorkloadStatus): string {
   return 'Unspecified';
 }
 
-function formatContainerStatus(status: number): string {
+export function formatContainerStatus(status: ContainerStatus): string {
   if (status === ContainerStatus.RUNNING) return 'Running';
-  if (status === ContainerStatus.WAITING) return 'Waiting';
   if (status === ContainerStatus.TERMINATED) return 'Terminated';
+  if (status === ContainerStatus.WAITING) return 'Waiting';
   return 'Unspecified';
 }
 
-export function summarizeContainers(containers: Array<{ status: number }>): string {
+export function summarizeContainers(containers: Array<{ status: ContainerStatus }>): string {
   if (containers.length === 0) return '—';
   const counts: Record<string, number> = {};
   containers.forEach((container) => {
     const label = formatContainerStatus(container.status);
     counts[label] = (counts[label] ?? 0) + 1;
   });
-  const order = ['Running', 'Waiting', 'Terminated', 'Unspecified'];
+  const order = ['Running', 'Terminated', 'Waiting', 'Unspecified'];
   const parts: string[] = [];
   order.forEach((label) => {
     const count = counts[label];

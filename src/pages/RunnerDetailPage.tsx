@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
-import { SortableHeader } from '@/components/SortableHeader';
-import { LoadMoreButton } from '@/components/LoadMoreButton';
+import { WorkloadsTable } from '@/components/WorkloadsTable';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LabelsEditor } from '@/components/LabelsEditor';
@@ -18,18 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
-import { useListControls } from '@/hooks/useListControls';
 import { useNotifications } from '@/hooks/useNotifications';
-import {
-  formatLabelPairs,
-  formatRunnerStatus,
-  formatTimestamp,
-  formatWorkloadStatus,
-  summarizeContainers,
-  timestampToMillis,
-} from '@/lib/format';
+import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 import { createLabelEntry, entriesToLabels, labelsToEntries, type LabelEntry } from '@/lib/labels';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
@@ -76,34 +65,6 @@ export function RunnerDetailPage() {
   });
 
   const workloads = workloadsQuery.data?.pages.flatMap((page) => page.workloads) ?? [];
-  const listControls = useListControls({
-    items: workloads,
-    searchFields: [
-      (workload) => workload.agentId,
-      (workload) => workload.runnerId,
-      (workload) => workload.threadId,
-      (workload) => formatWorkloadStatus(workload.status),
-    ],
-    sortOptions: {
-      agentId: (workload) => workload.agentId,
-      threadId: (workload) => workload.threadId,
-      status: (workload) => formatWorkloadStatus(workload.status),
-      started: (workload) => timestampToMillis(workload.meta?.createdAt),
-    },
-    defaultSortKey: 'started',
-    defaultSortDirection: 'desc',
-  });
-
-  const visibleWorkloads = listControls.filteredItems;
-  const hasSearch = listControls.searchTerm.trim().length > 0;
-
-  const getStatusVariant = (status: WorkloadStatus) => {
-    if (status === WorkloadStatus.RUNNING) return 'default';
-    if (status === WorkloadStatus.STARTING || status === WorkloadStatus.STOPPING) return 'secondary';
-    if (status === WorkloadStatus.STOPPED) return 'outline';
-    if (status === WorkloadStatus.FAILED) return 'destructive';
-    return 'outline';
-  };
 
   const updateRunnerMutation = useMutation({
     mutationFn: (labels: Record<string, string>) => runnersClient.updateRunner({ id: runnerId, labels }),
@@ -230,95 +191,7 @@ export function RunnerDetailPage() {
           <h3 className="text-lg font-semibold text-foreground">Workloads</h3>
           <p className="text-sm text-muted-foreground">Active workloads on this runner.</p>
         </div>
-        <div className="max-w-sm">
-          <Input
-            placeholder="Search workloads..."
-            value={listControls.searchTerm}
-            onChange={(event) => listControls.setSearchTerm(event.target.value)}
-            data-testid="runner-workloads-search"
-          />
-        </div>
-        {workloadsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading workloads...</div> : null}
-        {workloadsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load workloads.</div> : null}
-        <Card className="border-border" data-testid="runner-workloads-table">
-          <CardContent className="px-0">
-            <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1.6fr_1.6fr_140px_200px_170px]"
-              data-testid="runner-workloads-header"
-            >
-              <SortableHeader
-                label="Agent ID"
-                sortKey="agentId"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
-              />
-              <SortableHeader
-                label="Thread ID"
-                sortKey="threadId"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
-              />
-              <SortableHeader
-                label="Status"
-                sortKey="status"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
-              />
-              <span>Containers</span>
-              <SortableHeader
-                label="Started"
-                sortKey="started"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
-              />
-            </div>
-            <div className="divide-y divide-border">
-              {visibleWorkloads.length === 0 ? (
-                <div className="px-6 py-6 text-sm text-muted-foreground" data-testid="runner-workloads-empty">
-                  {hasSearch ? 'No results found.' : 'No workloads on this runner.'}
-                </div>
-              ) : (
-                visibleWorkloads.map((workload) => {
-                  const rowKey = workload.meta?.id || `${workload.threadId}:${workload.agentId}`;
-                  return (
-                    <div
-                      key={rowKey}
-                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1.6fr_1.6fr_140px_200px_170px]"
-                      data-testid="runner-workloads-row"
-                    >
-                      <span className="text-xs text-muted-foreground" data-testid="runner-workloads-agent">
-                        {workload.agentId || '—'}
-                      </span>
-                      <span className="text-xs text-muted-foreground" data-testid="runner-workloads-thread">
-                        {workload.threadId || '—'}
-                      </span>
-                      <Badge variant={getStatusVariant(workload.status)} data-testid="runner-workloads-status">
-                        {formatWorkloadStatus(workload.status)}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground" data-testid="runner-workloads-containers">
-                        {summarizeContainers(workload.containers)}
-                      </span>
-                      <span className="text-xs text-muted-foreground" data-testid="runner-workloads-started">
-                        {formatTimestamp(workload.meta?.createdAt)}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <LoadMoreButton
-          hasMore={Boolean(workloadsQuery.hasNextPage)}
-          isLoading={workloadsQuery.isFetchingNextPage}
-          onClick={() => {
-            void workloadsQuery.fetchNextPage();
-          }}
-        />
+        <WorkloadsTable workloads={workloads} query={workloadsQuery} testIdPrefix="runner-workloads" />
       </div>
       <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
         <DialogContent data-testid="runner-edit-dialog">
