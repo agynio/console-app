@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Secret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
-import { formatDateOnly } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -268,6 +270,29 @@ export function OrganizationSecretsTab() {
   const isError = providersQuery.isError || secretsQuery.isError;
 
   const secrets = secretsQuery.data?.secrets ?? [];
+  const getProviderLabel = (secret: (typeof secrets)[number]) =>
+    providerMap.get(secret.secretProviderId)?.title ?? secret.secretProviderId;
+
+  const listControls = useListControls({
+    items: secrets,
+    searchFields: [
+      (secret) => secret.title,
+      (secret) => secret.description,
+      (secret) => secret.meta?.id ?? '',
+      (secret) => getProviderLabel(secret),
+      (secret) => secret.remoteName,
+      (secret) => formatDateOnly(secret.meta?.createdAt),
+    ],
+    sortOptions: {
+      title: (secret) => secret.title,
+      provider: (secret) => getProviderLabel(secret),
+      remoteName: (secret) => secret.remoteName,
+      created: (secret) => timestampToMillis(secret.meta?.createdAt),
+    },
+    defaultSortKey: 'title',
+  });
+
+  const visibleSecrets = listControls.filteredItems;
 
   return (
     <div className="space-y-6">
@@ -287,6 +312,14 @@ export function OrganizationSecretsTab() {
           Add secret
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search secrets..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {isLoading ? <div className="text-sm text-muted-foreground">Loading secrets...</div> : null}
       {isError ? <div className="text-sm text-muted-foreground">Failed to load secrets.</div> : null}
       {secrets.length === 0 && !isLoading ? (
@@ -303,14 +336,41 @@ export function OrganizationSecretsTab() {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
               data-testid="secrets-header"
             >
-              <span>Title</span>
-              <span>Provider</span>
-              <span>Remote Name</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Title"
+                sortKey="title"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Provider"
+                sortKey="provider"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Remote Name"
+                sortKey="remoteName"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {secrets.map((secret) => {
+            {visibleSecrets.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
+            ) : (
+              visibleSecrets.map((secret) => {
                 const provider = providerMap.get(secret.secretProviderId);
                 return (
                   <div
@@ -355,8 +415,9 @@ export function OrganizationSecretsTab() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              })
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

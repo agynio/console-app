@@ -14,6 +14,7 @@ import { OrganizationModelsTab } from '@/pages/OrganizationModelsTab';
 import { OrganizationMonitoringTab } from '@/pages/OrganizationMonitoringTab';
 import { OrganizationOverviewTab } from '@/pages/OrganizationOverviewTab';
 import { OrganizationRunnersTab } from '@/pages/OrganizationRunnersTab';
+import { OrganizationImagePullSecretsTab } from '@/pages/OrganizationImagePullSecretsTab';
 import { OrganizationSecretProvidersTab } from '@/pages/OrganizationSecretProvidersTab';
 import { OrganizationSecretsTab } from '@/pages/OrganizationSecretsTab';
 import { OrganizationVolumesTab } from '@/pages/OrganizationVolumesTab';
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
           <Route path="models" element={<OrganizationModelsTab />} />
           <Route path="secrets" element={<OrganizationSecretsTab />} />
+          <Route path="image-pull-secrets" element={<OrganizationImagePullSecretsTab />} />
           <Route path="secret-providers" element={<OrganizationSecretProvidersTab />} />
           <Route path="runners" element={<OrganizationRunnersTab />} />
           <Route path="apps" element={<OrganizationAppsTab />} />

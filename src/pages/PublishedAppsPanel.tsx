@@ -2,14 +2,17 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CreateAppDialog } from '@/components/CreateAppDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import type { App } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
-import { formatAppVisibility, formatDateOnly } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatAppVisibility, formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -50,6 +53,26 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
   });
 
   const apps = appsQuery.data?.apps ?? [];
+  const listControls = useListControls({
+    items: apps,
+    searchFields: [
+      (app) => app.name,
+      (app) => app.slug,
+      (app) => app.meta?.id ?? '',
+      (app) => formatAppVisibility(app.visibility),
+      (app) => formatDateOnly(app.meta?.createdAt),
+    ],
+    sortOptions: {
+      name: (app) => app.name,
+      slug: (app) => app.slug,
+      visibility: (app) => formatAppVisibility(app.visibility),
+      created: (app) => timestampToMillis(app.meta?.createdAt),
+    },
+    defaultSortKey: 'name',
+  });
+
+  const visibleApps = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -67,6 +90,14 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
           Create app
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search apps..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {appsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading apps...</div> : null}
       {appsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load apps.</div> : null}
       {apps.length === 0 && !appsQuery.isPending ? (
@@ -83,14 +114,43 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
               data-testid="published-apps-header"
             >
-              <span>App</span>
-              <span>Slug</span>
-              <span>Visibility</span>
-              <span>Created</span>
+              <SortableHeader
+                label="App"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Slug"
+                sortKey="slug"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Visibility"
+                sortKey="visibility"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {apps.map((app) => {
+            {visibleApps.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No apps published by this organization.'}
+              </div>
+            ) : (
+              visibleApps.map((app) => {
                 const appId = app.meta?.id;
                 return (
                   <div
@@ -142,8 +202,9 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              })
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

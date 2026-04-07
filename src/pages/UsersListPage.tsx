@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { organizationsClient, usersClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organization
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
 import { formatClusterRole, formatMembershipRole } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
 export function UsersListPage() {
@@ -133,6 +135,35 @@ export function UsersListPage() {
     return map;
   }, [clusterRoleQueries, identityIds]);
 
+  const getUserOrganizations = (identityId?: string) =>
+    identityId ? (orgsByUser.get(identityId) ?? []).join(', ') : '';
+
+  const getUserClusterRole = (identityId?: string) => {
+    const roleValue = identityId ? clusterRoleMap.get(identityId) : undefined;
+    return formatClusterRole(roleValue ?? ClusterRole.UNSPECIFIED);
+  };
+
+  const listControls = useListControls({
+    items: users,
+    searchFields: [
+      (user) => user.name || '',
+      (user) => user.email || '',
+      (user) => user.meta?.id ?? '',
+      (user) => getUserOrganizations(user.meta?.id),
+      (user) => getUserClusterRole(user.meta?.id),
+    ],
+    sortOptions: {
+      name: (user) => user.name || user.email || '',
+      identityId: (user) => user.meta?.id ?? '',
+      organizations: (user) => getUserOrganizations(user.meta?.id),
+      clusterRole: (user) => getUserClusterRole(user.meta?.id),
+    },
+    defaultSortKey: 'name',
+  });
+
+  const visibleUsers = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
+
   const createUserMutation = useMutation({
     mutationFn: (payload: {
       oidcSubject: string;
@@ -188,6 +219,15 @@ export function UsersListPage() {
         <Button variant="outline" size="sm" data-testid="users-create-button" onClick={() => setCreateOpen(true)}>
           Create user
         </Button>
+      </div>
+
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search users..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
       </div>
 
       {usersQuery.isPending && <div className="text-sm text-muted-foreground">Loading users...</div>}
@@ -291,17 +331,43 @@ export function UsersListPage() {
             className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1.5fr_2fr_1fr_120px]"
             data-testid="users-header"
           >
-            <span>User</span>
-            <span>Identity ID</span>
-            <span>Organizations</span>
-            <span>Cluster Admin</span>
+            <SortableHeader
+              label="User"
+              sortKey="name"
+              activeSortKey={listControls.sortKey}
+              sortDirection={listControls.sortDirection}
+              onSort={listControls.handleSort}
+            />
+            <SortableHeader
+              label="Identity ID"
+              sortKey="identityId"
+              activeSortKey={listControls.sortKey}
+              sortDirection={listControls.sortDirection}
+              onSort={listControls.handleSort}
+            />
+            <SortableHeader
+              label="Organizations"
+              sortKey="organizations"
+              activeSortKey={listControls.sortKey}
+              sortDirection={listControls.sortDirection}
+              onSort={listControls.handleSort}
+            />
+            <SortableHeader
+              label="Cluster Admin"
+              sortKey="clusterRole"
+              activeSortKey={listControls.sortKey}
+              sortDirection={listControls.sortDirection}
+              onSort={listControls.handleSort}
+            />
             <span className="text-right">Action</span>
           </div>
           <div className="divide-y divide-border">
-            {users.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-muted-foreground">No users found.</div>
+            {visibleUsers.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No users found.'}
+              </div>
             ) : (
-              users.map((user) => {
+              visibleUsers.map((user) => {
                 const identityId = user.meta?.id;
                 const canView = Boolean(identityId);
                 const memberships = identityId ? orgsByUser.get(identityId) ?? [] : [];

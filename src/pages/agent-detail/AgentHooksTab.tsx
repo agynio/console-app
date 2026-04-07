@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -18,7 +19,8 @@ import {
 } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { ComputeResources, Hook } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { formatDateOnly, truncate } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { NestedEnvsDialog } from '@/pages/agent-detail/NestedEnvsDialog';
 import { NestedInitScriptsDialog } from '@/pages/agent-detail/NestedInitScriptsDialog';
@@ -62,6 +64,26 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
   });
 
   const hooks = hooksQuery.data?.hooks ?? [];
+  const listControls = useListControls({
+    items: hooks,
+    searchFields: [
+      (hook) => hook.event,
+      (hook) => hook.description,
+      (hook) => hook.function,
+      (hook) => hook.image,
+      (hook) => formatDateOnly(hook.meta?.createdAt),
+    ],
+    sortOptions: {
+      event: (hook) => hook.event,
+      function: (hook) => hook.function,
+      image: (hook) => hook.image,
+      created: (hook) => timestampToMillis(hook.meta?.createdAt),
+    },
+    defaultSortKey: 'event',
+  });
+
+  const visibleHooks = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   const createHookMutation = useMutation({
     mutationFn: (payload: {
@@ -259,6 +281,14 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
           Create hook
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search hooks..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {hooksQuery.isPending ? <div className="text-sm text-muted-foreground">Loading hooks...</div> : null}
       {hooksQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load hooks.</div> : null}
       {hooks.length === 0 && !hooksQuery.isPending ? (
@@ -273,14 +303,43 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_1fr_1fr_1fr_120px]"
               data-testid="agent-hooks-header"
             >
-              <span>Event</span>
-              <span>Function</span>
-              <span>Image</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Event"
+                sortKey="event"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Function"
+                sortKey="function"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Image"
+                sortKey="image"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Manage</span>
             </div>
             <div className="divide-y divide-border">
-              {hooks.map((hook) => (
+            {visibleHooks.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No hooks configured.'}
+              </div>
+            ) : (
+              visibleHooks.map((hook) => (
                 <div
                   key={hook.meta?.id ?? hook.event}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_1fr_1fr_1fr_120px]"
@@ -327,8 +386,9 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
                     </DropdownMenu>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

@@ -113,8 +113,13 @@ function NoAccessScreen({ onSignOut, userMenu, pendingMembershipsCount }: NoAcce
 }
 
 export function AppLayout() {
-  const { selectedOrganization, hasConsoleAccess, pendingMembershipsCount, status: orgStatus } =
-    useOrganizationContext();
+  const {
+    selectedOrganization,
+    hasConsoleAccess,
+    pendingMembershipsCount,
+    status: orgStatus,
+    error: orgError,
+  } = useOrganizationContext();
   const { currentUser, isClusterAdmin, status: userStatus, error: userError, signOut } = useUserContext();
 
   if (userStatus === 'loading' || orgStatus === 'loading') {
@@ -129,6 +134,14 @@ export function AppLayout() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/40 text-sm text-muted-foreground">
         {userError?.message ?? 'Failed to load profile.'}
+      </div>
+    );
+  }
+
+  if (orgStatus === 'error') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/40 text-sm text-muted-foreground">
+        {orgError?.message ?? 'Failed to load organizations.'}
       </div>
     );
   }
@@ -177,6 +190,9 @@ export function AppLayout() {
     );
   }
 
+  const organizationBase = selectedOrganization ? `/organizations/${selectedOrganization.id}` : '/organizations';
+  const organizationRoute = (path: string) => (selectedOrganization ? `${organizationBase}${path}` : '/organizations');
+
   const origin = window.location.origin;
   const chatUrl = origin.replace('console.', 'chat.');
   const tracingUrl = origin.replace('console.', 'tracing.');
@@ -218,7 +234,7 @@ export function AppLayout() {
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Organization</p>
           <nav className="mt-3 flex flex-col gap-1">
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}` : '/organizations'}
+              to={organizationBase}
               className={navLinkClass}
               data-testid="nav-organization-overview"
             >
@@ -226,7 +242,7 @@ export function AppLayout() {
               Overview
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/members` : '/organizations'}
+              to={organizationRoute('/members')}
               className={navLinkClass}
               data-testid="nav-organization-members"
             >
@@ -234,7 +250,7 @@ export function AppLayout() {
               Members
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/agents` : '/organizations'}
+              to={organizationRoute('/agents')}
               className={navLinkClass}
               data-testid="nav-organization-agents"
             >
@@ -242,7 +258,7 @@ export function AppLayout() {
               Agents
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/volumes` : '/organizations'}
+              to={organizationRoute('/volumes')}
               className={navLinkClass}
               data-testid="nav-organization-volumes"
             >
@@ -250,7 +266,7 @@ export function AppLayout() {
               Volumes
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/llm-providers` : '/organizations'}
+              to={organizationRoute('/llm-providers')}
               className={navLinkClass}
               data-testid="nav-organization-llm-providers"
             >
@@ -258,7 +274,7 @@ export function AppLayout() {
               LLM Providers
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/models` : '/organizations'}
+              to={organizationRoute('/models')}
               className={navLinkClass}
               data-testid="nav-organization-models"
             >
@@ -266,7 +282,7 @@ export function AppLayout() {
               Models
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/secrets` : '/organizations'}
+              to={organizationRoute('/secrets')}
               className={navLinkClass}
               data-testid="nav-organization-secrets"
             >
@@ -274,7 +290,15 @@ export function AppLayout() {
               Secrets
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/runners` : '/organizations'}
+              to={organizationRoute('/image-pull-secrets')}
+              className={navLinkClass}
+              data-testid="nav-organization-image-pull-secrets"
+            >
+              <KeyIcon className="h-4 w-4" />
+              Image Pull Secrets
+            </NavLink>
+            <NavLink
+              to={organizationRoute('/runners')}
               className={navLinkClass}
               data-testid="nav-organization-runners"
             >
@@ -282,7 +306,7 @@ export function AppLayout() {
               Runners
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/apps` : '/organizations'}
+              to={organizationRoute('/apps')}
               className={navLinkClass}
               data-testid="nav-organization-apps"
             >
@@ -290,7 +314,7 @@ export function AppLayout() {
               Apps
             </NavLink>
             <NavLink
-              to={selectedOrganization ? `/organizations/${selectedOrganization.id}/monitoring` : '/organizations'}
+              to={organizationRoute('/monitoring')}
               className={navLinkClass}
               data-testid="nav-organization-monitoring"
             >

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,10 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Volume, VolumeAttachment } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { formatDateOnly } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -59,6 +62,26 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
   }, [volumesQuery.data?.volumes]);
 
   const attachments = attachmentsQuery.data?.volumeAttachments ?? [];
+  const getVolumeDescription = (attachment: VolumeAttachment) =>
+    volumeMap.get(attachment.volumeId)?.description || 'Volume';
+  const getVolumeMount = (attachment: VolumeAttachment) => volumeMap.get(attachment.volumeId)?.mountPath || '';
+  const listControls = useListControls({
+    items: attachments,
+    searchFields: [
+      (attachment) => getVolumeDescription(attachment),
+      (attachment) => getVolumeMount(attachment),
+      (attachment) => attachment.volumeId,
+      (attachment) => formatDateOnly(attachment.meta?.createdAt),
+    ],
+    sortOptions: {
+      volume: (attachment) => getVolumeDescription(attachment),
+      created: (attachment) => timestampToMillis(attachment.meta?.createdAt),
+    },
+    defaultSortKey: 'volume',
+  });
+
+  const visibleAttachments = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   const createAttachmentMutation = useMutation({
     mutationFn: (payload: { volumeId: string; target: { case: 'agentId'; value: string } }) =>
@@ -141,6 +164,14 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
           Attach volume
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search volume attachments..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {attachmentsQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading volume attachments...</div>
       ) : null}
@@ -161,12 +192,29 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_120px]"
               data-testid="agent-volume-attachments-header"
             >
-              <span>Volume</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Volume"
+                sortKey="volume"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Action</span>
             </div>
             <div className="divide-y divide-border">
-              {attachments.map((attachment) => (
+            {visibleAttachments.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No volumes attached.'}
+              </div>
+            ) : (
+              visibleAttachments.map((attachment) => (
                 <div
                   key={attachment.meta?.id ?? attachment.volumeId}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_120px]"
@@ -187,8 +235,9 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
                     </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Model } from '@/gen/agynio/api/llm/v1/llm_pb';
-import { formatDateOnly } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -245,6 +247,28 @@ export function OrganizationModelsTab() {
   }, [providersQuery.data?.providers]);
 
   const models = modelsQuery.data?.models ?? [];
+  const getProviderLabel = (model: (typeof models)[number]) =>
+    providerMap.get(model.llmProviderId)?.endpoint ?? (model.llmProviderId || '');
+
+  const listControls = useListControls({
+    items: models,
+    searchFields: [
+      (model) => model.name,
+      (model) => model.meta?.id ?? '',
+      (model) => getProviderLabel(model),
+      (model) => model.remoteName,
+      (model) => formatDateOnly(model.meta?.createdAt),
+    ],
+    sortOptions: {
+      name: (model) => model.name,
+      provider: (model) => getProviderLabel(model),
+      remoteName: (model) => model.remoteName,
+      created: (model) => timestampToMillis(model.meta?.createdAt),
+    },
+    defaultSortKey: 'name',
+  });
+
+  const visibleModels = listControls.filteredItems;
   const isLoading = modelsQuery.isPending || providersQuery.isPending;
   const isError = modelsQuery.isError || providersQuery.isError;
 
@@ -266,6 +290,14 @@ export function OrganizationModelsTab() {
           Add model
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search models..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {isLoading ? <div className="text-sm text-muted-foreground">Loading models...</div> : null}
       {isError ? <div className="text-sm text-muted-foreground">Failed to load models.</div> : null}
       {models.length === 0 && !isLoading ? (
@@ -280,14 +312,41 @@ export function OrganizationModelsTab() {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
               data-testid="organization-models-header"
             >
-              <span>Model</span>
-              <span>Provider</span>
-              <span>Remote Name</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Model"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Provider"
+                sortKey="provider"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Remote Name"
+                sortKey="remoteName"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {models.map((model) => {
+            {visibleModels.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
+            ) : (
+              visibleModels.map((model) => {
                 const provider = providerMap.get(model.llmProviderId);
                 return (
                   <div
@@ -332,8 +391,9 @@ export function OrganizationModelsTab() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              })
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

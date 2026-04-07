@@ -146,7 +146,7 @@ describe('OrganizationContext', () => {
     });
   });
 
-  it('filters visible organizations for non-admin users', async () => {
+  it('exposes active member organizations for non-admin users', async () => {
     mockMemberships([
       create(MembershipSchema, {
         id: 'membership-1',
@@ -174,7 +174,7 @@ describe('OrganizationContext', () => {
     renderWithProviders();
 
     await waitFor(() => {
-      expect(screen.getByTestId('count').textContent).toBe('1');
+      expect(screen.getByTestId('count').textContent).toBe('2');
     });
   });
 
@@ -235,6 +235,28 @@ describe('OrganizationContext', () => {
     ]);
 
     listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('has-console-access').textContent).toBe('true');
+    });
+  });
+
+  it('reports console access for active members', async () => {
+    mockMemberships([
+      create(MembershipSchema, {
+        id: 'membership-1',
+        organizationId: 'org-1',
+        identityId: 'identity-1',
+        role: MembershipRole.MEMBER,
+        status: MembershipStatus.ACTIVE,
+      }),
+    ]);
+
+    listAccessibleOrganizations.mockResolvedValue({
+      organizations: [create(OrganizationSchema, { id: 'org-1', name: 'Org One' })],
+    });
 
     renderWithProviders();
 

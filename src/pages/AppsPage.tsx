@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { RegisterAppDialog } from '@/components/RegisterAppDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { formatAppVisibility, formatDateOnly } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatAppVisibility, formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function AppsPage() {
@@ -20,6 +23,28 @@ export function AppsPage() {
   });
 
   const apps = appsQuery.data?.apps ?? [];
+  const listControls = useListControls({
+    items: apps,
+    searchFields: [
+      (app) => app.name,
+      (app) => app.slug,
+      (app) => app.meta?.id ?? '',
+      (app) => app.organizationId || '',
+      (app) => formatAppVisibility(app.visibility),
+      (app) => (app.permissions.length > 0 ? app.permissions.join(', ') : ''),
+    ],
+    sortOptions: {
+      name: (app) => app.name,
+      organization: (app) => app.organizationId || '',
+      visibility: (app) => formatAppVisibility(app.visibility),
+      permissions: (app) => (app.permissions.length > 0 ? app.permissions.join(', ') : ''),
+      created: (app) => timestampToMillis(app.meta?.createdAt),
+    },
+    defaultSortKey: 'name',
+  });
+
+  const visibleApps = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -31,6 +56,14 @@ export function AppsPage() {
         <Button variant="outline" size="sm" onClick={() => setRegisterOpen(true)} data-testid="apps-register">
           Register app
         </Button>
+      </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search apps..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
       </div>
       {appsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading apps...</div> : null}
       {appsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load apps.</div> : null}
@@ -48,61 +81,97 @@ export function AppsPage() {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
               data-testid="apps-header"
             >
-              <span>App</span>
-              <span>Organization</span>
-              <span>Visibility</span>
-              <span>Permissions</span>
-              <span>Created</span>
+              <SortableHeader
+                label="App"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Organization"
+                sortKey="organization"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Visibility"
+                sortKey="visibility"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Permissions"
+                sortKey="permissions"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {apps.map((app) => {
-                const appId = app.meta?.id;
-                return (
-                  <div
-                    key={appId ?? app.slug}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
-                    data-testid="apps-row"
-                  >
-                    <div>
-                      <div className="font-medium" data-testid="apps-name">
-                        {app.name}
+              {visibleApps.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No apps registered.'}
+                </div>
+              ) : (
+                visibleApps.map((app) => {
+                  const appId = app.meta?.id;
+                  return (
+                    <div
+                      key={appId ?? app.slug}
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_120px]"
+                      data-testid="apps-row"
+                    >
+                      <div>
+                        <div className="font-medium" data-testid="apps-name">
+                          {app.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground" data-testid="apps-slug">
+                          {app.slug}
+                        </div>
+                        <div className="text-xs text-muted-foreground" data-testid="apps-id">
+                          {appId ?? '—'}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground" data-testid="apps-slug">
-                        {app.slug}
-                      </div>
-                      <div className="text-xs text-muted-foreground" data-testid="apps-id">
-                        {appId ?? '—'}
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground" data-testid="apps-organization">
-                      {app.organizationId || '—'}
-                    </span>
-                    <Badge variant="secondary" data-testid="apps-visibility">
-                      {formatAppVisibility(app.visibility)}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground" data-testid="apps-permissions">
-                      {app.permissions.length > 0 ? app.permissions.join(', ') : '—'}
-                    </span>
-                    <span className="text-xs text-muted-foreground" data-testid="apps-created">
-                      {formatDateOnly(app.meta?.createdAt)}
-                    </span>
-                    <div className="text-right">
-                      {appId ? (
-                        <Button variant="outline" size="sm" asChild>
-                          <NavLink to={`/apps/${appId}`} data-testid="apps-view">
+                      <span className="text-xs text-muted-foreground" data-testid="apps-organization">
+                        {app.organizationId || '—'}
+                      </span>
+                      <Badge variant="secondary" data-testid="apps-visibility">
+                        {formatAppVisibility(app.visibility)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground" data-testid="apps-permissions">
+                        {app.permissions.length > 0 ? app.permissions.join(', ') : '—'}
+                      </span>
+                      <span className="text-xs text-muted-foreground" data-testid="apps-created">
+                        {formatDateOnly(app.meta?.createdAt)}
+                      </span>
+                      <div className="text-right">
+                        {appId ? (
+                          <Button variant="outline" size="sm" asChild>
+                            <NavLink to={`/apps/${appId}`} data-testid="apps-view">
+                              View
+                            </NavLink>
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" disabled data-testid="apps-view">
                             View
-                          </NavLink>
-                        </Button>
-                      ) : (
-                        <Button variant="outline" size="sm" disabled data-testid="apps-view">
-                          View
-                        </Button>
-                      )}
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </CardContent>
         </Card>

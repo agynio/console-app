@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -18,7 +19,8 @@ import {
 } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { ComputeResources, Mcp } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { formatDateOnly, truncate } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { NestedEnvsDialog } from '@/pages/agent-detail/NestedEnvsDialog';
 import { NestedInitScriptsDialog } from '@/pages/agent-detail/NestedInitScriptsDialog';
@@ -59,6 +61,26 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   });
 
   const mcps = mcpsQuery.data?.mcps ?? [];
+  const listControls = useListControls({
+    items: mcps,
+    searchFields: [
+      (mcp) => mcp.name,
+      (mcp) => mcp.description,
+      (mcp) => mcp.image,
+      (mcp) => mcp.command,
+      (mcp) => formatDateOnly(mcp.meta?.createdAt),
+    ],
+    sortOptions: {
+      name: (mcp) => mcp.name,
+      image: (mcp) => mcp.image,
+      command: (mcp) => mcp.command,
+      created: (mcp) => timestampToMillis(mcp.meta?.createdAt),
+    },
+    defaultSortKey: 'name',
+  });
+
+  const visibleMcps = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   const createMcpMutation = useMutation({
     mutationFn: (payload: {
@@ -237,6 +259,14 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
           Create MCP
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search MCPs..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {mcpsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading MCPs...</div> : null}
       {mcpsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load MCPs.</div> : null}
       {mcps.length === 0 && !mcpsQuery.isPending ? (
@@ -251,14 +281,43 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_1fr_2fr_1fr_120px]"
               data-testid="agent-mcps-header"
             >
-              <span>Name</span>
-              <span>Image</span>
-              <span>Command</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Name"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Image"
+                sortKey="image"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Command"
+                sortKey="command"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Manage</span>
             </div>
             <div className="divide-y divide-border">
-              {mcps.map((mcp) => (
+            {visibleMcps.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No MCPs configured.'}
+              </div>
+            ) : (
+              visibleMcps.map((mcp) => (
                 <div
                   key={mcp.meta?.id ?? mcp.name}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_1fr_2fr_1fr_120px]"
@@ -305,8 +364,9 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
                     </DropdownMenu>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

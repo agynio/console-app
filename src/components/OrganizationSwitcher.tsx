@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ChevronDownIcon, PlusIcon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -26,17 +27,38 @@ export function OrganizationSwitcher() {
     isSubmitting,
   } = useCreateOrganization();
 
+  const sortedOrganizations = useMemo(
+    () => [...organizations].sort((a, b) => a.name.localeCompare(b.name)),
+    [organizations],
+  );
+
+  const resolveOrganizationPath = (orgId: string) => {
+    if (!location.pathname.startsWith('/organizations/')) {
+      return `/organizations/${orgId}`;
+    }
+
+    const segments = location.pathname.split('/').slice(3);
+    if (segments.length === 0) {
+      return `/organizations/${orgId}`;
+    }
+
+    const [section, subSection, ...rest] = segments;
+    if (section === 'agents' && subSection && subSection !== 'new') {
+      return `/organizations/${orgId}/agents`;
+    }
+    if (section === 'apps' && subSection) {
+      return `/organizations/${orgId}/apps`;
+    }
+
+    const suffix = [section, subSection, ...rest].filter(Boolean).join('/');
+    return suffix ? `/organizations/${orgId}/${suffix}` : `/organizations/${orgId}`;
+  };
+
   const handleSelect = (orgId: string) => {
-    const org = organizations.find((item) => item.id === orgId);
+    const org = sortedOrganizations.find((item) => item.id === orgId);
     if (!org) return;
     setSelectedOrganization(org);
-    if (location.pathname.startsWith('/organizations/')) {
-      const rest = location.pathname.split('/').slice(3).join('/');
-      const nextPath = rest ? `/organizations/${org.id}/${rest}` : `/organizations/${org.id}`;
-      navigate(nextPath);
-      return;
-    }
-    navigate(`/organizations/${org.id}`);
+    navigate(resolveOrganizationPath(org.id));
   };
 
   return (
@@ -49,10 +71,10 @@ export function OrganizationSwitcher() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {organizations.length === 0 ? (
+          {sortedOrganizations.length === 0 ? (
             <DropdownMenuItem disabled>No organizations</DropdownMenuItem>
           ) : (
-            organizations.map((org) => (
+            sortedOrganizations.map((org) => (
               <DropdownMenuItem
                 key={org.id}
                 disabled={org.id === selectedOrganization?.id}

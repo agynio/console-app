@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -17,7 +18,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { Skill } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { formatDateOnly, truncate } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -51,6 +53,24 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
   });
 
   const skills = skillsQuery.data?.skills ?? [];
+  const listControls = useListControls({
+    items: skills,
+    searchFields: [
+      (skill) => skill.name,
+      (skill) => skill.description,
+      (skill) => skill.body,
+      (skill) => formatDateOnly(skill.meta?.createdAt),
+    ],
+    sortOptions: {
+      name: (skill) => skill.name,
+      body: (skill) => skill.body,
+      created: (skill) => timestampToMillis(skill.meta?.createdAt),
+    },
+    defaultSortKey: 'name',
+  });
+
+  const visibleSkills = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   const createSkillMutation = useMutation({
     mutationFn: (payload: { agentId: string; name: string; body: string; description: string }) =>
@@ -185,6 +205,14 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
           Create skill
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search skills..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {skillsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading skills...</div> : null}
       {skillsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load skills.</div> : null}
       {skills.length === 0 && !skillsQuery.isPending ? (
@@ -201,13 +229,36 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_2fr_1fr_120px]"
               data-testid="agent-skills-header"
             >
-              <span>Name</span>
-              <span>Body</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Name"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Body"
+                sortKey="body"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {skills.map((skill) => (
+            {visibleSkills.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No skills configured.'}
+              </div>
+            ) : (
+              visibleSkills.map((skill) => (
                 <div
                   key={skill.meta?.id ?? skill.name}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_2fr_1fr_120px]"
@@ -246,8 +297,9 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
                     </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

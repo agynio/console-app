@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
 import { organizationsClient, usersClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
@@ -17,11 +18,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatMembershipRole, formatMembershipStatus } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
 export function OrganizationMembersTab() {
@@ -97,6 +100,33 @@ export function OrganizationMembersTab() {
       }),
     );
   }, [usersQuery.data?.users]);
+
+  const getMemberName = (membership: (typeof memberships)[number]) => {
+    const user = userMap.get(membership.identityId);
+    return user?.name || user?.email || membership.identityId;
+  };
+
+  const getMemberEmail = (membership: (typeof memberships)[number]) =>
+    userMap.get(membership.identityId)?.email ?? '';
+
+  const listControls = useListControls({
+    items: memberships,
+    searchFields: [
+      (membership) => getMemberName(membership),
+      (membership) => getMemberEmail(membership),
+      (membership) => membership.identityId,
+      (membership) => formatMembershipRole(membership.role),
+      (membership) => formatMembershipStatus(membership.status),
+    ],
+    sortOptions: {
+      name: (membership) => getMemberName(membership),
+      role: (membership) => formatMembershipRole(membership.role),
+      status: (membership) => formatMembershipStatus(membership.status),
+    },
+    defaultSortKey: 'name',
+  });
+
+  const visibleMemberships = listControls.filteredItems;
 
   const inviteMemberMutation = useMutation({
     mutationFn: (payload: { identityId: string; role: MembershipRole }) =>
@@ -175,6 +205,14 @@ export function OrganizationMembersTab() {
           Invite member
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search members..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {(activeQuery.isPending || pendingQuery.isPending) && (
         <div className="text-sm text-muted-foreground">Loading members...</div>
       )}
@@ -195,77 +233,99 @@ export function OrganizationMembersTab() {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
               data-testid="organization-members-header"
             >
-              <span>Member</span>
-              <span>Role</span>
-              <span>Status</span>
+              <SortableHeader
+                label="Member"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Role"
+                sortKey="role"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Status"
+                sortKey="status"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {memberships.map((membership) => {
-                const user = userMap.get(membership.identityId);
-                return (
-                  <div
-                    key={membership.id}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
-                    data-testid="organization-member-row"
-                  >
-                    <div>
-                      <div className="font-medium" data-testid="organization-member-name">
-                        {user?.name ?? membership.identityId}
+              {visibleMemberships.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
+              ) : (
+                visibleMemberships.map((membership) => {
+                  const user = userMap.get(membership.identityId);
+                  return (
+                    <div
+                      key={membership.id}
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
+                      data-testid="organization-member-row"
+                    >
+                      <div>
+                        <div className="font-medium" data-testid="organization-member-name">
+                          {user?.name ?? membership.identityId}
+                        </div>
+                        <div className="text-xs text-muted-foreground" data-testid="organization-member-email">
+                          {user?.email ?? 'Unknown email'}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground" data-testid="organization-member-email">
-                        {user?.email ?? 'Unknown email'}
+                      <Badge variant="secondary" data-testid="organization-member-role">
+                        {formatMembershipRole(membership.role)}
+                      </Badge>
+                      <Badge variant="outline" data-testid="organization-member-status">
+                        {formatMembershipStatus(membership.status)}
+                      </Badge>
+                      <div className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" data-testid="organization-member-manage">
+                              Manage
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" data-testid="organization-member-actions">
+                            {membership.role === MembershipRole.MEMBER ? (
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  updateRoleMutation.mutate({ membershipId: membership.id, role: MembershipRole.OWNER })
+                                }
+                                disabled={updateRoleMutation.isPending}
+                                data-testid="organization-member-make-owner"
+                              >
+                                Make owner
+                              </DropdownMenuItem>
+                            ) : null}
+                            {membership.role === MembershipRole.OWNER ? (
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  updateRoleMutation.mutate({ membershipId: membership.id, role: MembershipRole.MEMBER })
+                                }
+                                disabled={updateRoleMutation.isPending}
+                                data-testid="organization-member-make-member"
+                              >
+                                Make member
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuItem
+                              onSelect={() => setRemoveTargetId(membership.id)}
+                              disabled={removeMemberMutation.isPending}
+                              data-testid="organization-member-remove"
+                            >
+                              Remove
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
-                    <Badge variant="secondary" data-testid="organization-member-role">
-                      {formatMembershipRole(membership.role)}
-                    </Badge>
-                    <Badge variant="outline" data-testid="organization-member-status">
-                      {formatMembershipStatus(membership.status)}
-                    </Badge>
-                    <div className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" data-testid="organization-member-manage">
-                            Manage
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" data-testid="organization-member-actions">
-                          {membership.role === MembershipRole.MEMBER ? (
-                            <DropdownMenuItem
-                              onSelect={() =>
-                                updateRoleMutation.mutate({ membershipId: membership.id, role: MembershipRole.OWNER })
-                              }
-                              disabled={updateRoleMutation.isPending}
-                              data-testid="organization-member-make-owner"
-                            >
-                              Make owner
-                            </DropdownMenuItem>
-                          ) : null}
-                          {membership.role === MembershipRole.OWNER ? (
-                            <DropdownMenuItem
-                              onSelect={() =>
-                                updateRoleMutation.mutate({ membershipId: membership.id, role: MembershipRole.MEMBER })
-                              }
-                              disabled={updateRoleMutation.isPending}
-                              data-testid="organization-member-make-member"
-                            >
-                              Make member
-                            </DropdownMenuItem>
-                          ) : null}
-                          <DropdownMenuItem
-                            onSelect={() => setRemoveTargetId(membership.id)}
-                            disabled={removeMemberMutation.isPending}
-                            data-testid="organization-member-remove"
-                          >
-                            Remove
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </CardContent>
         </Card>

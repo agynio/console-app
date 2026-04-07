@@ -4,8 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useQuery } from '@tanstack/react-query';
 import { organizationsClient } from '@/api/client';
 import type { Membership } from '@/gen/agynio/api/organizations/v1/organizations_pb';
-import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import type { MembershipRole } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import type { Organization } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { useUserContext } from './UserContext';
 
@@ -124,7 +125,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
   const visibleOrganizations = useMemo(() => {
     if (isClusterAdmin) return mappedOrganizations;
-    return mappedOrganizations.filter((org) => org.membershipRole === MembershipRole.OWNER);
+    return mappedOrganizations.filter((org) => org.membershipStatus === MembershipStatus.ACTIVE);
   }, [isClusterAdmin, mappedOrganizations]);
 
   const selectedOrganization = useMemo(

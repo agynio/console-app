@@ -11,6 +11,7 @@ import { AgentHooksTab } from '@/pages/agent-detail/AgentHooksTab';
 import { AgentInitScriptsTab } from '@/pages/agent-detail/AgentInitScriptsTab';
 import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
 import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
+import { AgentImagePullSecretsTab } from '@/pages/agent-detail/AgentImagePullSecretsTab';
 import { AgentVolumeAttachmentsTab } from '@/pages/agent-detail/AgentVolumeAttachmentsTab';
 import { toast } from 'sonner';
 
@@ -22,6 +23,7 @@ const TAB_OPTIONS = [
   { value: 'envs', label: 'ENVs' },
   { value: 'init-scripts', label: 'Init Scripts' },
   { value: 'volumes', label: 'Volumes' },
+  { value: 'image-pull-secrets', label: 'Image Pull Secrets' },
 ];
 
 export function AgentDetailPage() {
@@ -111,6 +113,9 @@ export function AgentDetailPage() {
           </TabsContent>
           <TabsContent value="volumes" data-testid="agent-detail-tab-content-volumes">
             <AgentVolumeAttachmentsTab agentId={resolvedAgentId} organizationId={organizationId} />
+          </TabsContent>
+          <TabsContent value="image-pull-secrets" data-testid="agent-detail-tab-content-image-pull-secrets">
+            <AgentImagePullSecretsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </TabsContent>
         </Tabs>
       ) : null}
