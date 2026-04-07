@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CreateAppDialog } from '@/components/CreateAppDialog';
@@ -210,19 +211,13 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
           </CardContent>
         </Card>
       ) : null}
-      {appsQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => appsQuery.fetchNextPage()}
-            disabled={appsQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {appsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(appsQuery.hasNextPage)}
+        isLoading={appsQuery.isFetchingNextPage}
+        onClick={() => {
+          void appsQuery.fetchNextPage();
+        }}
+      />
       <CreateAppDialog open={createOpen} onOpenChange={setCreateOpen} organizationId={organizationId} />
       <ConfirmDialog
         open={Boolean(deleteApp)}

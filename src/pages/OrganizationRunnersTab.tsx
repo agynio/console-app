@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { EnrollRunnerDialog } from '@/components/EnrollRunnerDialog';
 import { Badge } from '@/components/ui/badge';
@@ -135,19 +136,13 @@ export function OrganizationRunnersTab() {
           </div>
         </CardContent>
       </Card>
-      {runnersQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => runnersQuery.fetchNextPage()}
-            disabled={runnersQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {runnersQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(runnersQuery.hasNextPage)}
+        isLoading={runnersQuery.isFetchingNextPage}
+        onClick={() => {
+          void runnersQuery.fetchNextPage();
+        }}
+      />
       <EnrollRunnerDialog
         open={enrollOpen}
         onOpenChange={setEnrollOpen}

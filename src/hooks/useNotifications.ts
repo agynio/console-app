@@ -32,8 +32,10 @@ export function useNotifications(options: UseNotificationsOptions): void {
             void queryClient.invalidateQueries({ queryKey: key });
           }
         }
-      } catch {
-        // Stream ended or aborted; no reconnect needed.
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        if (error instanceof Error && error.name === 'AbortError') return;
+        console.error('[useNotifications] stream error:', error);
       }
     })();
 

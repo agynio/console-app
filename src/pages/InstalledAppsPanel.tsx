@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { InstallAppDialog } from '@/components/InstallAppDialog';
@@ -218,19 +219,13 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
           </CardContent>
         </Card>
       ) : null}
-      {installationsQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => installationsQuery.fetchNextPage()}
-            disabled={installationsQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {installationsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(installationsQuery.hasNextPage)}
+        isLoading={installationsQuery.isFetchingNextPage}
+        onClick={() => {
+          void installationsQuery.fetchNextPage();
+        }}
+      />
       <InstallAppDialog open={installOpen} onOpenChange={setInstallOpen} organizationId={organizationId} />
       <UpdateInstallationDialog
         open={Boolean(configureInstallation)}

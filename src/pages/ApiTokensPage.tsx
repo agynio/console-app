@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -17,11 +17,9 @@ export function ApiTokensPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [revokeToken, setRevokeToken] = useState<APIToken | null>(null);
 
-  const tokensQuery = useInfiniteQuery({
+  const tokensQuery = useQuery({
     queryKey: ['api-tokens', 'list'],
     queryFn: () => usersClient.listAPITokens({}),
-    initialPageParam: '',
-    getNextPageParam: () => undefined,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -38,7 +36,7 @@ export function ApiTokensPage() {
     },
   });
 
-  const tokens = tokensQuery.data?.pages.flatMap((page) => page.tokens) ?? [];
+  const tokens = tokensQuery.data?.tokens ?? [];
   const listControls = useListControls({
     items: tokens,
     searchFields: [
@@ -177,19 +175,6 @@ export function ApiTokensPage() {
           </CardContent>
         </Card>
       ) : null}
-      {tokensQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => tokensQuery.fetchNextPage()}
-            disabled={tokensQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {tokensQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
       <CreateApiTokenDialog open={createOpen} onOpenChange={setCreateOpen} />
       <ConfirmDialog
         open={Boolean(revokeToken)}

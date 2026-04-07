@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -433,19 +434,13 @@ export function OrganizationSecretProvidersTab() {
           </CardContent>
         </Card>
       ) : null}
-      {providersQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => providersQuery.fetchNextPage()}
-            disabled={providersQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {providersQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(providersQuery.hasNextPage)}
+        isLoading={providersQuery.isFetchingNextPage}
+        onClick={() => {
+          void providersQuery.fetchNextPage();
+        }}
+      />
       <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent data-testid="organization-secret-providers-create-dialog">
           <DialogHeader>

@@ -3,6 +3,7 @@ import { NavLink, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { agentsClient, llmClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -210,19 +211,13 @@ export function OrganizationAgentsTab() {
           </CardContent>
         </Card>
       ) : null}
-      {agentsQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => agentsQuery.fetchNextPage()}
-            disabled={agentsQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {agentsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(agentsQuery.hasNextPage)}
+        isLoading={agentsQuery.isFetchingNextPage}
+        onClick={() => {
+          void agentsQuery.fetchNextPage();
+        }}
+      />
     </div>
   );
 }

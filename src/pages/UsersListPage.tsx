@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useInfiniteQuery, useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { organizationsClient, usersClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -44,19 +45,16 @@ export function UsersListPage() {
     refetchOnWindowFocus: false,
   });
 
-  const organizationsQuery = useInfiniteQuery({
+  const organizationsQuery = useQuery({
     queryKey: ['organizations', 'list'],
-    queryFn: ({ pageParam }) =>
-      organizationsClient.listOrganizations({ pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
-    initialPageParam: '',
-    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    queryFn: () => organizationsClient.listOrganizations({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
   const organizations = useMemo(
-    () => organizationsQuery.data?.pages.flatMap((page) => page.organizations) ?? [],
-    [organizationsQuery.data?.pages],
+    () => organizationsQuery.data?.organizations ?? [],
+    [organizationsQuery.data?.organizations],
   );
 
   const membershipsQueries = useQueries({
@@ -431,24 +429,13 @@ export function UsersListPage() {
           </div>
         </CardContent>
       </Card>
-      {usersQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void usersQuery.fetchNextPage();
-              if (organizationsQuery.hasNextPage) {
-                void organizationsQuery.fetchNextPage();
-              }
-            }}
-            disabled={usersQuery.isFetchingNextPage || organizationsQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {usersQuery.isFetchingNextPage || organizationsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(usersQuery.hasNextPage)}
+        isLoading={usersQuery.isFetchingNextPage}
+        onClick={() => {
+          void usersQuery.fetchNextPage();
+        }}
+      />
     </div>
   );
 }

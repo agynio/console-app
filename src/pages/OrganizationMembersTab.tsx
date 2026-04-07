@@ -4,6 +4,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { PlusIcon } from 'lucide-react';
 import { organizationsClient, usersClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
@@ -340,26 +341,18 @@ export function OrganizationMembersTab() {
           </CardContent>
         </Card>
       ) : null}
-      {hasMoreMemberships && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (activeQuery.hasNextPage) {
-                void activeQuery.fetchNextPage();
-              }
-              if (pendingQuery.hasNextPage) {
-                void pendingQuery.fetchNextPage();
-              }
-            }}
-            disabled={isFetchingMoreMemberships}
-            data-testid="load-more"
-          >
-            {isFetchingMoreMemberships ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={hasMoreMemberships}
+        isLoading={isFetchingMoreMemberships}
+        onClick={() => {
+          if (activeQuery.hasNextPage) {
+            void activeQuery.fetchNextPage();
+          }
+          if (pendingQuery.hasNextPage) {
+            void pendingQuery.fetchNextPage();
+          }
+        }}
+      />
       <Dialog open={inviteOpen} onOpenChange={handleInviteOpenChange}>
         <DialogContent data-testid="organization-members-invite-dialog">
           <DialogHeader>

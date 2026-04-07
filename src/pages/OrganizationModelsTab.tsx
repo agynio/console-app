@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -403,19 +404,13 @@ export function OrganizationModelsTab() {
           </CardContent>
         </Card>
       ) : null}
-      {modelsQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => modelsQuery.fetchNextPage()}
-            disabled={modelsQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {modelsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(modelsQuery.hasNextPage)}
+        isLoading={modelsQuery.isFetchingNextPage}
+        onClick={() => {
+          void modelsQuery.fetchNextPage();
+        }}
+      />
       <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent data-testid="organization-models-create-dialog">
           <DialogHeader>

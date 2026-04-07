@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -377,19 +378,13 @@ export function OrganizationVolumesTab() {
           </CardContent>
         </Card>
       ) : null}
-      {volumesQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => volumesQuery.fetchNextPage()}
-            disabled={volumesQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {volumesQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(volumesQuery.hasNextPage)}
+        isLoading={volumesQuery.isFetchingNextPage}
+        onClick={() => {
+          void volumesQuery.fetchNextPage();
+        }}
+      />
       <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent data-testid="organization-volumes-create-dialog">
           <DialogHeader>

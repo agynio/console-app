@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -711,19 +712,13 @@ export function OrganizationImagePullSecretsTab() {
           </CardContent>
         </Card>
       ) : null}
-      {imagePullSecretsQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => imagePullSecretsQuery.fetchNextPage()}
-            disabled={imagePullSecretsQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {imagePullSecretsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(imagePullSecretsQuery.hasNextPage)}
+        isLoading={imagePullSecretsQuery.isFetchingNextPage}
+        onClick={() => {
+          void imagePullSecretsQuery.fetchNextPage();
+        }}
+      />
       <ImagePullSecretFormDialog
         mode="create"
         open={createOpen}

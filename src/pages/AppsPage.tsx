@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RegisterAppDialog } from '@/components/RegisterAppDialog';
@@ -178,19 +179,13 @@ export function AppsPage() {
           </CardContent>
         </Card>
       ) : null}
-      {appsQuery.hasNextPage && (
-        <div className="flex justify-center py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => appsQuery.fetchNextPage()}
-            disabled={appsQuery.isFetchingNextPage}
-            data-testid="load-more"
-          >
-            {appsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreButton
+        hasMore={Boolean(appsQuery.hasNextPage)}
+        isLoading={appsQuery.isFetchingNextPage}
+        onClick={() => {
+          void appsQuery.fetchNextPage();
+        }}
+      />
       <RegisterAppDialog open={registerOpen} onOpenChange={setRegisterOpen} />
     </div>
   );
