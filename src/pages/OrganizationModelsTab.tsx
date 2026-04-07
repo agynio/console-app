@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Model } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 export function OrganizationModelsTab() {
@@ -45,9 +46,12 @@ export function OrganizationModelsTab() {
   const [editRemoteError, setEditRemoteError] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  const modelsQuery = useQuery({
+  const modelsQuery = useInfiniteQuery({
     queryKey: ['llm', organizationId, 'models'],
-    queryFn: () => llmClient.listModels({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      llmClient.listModels({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -246,7 +250,7 @@ export function OrganizationModelsTab() {
     );
   }, [providersQuery.data?.providers]);
 
-  const models = modelsQuery.data?.models ?? [];
+  const models = modelsQuery.data?.pages.flatMap((page) => page.models) ?? [];
   const getProviderLabel = (model: (typeof models)[number]) =>
     providerMap.get(model.llmProviderId)?.endpoint ?? (model.llmProviderId || '');
 
@@ -400,6 +404,13 @@ export function OrganizationModelsTab() {
           </CardContent>
         </Card>
       ) : null}
+      <LoadMoreButton
+        hasMore={Boolean(modelsQuery.hasNextPage)}
+        isLoading={modelsQuery.isFetchingNextPage}
+        onClick={() => {
+          void modelsQuery.fetchNextPage();
+        }}
+      />
       <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent data-testid="organization-models-create-dialog">
           <DialogHeader>

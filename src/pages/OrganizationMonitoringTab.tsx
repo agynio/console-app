@@ -1,6 +1,16 @@
+import { useParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
+import { useNotifications } from '@/hooks/useNotifications';
 
 export function OrganizationMonitoringTab() {
+  const { id } = useParams();
+  const organizationId = id ?? '';
+
+  useNotifications({
+    events: ['workload.status_changed'],
+    invalidateKeys: [['workloads', organizationId, 'list']],
+    enabled: Boolean(organizationId),
+  });
   const sections = [
     {
       id: 'active-workloads',

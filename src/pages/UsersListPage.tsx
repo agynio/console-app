@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { organizationsClient, usersClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
 import { formatClusterRole, formatMembershipRole } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
@@ -35,9 +36,11 @@ export function UsersListPage() {
   const [clusterRole, setClusterRole] = useState<ClusterRole>(ClusterRole.UNSPECIFIED);
   const [oidcError, setOidcError] = useState('');
 
-  const usersQuery = useQuery({
+  const usersQuery = useInfiniteQuery({
     queryKey: ['users', 'list'],
-    queryFn: () => usersClient.listUsers({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) => usersClient.listUsers({ pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -103,7 +106,10 @@ export function UsersListPage() {
     return map;
   }, [memberships, orgNameMap]);
 
-  const users = useMemo(() => usersQuery.data?.users ?? [], [usersQuery.data?.users]);
+  const users = useMemo(
+    () => usersQuery.data?.pages.flatMap((page) => page.users) ?? [],
+    [usersQuery.data?.pages],
+  );
   const identityIds = useMemo(() => {
     const ids = users.flatMap((user) => (user.meta?.id ? [user.meta.id] : []));
     return Array.from(new Set(ids));
@@ -423,6 +429,13 @@ export function UsersListPage() {
           </div>
         </CardContent>
       </Card>
+      <LoadMoreButton
+        hasMore={Boolean(usersQuery.hasNextPage)}
+        isLoading={usersQuery.isFetchingNextPage}
+        onClick={() => {
+          void usersQuery.fetchNextPage();
+        }}
+      />
     </div>
   );
 }

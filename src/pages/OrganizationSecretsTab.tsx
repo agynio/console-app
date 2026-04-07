@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Secret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 export function OrganizationSecretsTab() {
@@ -55,15 +56,17 @@ export function OrganizationSecretsTab() {
     refetchOnWindowFocus: false,
   });
 
-  const secretsQuery = useQuery({
+  const secretsQuery = useInfiniteQuery({
     queryKey: ['secrets', organizationId, 'list'],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       secretsClient.listSecrets({
         organizationId,
-        pageSize: MAX_PAGE_SIZE,
-        pageToken: '',
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
         secretProviderId: '',
       }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
@@ -269,7 +272,7 @@ export function OrganizationSecretsTab() {
   const isLoading = providersQuery.isPending || secretsQuery.isPending;
   const isError = providersQuery.isError || secretsQuery.isError;
 
-  const secrets = secretsQuery.data?.secrets ?? [];
+  const secrets = secretsQuery.data?.pages.flatMap((page) => page.secrets) ?? [];
   const getProviderLabel = (secret: (typeof secrets)[number]) =>
     providerMap.get(secret.secretProviderId)?.title ?? secret.secretProviderId;
 
@@ -424,6 +427,13 @@ export function OrganizationSecretsTab() {
           </CardContent>
         </Card>
       ) : null}
+      <LoadMoreButton
+        hasMore={Boolean(secretsQuery.hasNextPage)}
+        isLoading={secretsQuery.isFetchingNextPage}
+        onClick={() => {
+          void secretsQuery.fetchNextPage();
+        }}
+      />
       <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent data-testid="secrets-create-dialog">
           <DialogHeader>

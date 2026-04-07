@@ -1,23 +1,27 @@
 import { useMemo } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { agentsClient, llmClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationAgentsTab() {
   const { id } = useParams();
   const organizationId = id ?? '';
 
-  const agentsQuery = useQuery({
+  const agentsQuery = useInfiniteQuery({
     queryKey: ['agents', organizationId, 'list'],
-    queryFn: () => agentsClient.listAgents({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      agentsClient.listAgents({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -41,7 +45,7 @@ export function OrganizationAgentsTab() {
     );
   }, [modelsQuery.data?.models]);
 
-  const agents = agentsQuery.data?.agents ?? [];
+  const agents = agentsQuery.data?.pages.flatMap((page) => page.agents) ?? [];
   const isLoading = agentsQuery.isPending || modelsQuery.isPending;
   const isError = agentsQuery.isError || modelsQuery.isError;
 
@@ -207,6 +211,13 @@ export function OrganizationAgentsTab() {
           </CardContent>
         </Card>
       ) : null}
+      <LoadMoreButton
+        hasMore={Boolean(agentsQuery.hasNextPage)}
+        isLoading={agentsQuery.isFetchingNextPage}
+        onClick={() => {
+          void agentsQuery.fetchNextPage();
+        }}
+      />
     </div>
   );
 }

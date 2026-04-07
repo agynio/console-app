@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { ImagePullSecret, SecretProvider } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, formatSecretProviderType, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 type SourceType = 'value' | 'remote';
@@ -372,9 +373,12 @@ export function OrganizationImagePullSecretsTab() {
     refetchOnWindowFocus: false,
   });
 
-  const imagePullSecretsQuery = useQuery({
+  const imagePullSecretsQuery = useInfiniteQuery({
     queryKey: ['imagePullSecrets', organizationId, 'list'],
-    queryFn: () => secretsClient.listImagePullSecrets({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      secretsClient.listImagePullSecrets({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -513,7 +517,7 @@ export function OrganizationImagePullSecretsTab() {
     );
   }, [providers]);
 
-  const imagePullSecrets = imagePullSecretsQuery.data?.imagePullSecrets ?? [];
+  const imagePullSecrets = imagePullSecretsQuery.data?.pages.flatMap((page) => page.imagePullSecrets) ?? [];
   const isLoading = providersQuery.isPending || imagePullSecretsQuery.isPending;
   const isError = providersQuery.isError || imagePullSecretsQuery.isError;
   const getProviderLabel = (providerId: string) => providerMap.get(providerId)?.title ?? providerId;
@@ -708,6 +712,13 @@ export function OrganizationImagePullSecretsTab() {
           </CardContent>
         </Card>
       ) : null}
+      <LoadMoreButton
+        hasMore={Boolean(imagePullSecretsQuery.hasNextPage)}
+        isLoading={imagePullSecretsQuery.isFetchingNextPage}
+        onClick={() => {
+          void imagePullSecretsQuery.fetchNextPage();
+        }}
+      />
       <ImagePullSecretFormDialog
         mode="create"
         open={createOpen}

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 import { createLabelEntry, entriesToLabels, labelsToEntries, type LabelEntry } from '@/lib/labels';
+import { useNotifications } from '@/hooks/useNotifications';
 import { toast } from 'sonner';
 
 export function RunnerDetailPage() {
@@ -28,6 +29,12 @@ export function RunnerDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [labelEntries, setLabelEntries] = useState<LabelEntry[]>([]);
+
+  useNotifications({
+    events: ['workload.status_changed'],
+    invalidateKeys: [['workloads', 'runner', runnerId]],
+    enabled: Boolean(runnerId),
+  });
 
   const runnerQuery = useQuery({
     queryKey: ['runners', runnerId],

@@ -1,28 +1,33 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Button } from '@/components/ui/button';
 import { EnrollRunnerDialog } from '@/components/EnrollRunnerDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { useListControls } from '@/hooks/useListControls';
 
 export function RunnersListPage() {
   const [enrollOpen, setEnrollOpen] = useState(false);
 
-  const runnersQuery = useQuery({
+  const runnersQuery = useInfiniteQuery({
     queryKey: ['runners', 'list'],
-    queryFn: () => runnersClient.listRunners({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) => runnersClient.listRunners({ pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const runners = (runnersQuery.data?.runners ?? []).filter((runner) => !runner.organizationId);
+  const runners = (runnersQuery.data?.pages.flatMap((page) => page.runners) ?? []).filter(
+    (runner) => !runner.organizationId,
+  );
   const listControls = useListControls({
     items: runners,
     searchFields: [
@@ -151,6 +156,13 @@ export function RunnersListPage() {
           </div>
         </CardContent>
       </Card>
+      <LoadMoreButton
+        hasMore={Boolean(runnersQuery.hasNextPage)}
+        isLoading={runnersQuery.isFetchingNextPage}
+        onClick={() => {
+          void runnersQuery.fetchNextPage();
+        }}
+      />
       <EnrollRunnerDialog
         open={enrollOpen}
         onOpenChange={setEnrollOpen}
