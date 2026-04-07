@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
+import { WorkloadsTable } from '@/components/WorkloadsTable';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LabelsEditor } from '@/components/LabelsEditor';
@@ -16,9 +17,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useNotifications } from '@/hooks/useNotifications';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 import { createLabelEntry, entriesToLabels, labelsToEntries, type LabelEntry } from '@/lib/labels';
-import { useNotifications } from '@/hooks/useNotifications';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 export function RunnerDetailPage() {
@@ -45,6 +47,24 @@ export function RunnerDetailPage() {
   });
 
   const runner = runnerQuery.data?.runner;
+
+  const workloadsQuery = useInfiniteQuery({
+    queryKey: ['workloads', 'runner', runnerId],
+    queryFn: ({ pageParam }) =>
+      runnersClient.listWorkloads({
+        runnerId,
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
+        statuses: [],
+      }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: Boolean(runnerId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const workloads = workloadsQuery.data?.pages.flatMap((page) => page.workloads) ?? [];
 
   const updateRunnerMutation = useMutation({
     mutationFn: (labels: Record<string, string>) => runnersClient.updateRunner({ id: runnerId, labels }),
@@ -166,6 +186,13 @@ export function RunnerDetailPage() {
           </CardContent>
         </Card>
       ) : null}
+      <div className="space-y-4" data-testid="runner-workloads-section">
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">Workloads</h3>
+          <p className="text-sm text-muted-foreground">Active workloads on this runner.</p>
+        </div>
+        <WorkloadsTable workloads={workloads} query={workloadsQuery} testIdPrefix="runner-workloads" />
+      </div>
       <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
         <DialogContent data-testid="runner-edit-dialog">
           <DialogHeader>

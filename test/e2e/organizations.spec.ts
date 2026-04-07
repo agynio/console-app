@@ -19,6 +19,6 @@ test('org detail shows overview', async ({ page }) => {
 
   await page.goto(`/organizations/${orgId}`);
   await expect(page.getByTestId('organization-heading')).toContainText(orgName, { timeout: 15000 });
-  await expect(page.getByTestId('organization-overview-card')).toHaveCount(6);
+  await expect(page.getByTestId('organization-overview-card')).toHaveCount(7);
   await argosScreenshot(page, 'organization-detail-overview');
 });

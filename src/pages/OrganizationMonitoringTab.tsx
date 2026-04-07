@@ -1,6 +1,10 @@
 import { useParams } from 'react-router-dom';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { runnersClient } from '@/api/client';
+import { WorkloadsTable } from '@/components/WorkloadsTable';
 import { Card, CardContent } from '@/components/ui/card';
 import { useNotifications } from '@/hooks/useNotifications';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationMonitoringTab() {
   const { id } = useParams();
@@ -11,13 +15,26 @@ export function OrganizationMonitoringTab() {
     invalidateKeys: [['workloads', organizationId, 'list']],
     enabled: Boolean(organizationId),
   });
-  const sections = [
-    {
-      id: 'active-workloads',
-      title: 'Active Workloads',
-      description: 'Track running workloads deployed for this organization.',
-      stub: 'Active workload monitoring requires a backend API addition (ListWorkloads on RunnersGateway with organization_id filter).',
-    },
+
+  const workloadsQuery = useInfiniteQuery({
+    queryKey: ['workloads', organizationId, 'list'],
+    queryFn: ({ pageParam }) =>
+      runnersClient.listWorkloads({
+        organizationId,
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
+        statuses: [],
+      }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: Boolean(organizationId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const workloads = workloadsQuery.data?.pages.flatMap((page) => page.workloads) ?? [];
+
+  const stubSections = [
     {
       id: 'storage',
       title: 'Storage',
@@ -41,7 +58,19 @@ export function OrganizationMonitoringTab() {
         <p className="text-sm text-muted-foreground">Observability for organization workloads.</p>
       </div>
       <div className="space-y-6">
-        {sections.map((section) => (
+        <div className="space-y-3" data-testid="organization-monitoring-active-workloads">
+          <div>
+            <h4 className="text-base font-semibold text-foreground">Active Workloads</h4>
+            <p className="text-sm text-muted-foreground">Track running workloads deployed for this organization.</p>
+          </div>
+          <WorkloadsTable
+            workloads={workloads}
+            query={workloadsQuery}
+            showRunnerColumn
+            testIdPrefix="organization-workloads"
+          />
+        </div>
+        {stubSections.map((section) => (
           <div key={section.id} className="space-y-3" data-testid={`organization-monitoring-${section.id}`}>
             <div>
               <h4 className="text-base font-semibold text-foreground">{section.title}</h4>
