@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AuthMethod, type LLMProvider } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { useListControls } from '@/hooks/useListControls';
 import { formatAuthMethod, formatDateOnly, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 export function OrganizationLlmProvidersTab() {
@@ -42,9 +42,12 @@ export function OrganizationLlmProvidersTab() {
   const [editEndpointError, setEditEndpointError] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  const providersQuery = useQuery({
+  const providersQuery = useInfiniteQuery({
     queryKey: ['llm', organizationId, 'providers'],
-    queryFn: () => llmClient.listLLMProviders({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      llmClient.listLLMProviders({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -197,7 +200,7 @@ export function OrganizationLlmProvidersTab() {
     setDeleteTargetId(providerId);
   };
 
-  const providers = providersQuery.data?.providers ?? [];
+  const providers = providersQuery.data?.pages.flatMap((page) => page.providers) ?? [];
   const listControls = useListControls({
     items: providers,
     searchFields: [
@@ -333,6 +336,19 @@ export function OrganizationLlmProvidersTab() {
           </CardContent>
         </Card>
       ) : null}
+      {providersQuery.hasNextPage && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => providersQuery.fetchNextPage()}
+            disabled={providersQuery.isFetchingNextPage}
+            data-testid="load-more"
+          >
+            {providersQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
       <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent data-testid="organization-llm-providers-create-dialog">
           <DialogHeader>

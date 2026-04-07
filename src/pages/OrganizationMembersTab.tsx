@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
 import { organizationsClient, usersClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatMembershipRole, formatMembershipStatus } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
@@ -37,38 +37,43 @@ export function OrganizationMembersTab() {
   const [inviteError, setInviteError] = useState('');
   const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
 
-  const activeQuery = useQuery({
+  const activeQuery = useInfiniteQuery({
     queryKey: ['organizations', organizationId, 'members', 'active'],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       organizationsClient.listMembers({
         organizationId,
         status: MembershipStatus.ACTIVE,
-        pageSize: MAX_PAGE_SIZE,
-        pageToken: '',
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
       }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const pendingQuery = useQuery({
+  const pendingQuery = useInfiniteQuery({
     queryKey: ['organizations', organizationId, 'members', 'pending'],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       organizationsClient.listMembers({
         organizationId,
         status: MembershipStatus.PENDING,
-        pageSize: MAX_PAGE_SIZE,
-        pageToken: '',
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
       }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const memberships = useMemo(
-    () => [...(activeQuery.data?.memberships ?? []), ...(pendingQuery.data?.memberships ?? [])],
-    [activeQuery.data?.memberships, pendingQuery.data?.memberships],
-  );
+  const memberships = useMemo(() => {
+    const activeMemberships = activeQuery.data?.pages.flatMap((page) => page.memberships) ?? [];
+    const pendingMemberships = pendingQuery.data?.pages.flatMap((page) => page.memberships) ?? [];
+    return [...activeMemberships, ...pendingMemberships];
+  }, [activeQuery.data?.pages, pendingQuery.data?.pages]);
 
   const identityIds = useMemo(() => {
     const ids = memberships.map((membership) => membership.identityId).filter(Boolean);
@@ -128,6 +133,8 @@ export function OrganizationMembersTab() {
 
   const visibleMemberships = listControls.filteredItems;
   const hasSearch = listControls.searchTerm.trim().length > 0;
+  const hasMoreMemberships = activeQuery.hasNextPage || pendingQuery.hasNextPage;
+  const isFetchingMoreMemberships = activeQuery.isFetchingNextPage || pendingQuery.isFetchingNextPage;
 
   const inviteMemberMutation = useMutation({
     mutationFn: (payload: { identityId: string; role: MembershipRole }) =>
@@ -333,6 +340,26 @@ export function OrganizationMembersTab() {
           </CardContent>
         </Card>
       ) : null}
+      {hasMoreMemberships && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (activeQuery.hasNextPage) {
+                void activeQuery.fetchNextPage();
+              }
+              if (pendingQuery.hasNextPage) {
+                void pendingQuery.fetchNextPage();
+              }
+            }}
+            disabled={isFetchingMoreMemberships}
+            data-testid="load-more"
+          >
+            {isFetchingMoreMemberships ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
       <Dialog open={inviteOpen} onOpenChange={handleInviteOpenChange}>
         <DialogContent data-testid="organization-members-invite-dialog">
           <DialogHeader>

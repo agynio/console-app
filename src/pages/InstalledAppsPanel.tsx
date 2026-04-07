@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import type { Installation } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 type InstalledAppsPanelProps = {
@@ -25,10 +25,17 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
   const [configureInstallation, setConfigureInstallation] = useState<Installation | null>(null);
   const [uninstallInstallation, setUninstallInstallation] = useState<Installation | null>(null);
 
-  const installationsQuery = useQuery({
+  const installationsQuery = useInfiniteQuery({
     queryKey: ['installations', organizationId, 'list'],
-    queryFn: () =>
-      appsClient.listInstallations({ organizationId, appId: '', pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      appsClient.listInstallations({
+        organizationId,
+        appId: '',
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
+      }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -46,7 +53,7 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
     },
   });
 
-  const installations = installationsQuery.data?.installations ?? [];
+  const installations = installationsQuery.data?.pages.flatMap((page) => page.installations) ?? [];
   const getConfigCount = (installation: Installation) =>
     installation.configuration ? Object.keys(installation.configuration).length : 0;
 
@@ -211,6 +218,19 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
           </CardContent>
         </Card>
       ) : null}
+      {installationsQuery.hasNextPage && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => installationsQuery.fetchNextPage()}
+            disabled={installationsQuery.isFetchingNextPage}
+            data-testid="load-more"
+          >
+            {installationsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
       <InstallAppDialog open={installOpen} onOpenChange={setInstallOpen} organizationId={organizationId} />
       <UpdateInstallationDialog
         open={Boolean(configureInstallation)}

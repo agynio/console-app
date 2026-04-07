@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -10,19 +10,21 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useListControls } from '@/hooks/useListControls';
 import { formatAppVisibility, formatDateOnly, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 export function AppsPage() {
   const [registerOpen, setRegisterOpen] = useState(false);
 
-  const appsQuery = useQuery({
+  const appsQuery = useInfiniteQuery({
     queryKey: ['apps', 'list'],
-    queryFn: () => appsClient.listApps({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) => appsClient.listApps({ pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const apps = appsQuery.data?.apps ?? [];
+  const apps = appsQuery.data?.pages.flatMap((page) => page.apps) ?? [];
   const listControls = useListControls({
     items: apps,
     searchFields: [
@@ -176,6 +178,19 @@ export function AppsPage() {
           </CardContent>
         </Card>
       ) : null}
+      {appsQuery.hasNextPage && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => appsQuery.fetchNextPage()}
+            disabled={appsQuery.isFetchingNextPage}
+            data-testid="load-more"
+          >
+            {appsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
       <RegisterAppDialog open={registerOpen} onOpenChange={setRegisterOpen} />
     </div>
   );

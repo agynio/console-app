@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import type { App } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { useListControls } from '@/hooks/useListControls';
 import { formatAppVisibility, formatDateOnly, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 type PublishedAppsPanelProps = {
@@ -25,15 +25,17 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteApp, setDeleteApp] = useState<App | null>(null);
 
-  const appsQuery = useQuery({
+  const appsQuery = useInfiniteQuery({
     queryKey: ['apps', 'published', organizationId],
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       appsClient.listApps({
         organizationId,
-        pageSize: MAX_PAGE_SIZE,
-        pageToken: '',
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
         visibility: AppVisibility.UNSPECIFIED,
       }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -52,7 +54,7 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
     },
   });
 
-  const apps = appsQuery.data?.apps ?? [];
+  const apps = appsQuery.data?.pages.flatMap((page) => page.apps) ?? [];
   const listControls = useListControls({
     items: apps,
     searchFields: [
@@ -208,6 +210,19 @@ export function PublishedAppsPanel({ organizationId }: PublishedAppsPanelProps) 
           </CardContent>
         </Card>
       ) : null}
+      {appsQuery.hasNextPage && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => appsQuery.fetchNextPage()}
+            disabled={appsQuery.isFetchingNextPage}
+            data-testid="load-more"
+          >
+            {appsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
       <CreateAppDialog open={createOpen} onOpenChange={setCreateOpen} organizationId={organizationId} />
       <ConfirmDialog
         open={Boolean(deleteApp)}

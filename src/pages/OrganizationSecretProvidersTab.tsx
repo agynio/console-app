@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import type { SecretProvider } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, formatSecretProviderType, timestampToMillis } from '@/lib/format';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 export function OrganizationSecretProvidersTab() {
@@ -48,9 +48,12 @@ export function OrganizationSecretProvidersTab() {
   const [editTokenError, setEditTokenError] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  const providersQuery = useQuery({
+  const providersQuery = useInfiniteQuery({
     queryKey: ['secrets', organizationId, 'providers'],
-    queryFn: () => secretsClient.listSecretProviders({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      secretsClient.listSecretProviders({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -265,7 +268,7 @@ export function OrganizationSecretProvidersTab() {
     setDeleteTargetId(providerId);
   };
 
-  const providers = providersQuery.data?.secretProviders ?? [];
+  const providers = providersQuery.data?.pages.flatMap((page) => page.secretProviders) ?? [];
   const getVaultAddress = (provider: (typeof providers)[number]) =>
     provider.config?.provider.case === 'vault' ? provider.config.provider.value.address : '—';
 
@@ -430,6 +433,19 @@ export function OrganizationSecretProvidersTab() {
           </CardContent>
         </Card>
       ) : null}
+      {providersQuery.hasNextPage && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => providersQuery.fetchNextPage()}
+            disabled={providersQuery.isFetchingNextPage}
+            data-testid="load-more"
+          >
+            {providersQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
       <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent data-testid="organization-secret-providers-create-dialog">
           <DialogHeader>

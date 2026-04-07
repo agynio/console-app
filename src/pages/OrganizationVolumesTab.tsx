@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import type { Volume } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
@@ -45,9 +45,12 @@ export function OrganizationVolumesTab() {
   const [editSizeError, setEditSizeError] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  const volumesQuery = useQuery({
+  const volumesQuery = useInfiniteQuery({
     queryKey: ['volumes', organizationId, 'list'],
-    queryFn: () => agentsClient.listVolumes({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      agentsClient.listVolumes({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -223,7 +226,7 @@ export function OrganizationVolumesTab() {
     setDeleteTargetId(volumeId);
   };
 
-  const volumes = volumesQuery.data?.volumes ?? [];
+  const volumes = volumesQuery.data?.pages.flatMap((page) => page.volumes) ?? [];
   const listControls = useListControls({
     items: volumes,
     searchFields: [
@@ -374,6 +377,19 @@ export function OrganizationVolumesTab() {
           </CardContent>
         </Card>
       ) : null}
+      {volumesQuery.hasNextPage && (
+        <div className="flex justify-center py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => volumesQuery.fetchNextPage()}
+            disabled={volumesQuery.isFetchingNextPage}
+            data-testid="load-more"
+          >
+            {volumesQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
       <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent data-testid="organization-volumes-create-dialog">
           <DialogHeader>
