@@ -8,11 +8,14 @@ import { CreateApiTokenDialog } from '@/components/CreateApiTokenDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { APIToken } from '@/gen/agynio/api/users/v1/users_pb';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { toast } from 'sonner';
 
 export function ApiTokensPage() {
+  useDocumentTitle('API Tokens');
+
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [revokeToken, setRevokeToken] = useState<APIToken | null>(null);
@@ -61,11 +64,7 @@ export function ApiTokensPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">API Tokens</h2>
-          <p className="text-sm text-muted-foreground">Issue and revoke platform API tokens.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="api-tokens-create">
           Create token
         </Button>

@@ -20,6 +20,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ImagePullSecret, SecretProvider } from '@/gen/agynio/api/secrets/v1/secrets_pb';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, formatSecretProviderType, timestampToMillis } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -357,6 +358,8 @@ function ImagePullSecretFormDialog({
 }
 
 export function OrganizationImagePullSecretsTab() {
+  useDocumentTitle('Image Pull Secrets');
+
   const { id } = useParams();
   const organizationId = id ?? '';
   const queryClient = useQueryClient();
@@ -586,13 +589,7 @@ export function OrganizationImagePullSecretsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-image-pull-secrets-heading">
-            Image Pull Secrets
-          </h3>
-          <p className="text-sm text-muted-foreground">Manage registry credentials for images.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           variant="outline"
           size="sm"

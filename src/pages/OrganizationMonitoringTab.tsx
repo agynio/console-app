@@ -3,10 +3,13 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { WorkloadsTable } from '@/components/WorkloadsTable';
 import { Card, CardContent } from '@/components/ui/card';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationMonitoringTab() {
+  useDocumentTitle('Monitoring');
+
   const { id } = useParams();
   const organizationId = id ?? '';
 
@@ -51,12 +54,6 @@ export function OrganizationMonitoringTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-foreground" data-testid="organization-monitoring-heading">
-          Monitoring
-        </h3>
-        <p className="text-sm text-muted-foreground">Observability for organization workloads.</p>
-      </div>
       <div className="space-y-6">
         <div className="space-y-3" data-testid="organization-monitoring-active-workloads">
           <div>

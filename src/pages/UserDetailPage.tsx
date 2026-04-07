@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatClusterRole } from '@/lib/format';
 import { toast } from 'sonner';
 
@@ -29,6 +30,8 @@ export function UserDetailPage() {
   const user = userQuery.data?.user;
   const clusterRole = userQuery.data?.clusterRole ?? ClusterRole.UNSPECIFIED;
   const isAdmin = clusterRole === ClusterRole.ADMIN;
+
+  useDocumentTitle(user?.name ?? 'User');
 
   const updateRoleMutation = useMutation({
     mutationFn: (nextRole: ClusterRole) => usersClient.updateUser({ identityId, clusterRole: nextRole }),
@@ -62,13 +65,7 @@ export function UserDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground" data-testid="user-heading">
-            User
-          </h2>
-          <p className="text-sm text-muted-foreground">Manage user profile and cluster role.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         {user ? (
           <div className="flex flex-wrap items-center gap-2" data-testid="user-actions">
             <Button

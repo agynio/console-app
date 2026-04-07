@@ -10,11 +10,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { NO_MODEL } from '@/lib/constants';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 export function AgentCreatePage() {
+  useDocumentTitle('Create Agent');
+
   const { id } = useParams();
   const organizationId = id ?? '';
   const navigate = useNavigate();
@@ -110,10 +113,6 @@ export function AgentCreatePage() {
         <Button variant="link" asChild data-testid="agent-create-back">
           <NavLink to={`/organizations/${organizationId}/agents`}>← Back to Agents</NavLink>
         </Button>
-        <h2 className="text-2xl font-semibold text-foreground" data-testid="agent-create-heading">
-          Create agent
-        </h2>
-        <p className="text-sm text-muted-foreground">Define agent configuration and resources.</p>
       </div>
       <Card className="border-border" data-testid="agent-create-form">
         <CardContent className="space-y-4">

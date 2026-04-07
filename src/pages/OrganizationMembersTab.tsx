@@ -25,10 +25,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatMembershipRole, formatMembershipStatus } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
 export function OrganizationMembersTab() {
+  useDocumentTitle('Members');
+
   const { id } = useParams();
   const organizationId = id ?? '';
   const queryClient = useQueryClient();
@@ -197,13 +200,7 @@ export function OrganizationMembersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-members-heading">
-            Members
-          </h3>
-          <p className="text-sm text-muted-foreground">Invite and manage organization members.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           variant="outline"
           size="sm"

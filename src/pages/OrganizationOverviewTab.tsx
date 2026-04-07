@@ -4,10 +4,13 @@ import { agentsClient, appsClient, organizationsClient, runnersClient, secretsCl
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationOverviewTab() {
+  useDocumentTitle('Overview');
+
   const { id } = useParams();
   const organizationId = id ?? '';
 

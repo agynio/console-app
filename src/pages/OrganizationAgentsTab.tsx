@@ -8,11 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationAgentsTab() {
+  useDocumentTitle('Agents');
+
   const { id } = useParams();
   const organizationId = id ?? '';
 
@@ -76,13 +79,7 @@ export function OrganizationAgentsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-agents-heading">
-            Agents
-          </h3>
-          <p className="text-sm text-muted-foreground">Agents configured for this organization.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button variant="outline" size="sm" asChild data-testid="organization-agents-create">
           <NavLink to={`/organizations/${organizationId}/agents/new`}>Create agent</NavLink>
         </Button>

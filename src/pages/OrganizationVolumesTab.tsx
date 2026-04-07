@@ -22,10 +22,13 @@ import {
 import { Label } from '@/components/ui/label';
 import type { Volume } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
 export function OrganizationVolumesTab() {
+  useDocumentTitle('Volumes');
+
   const { id } = useParams();
   const organizationId = id ?? '';
   const queryClient = useQueryClient();
@@ -251,13 +254,7 @@ export function OrganizationVolumesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-volumes-heading">
-            Volumes
-          </h3>
-          <p className="text-sm text-muted-foreground">Storage volumes for this organization.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           variant="outline"
           size="sm"
