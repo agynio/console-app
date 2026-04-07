@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
@@ -31,37 +31,337 @@ const SOURCE_OPTIONS: Array<{ value: SourceType; label: string }> = [
   { value: 'remote', label: 'Remote provider' },
 ];
 
+type ImagePullSecretFormValues = {
+  registry: string;
+  username: string;
+  description: string;
+  sourceType: SourceType;
+  value: string;
+  providerId: string;
+  reference: string;
+};
+
+type ImagePullSecretFormErrors = {
+  registry?: string;
+  username?: string;
+  value?: string;
+  providerId?: string;
+  reference?: string;
+};
+
+const DEFAULT_FORM_VALUES: ImagePullSecretFormValues = {
+  registry: '',
+  username: '',
+  description: '',
+  sourceType: 'value',
+  value: '',
+  providerId: '',
+  reference: '',
+};
+
+const normalizeFormValues = (values: ImagePullSecretFormValues): ImagePullSecretFormValues => ({
+  ...values,
+  registry: values.registry.trim(),
+  username: values.username.trim(),
+  description: values.description.trim(),
+  value: values.value.trim(),
+  reference: values.reference.trim(),
+});
+
+function validateImagePullSecretForm(values: ImagePullSecretFormValues): ImagePullSecretFormErrors {
+  const errors: ImagePullSecretFormErrors = {};
+
+  if (!values.registry.trim()) {
+    errors.registry = 'Registry is required.';
+  }
+
+  if (!values.username.trim()) {
+    errors.username = 'Username is required.';
+  }
+
+  if (values.sourceType === 'value') {
+    if (!values.value.trim()) {
+      errors.value = 'Secret value is required.';
+    }
+  } else {
+    if (!values.providerId) {
+      errors.providerId = 'Select a secret provider.';
+    }
+    if (!values.reference.trim()) {
+      errors.reference = 'Value reference is required.';
+    }
+  }
+
+  return errors;
+}
+
+const buildFormValuesFromSecret = (secret: ImagePullSecret | null): ImagePullSecretFormValues => {
+  if (!secret) return { ...DEFAULT_FORM_VALUES };
+
+  if (secret.source.case === 'remote') {
+    return {
+      registry: secret.registry,
+      username: secret.username,
+      description: secret.description ?? '',
+      sourceType: 'remote',
+      value: '',
+      providerId: secret.source.value.valueProviderId,
+      reference: secret.source.value.valueReference,
+    };
+  }
+
+  return {
+    registry: secret.registry,
+    username: secret.username,
+    description: secret.description ?? '',
+    sourceType: 'value',
+    value: secret.source.case === 'value' ? secret.source.value : '',
+    providerId: '',
+    reference: '',
+  };
+};
+
+type ImagePullSecretFormDialogProps = {
+  mode: 'create' | 'edit';
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  providers: SecretProvider[];
+  initialValues: ImagePullSecretFormValues;
+  onSubmit: (values: ImagePullSecretFormValues) => void;
+  isSubmitting: boolean;
+};
+
+function ImagePullSecretFormDialog({
+  mode,
+  open,
+  onOpenChange,
+  providers,
+  initialValues,
+  onSubmit,
+  isSubmitting,
+}: ImagePullSecretFormDialogProps) {
+  const [values, setValues] = useState<ImagePullSecretFormValues>(initialValues);
+  const [errors, setErrors] = useState<ImagePullSecretFormErrors>({});
+
+  const resolvedInitialValues = useMemo(
+    () => ({ ...DEFAULT_FORM_VALUES, ...initialValues }),
+    [initialValues],
+  );
+
+  useEffect(() => {
+    if (open) {
+      setValues(resolvedInitialValues);
+      setErrors({});
+      return;
+    }
+    setValues({ ...DEFAULT_FORM_VALUES });
+    setErrors({});
+  }, [open, resolvedInitialValues]);
+
+  const testIdPrefix = mode === 'create' ? 'organization-image-pull-secrets-create' : 'organization-image-pull-secrets-edit';
+  const dialogTitle = mode === 'create' ? 'Add secret' : 'Edit secret';
+  const dialogDescription =
+    mode === 'create' ? 'Store registry credentials for private images.' : 'Update registry credentials for this secret.';
+  const submitLabel = mode === 'create' ? 'Add secret' : 'Save changes';
+  const pendingLabel = mode === 'create' ? 'Creating...' : 'Saving...';
+
+  const clearError = (field: keyof ImagePullSecretFormErrors) => {
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
+  };
+
+  const handleSourceTypeChange = (nextType: SourceType) => {
+    setValues((prev) => ({
+      ...prev,
+      sourceType: nextType,
+      value: nextType === 'value' ? prev.value : '',
+      providerId: nextType === 'remote' ? prev.providerId : '',
+      reference: nextType === 'remote' ? prev.reference : '',
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      value: undefined,
+      providerId: undefined,
+      reference: undefined,
+    }));
+  };
+
+  const handleSubmit = () => {
+    const normalized = normalizeFormValues(values);
+    const validation = validateImagePullSecretForm(normalized);
+    setErrors(validation);
+    if (Object.values(validation).some(Boolean)) return;
+    onSubmit(normalized);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid={`${testIdPrefix}-dialog`}>
+        <DialogHeader>
+          <DialogTitle data-testid={`${testIdPrefix}-title`}>{dialogTitle}</DialogTitle>
+          <DialogDescription data-testid={`${testIdPrefix}-description`}>{dialogDescription}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor={`${testIdPrefix}-registry`}>Registry</Label>
+            <Input
+              id={`${testIdPrefix}-registry`}
+              value={values.registry}
+              onChange={(event) => {
+                setValues((prev) => ({ ...prev, registry: event.target.value }));
+                clearError('registry');
+              }}
+              placeholder="registry.example.com"
+              data-testid={`${testIdPrefix}-registry`}
+            />
+            {errors.registry ? (
+              <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-registry-error`}>
+                {errors.registry}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${testIdPrefix}-username`}>Username</Label>
+            <Input
+              id={`${testIdPrefix}-username`}
+              value={values.username}
+              onChange={(event) => {
+                setValues((prev) => ({ ...prev, username: event.target.value }));
+                clearError('username');
+              }}
+              placeholder="registry user"
+              data-testid={`${testIdPrefix}-username`}
+            />
+            {errors.username ? (
+              <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-username-error`}>
+                {errors.username}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${testIdPrefix}-description-input`}>Description</Label>
+            <Input
+              id={`${testIdPrefix}-description-input`}
+              value={values.description}
+              onChange={(event) => setValues((prev) => ({ ...prev, description: event.target.value }))}
+              placeholder="Optional description"
+              data-testid={`${testIdPrefix}-description-input`}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${testIdPrefix}-source-type`}>Source</Label>
+            <Select value={values.sourceType} onValueChange={(value) => handleSourceTypeChange(value as SourceType)}>
+              <SelectTrigger id={`${testIdPrefix}-source-type`} data-testid={`${testIdPrefix}-source-type`}>
+                <SelectValue placeholder="Select source" />
+              </SelectTrigger>
+              <SelectContent>
+                {SOURCE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {values.sourceType === 'value' ? (
+            <div className="space-y-2">
+              <Label htmlFor={`${testIdPrefix}-value`}>Secret Value</Label>
+              <Input
+                id={`${testIdPrefix}-value`}
+                type="password"
+                value={values.value}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, value: event.target.value }));
+                  clearError('value');
+                }}
+                placeholder="Registry token"
+                data-testid={`${testIdPrefix}-value`}
+              />
+              {errors.value ? (
+                <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-value-error`}>
+                  {errors.value}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor={`${testIdPrefix}-provider`}>Secret Provider</Label>
+                <Select
+                  value={values.providerId}
+                  onValueChange={(value) => {
+                    setValues((prev) => ({ ...prev, providerId: value }));
+                    clearError('providerId');
+                  }}
+                >
+                  <SelectTrigger id={`${testIdPrefix}-provider`} data-testid={`${testIdPrefix}-provider`}>
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providers.map((provider) => {
+                      const providerId = provider.meta?.id;
+                      if (!providerId) return null;
+                      return (
+                        <SelectItem key={providerId} value={providerId}>
+                          {provider.title} ({formatSecretProviderType(provider.type)})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {errors.providerId ? (
+                  <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-provider-error`}>
+                    {errors.providerId}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${testIdPrefix}-reference`}>Value Reference</Label>
+                <Input
+                  id={`${testIdPrefix}-reference`}
+                  value={values.reference}
+                  onChange={(event) => {
+                    setValues((prev) => ({ ...prev, reference: event.target.value }));
+                    clearError('reference');
+                  }}
+                  placeholder="secret/path"
+                  data-testid={`${testIdPrefix}-reference`}
+                />
+                {errors.reference ? (
+                  <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-reference-error`}>
+                    {errors.reference}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline" size="sm" data-testid={`${testIdPrefix}-cancel`}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            data-testid={`${testIdPrefix}-submit`}
+          >
+            {isSubmitting ? pendingLabel : submitLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function OrganizationImagePullSecretsTab() {
   const { id } = useParams();
   const organizationId = id ?? '';
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
-  const [createRegistry, setCreateRegistry] = useState('');
-  const [createUsername, setCreateUsername] = useState('');
-  const [createDescription, setCreateDescription] = useState('');
-  const [createSourceType, setCreateSourceType] = useState<SourceType>('value');
-  const [createValue, setCreateValue] = useState('');
-  const [createProviderId, setCreateProviderId] = useState('');
-  const [createReference, setCreateReference] = useState('');
-  const [createRegistryError, setCreateRegistryError] = useState('');
-  const [createUsernameError, setCreateUsernameError] = useState('');
-  const [createValueError, setCreateValueError] = useState('');
-  const [createProviderError, setCreateProviderError] = useState('');
-  const [createReferenceError, setCreateReferenceError] = useState('');
   const [editOpen, setEditOpen] = useState(false);
-  const [editSecretId, setEditSecretId] = useState<string | null>(null);
-  const [editRegistry, setEditRegistry] = useState('');
-  const [editUsername, setEditUsername] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editSourceType, setEditSourceType] = useState<SourceType>('value');
-  const [editValue, setEditValue] = useState('');
-  const [editProviderId, setEditProviderId] = useState('');
-  const [editReference, setEditReference] = useState('');
-  const [editRegistryError, setEditRegistryError] = useState('');
-  const [editUsernameError, setEditUsernameError] = useState('');
-  const [editValueError, setEditValueError] = useState('');
-  const [editProviderError, setEditProviderError] = useState('');
-  const [editReferenceError, setEditReferenceError] = useState('');
+  const [editSecret, setEditSecret] = useState<ImagePullSecret | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const providersQuery = useQuery({
@@ -94,18 +394,6 @@ export function OrganizationImagePullSecretsTab() {
       toast.success('Image pull secret created.');
       void queryClient.invalidateQueries({ queryKey: ['imagePullSecrets', organizationId, 'list'] });
       setCreateOpen(false);
-      setCreateRegistry('');
-      setCreateUsername('');
-      setCreateDescription('');
-      setCreateSourceType('value');
-      setCreateValue('');
-      setCreateProviderId('');
-      setCreateReference('');
-      setCreateRegistryError('');
-      setCreateUsernameError('');
-      setCreateValueError('');
-      setCreateProviderError('');
-      setCreateReferenceError('');
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to create image pull secret.');
@@ -126,7 +414,7 @@ export function OrganizationImagePullSecretsTab() {
       toast.success('Image pull secret updated.');
       void queryClient.invalidateQueries({ queryKey: ['imagePullSecrets', organizationId, 'list'] });
       setEditOpen(false);
-      setEditSecretId(null);
+      setEditSecret(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to update image pull secret.');
@@ -146,89 +434,31 @@ export function OrganizationImagePullSecretsTab() {
     },
   });
 
-  const buildSource = (
-    sourceType: SourceType,
-    value: string,
-    providerId: string,
-    reference: string,
-  ) => {
-    if (sourceType === 'value') {
-      return { case: 'value' as const, value };
+  const buildSource = (values: ImagePullSecretFormValues) => {
+    if (values.sourceType === 'value') {
+      return { case: 'value' as const, value: values.value };
     }
-    return { case: 'remote' as const, value: { valueProviderId: providerId, valueReference: reference } };
+    return {
+      case: 'remote' as const,
+      value: {
+        valueProviderId: values.providerId,
+        valueReference: values.reference,
+      },
+    };
   };
 
-  const handleCreate = () => {
-    const trimmedRegistry = createRegistry.trim();
-    const trimmedUsername = createUsername.trim();
-    const trimmedValue = createValue.trim();
-    const trimmedReference = createReference.trim();
-    let hasError = false;
-
-    if (!trimmedRegistry) {
-      setCreateRegistryError('Registry is required.');
-      hasError = true;
-    } else if (createRegistryError) {
-      setCreateRegistryError('');
-    }
-
-    if (!trimmedUsername) {
-      setCreateUsernameError('Username is required.');
-      hasError = true;
-    } else if (createUsernameError) {
-      setCreateUsernameError('');
-    }
-
-    if (createSourceType === 'value') {
-      if (!trimmedValue) {
-        setCreateValueError('Secret value is required.');
-        hasError = true;
-      } else if (createValueError) {
-        setCreateValueError('');
-      }
-    } else {
-      if (!createProviderId) {
-        setCreateProviderError('Select a secret provider.');
-        hasError = true;
-      } else if (createProviderError) {
-        setCreateProviderError('');
-      }
-
-      if (!trimmedReference) {
-        setCreateReferenceError('Value reference is required.');
-        hasError = true;
-      } else if (createReferenceError) {
-        setCreateReferenceError('');
-      }
-    }
-
-    if (hasError) return;
-
+  const handleCreate = (values: ImagePullSecretFormValues) => {
     createImagePullSecretMutation.mutate({
-      description: createDescription.trim(),
-      registry: trimmedRegistry,
-      username: trimmedUsername,
-      source: buildSource(createSourceType, trimmedValue, createProviderId, trimmedReference),
+      description: values.description,
+      registry: values.registry,
+      username: values.username,
+      source: buildSource(values),
       organizationId,
     });
   };
 
   const handleCreateOpenChange = (open: boolean) => {
     setCreateOpen(open);
-    if (!open) {
-      setCreateRegistry('');
-      setCreateUsername('');
-      setCreateDescription('');
-      setCreateSourceType('value');
-      setCreateValue('');
-      setCreateProviderId('');
-      setCreateReference('');
-      setCreateRegistryError('');
-      setCreateUsernameError('');
-      setCreateValueError('');
-      setCreateProviderError('');
-      setCreateReferenceError('');
-    }
   };
 
   const handleEditOpen = (secret: ImagePullSecret) => {
@@ -237,104 +467,30 @@ export function OrganizationImagePullSecretsTab() {
       toast.error('Missing image pull secret ID.');
       return;
     }
-    setEditSecretId(secretId);
-    setEditRegistry(secret.registry);
-    setEditUsername(secret.username);
-    setEditDescription(secret.description);
-    if (secret.source.case === 'remote') {
-      setEditSourceType('remote');
-      setEditProviderId(secret.source.value.valueProviderId);
-      setEditReference(secret.source.value.valueReference);
-      setEditValue('');
-    } else {
-      setEditSourceType('value');
-      setEditValue(secret.source.case === 'value' ? secret.source.value : '');
-      setEditProviderId('');
-      setEditReference('');
-    }
-    setEditRegistryError('');
-    setEditUsernameError('');
-    setEditValueError('');
-    setEditProviderError('');
-    setEditReferenceError('');
+    setEditSecret(secret);
     setEditOpen(true);
   };
 
-  const handleEditSave = () => {
-    const trimmedRegistry = editRegistry.trim();
-    const trimmedUsername = editUsername.trim();
-    const trimmedValue = editValue.trim();
-    const trimmedReference = editReference.trim();
-    let hasError = false;
-
-    if (!trimmedRegistry) {
-      setEditRegistryError('Registry is required.');
-      hasError = true;
-    } else if (editRegistryError) {
-      setEditRegistryError('');
-    }
-
-    if (!trimmedUsername) {
-      setEditUsernameError('Username is required.');
-      hasError = true;
-    } else if (editUsernameError) {
-      setEditUsernameError('');
-    }
-
-    if (editSourceType === 'value') {
-      if (!trimmedValue) {
-        setEditValueError('Secret value is required.');
-        hasError = true;
-      } else if (editValueError) {
-        setEditValueError('');
-      }
-    } else {
-      if (!editProviderId) {
-        setEditProviderError('Select a secret provider.');
-        hasError = true;
-      } else if (editProviderError) {
-        setEditProviderError('');
-      }
-
-      if (!trimmedReference) {
-        setEditReferenceError('Value reference is required.');
-        hasError = true;
-      } else if (editReferenceError) {
-        setEditReferenceError('');
-      }
-    }
-
-    if (hasError) return;
-    if (!editSecretId) {
+  const handleEditSave = (values: ImagePullSecretFormValues) => {
+    const secretId = editSecret?.meta?.id;
+    if (!secretId) {
       toast.error('Missing image pull secret ID.');
       return;
     }
 
     updateImagePullSecretMutation.mutate({
-      id: editSecretId,
-      description: editDescription.trim(),
-      registry: trimmedRegistry,
-      username: trimmedUsername,
-      source: buildSource(editSourceType, trimmedValue, editProviderId, trimmedReference),
+      id: secretId,
+      description: values.description,
+      registry: values.registry,
+      username: values.username,
+      source: buildSource(values),
     });
   };
 
   const handleEditOpenChange = (open: boolean) => {
     setEditOpen(open);
     if (!open) {
-      setEditSecretId(null);
-      setEditRegistry('');
-      setEditUsername('');
-      setEditDescription('');
-      setEditSourceType('value');
-      setEditValue('');
-      setEditProviderId('');
-      setEditReference('');
-      setEditRegistryError('');
-      setEditUsernameError('');
-      setEditValueError('');
-      setEditProviderError('');
-      setEditReferenceError('');
+      setEditSecret(null);
     }
   };
 
@@ -347,15 +503,15 @@ export function OrganizationImagePullSecretsTab() {
     setDeleteTargetId(secretId);
   };
 
+  const providers = useMemo(() => providersQuery.data?.secretProviders ?? [], [providersQuery.data?.secretProviders]);
   const providerMap = useMemo(() => {
-    const providers = providersQuery.data?.secretProviders ?? [];
     return new Map(
       providers.flatMap((provider) => {
         const providerId = provider.meta?.id;
         return providerId ? ([[providerId, provider]] as const) : [];
       }),
     );
-  }, [providersQuery.data?.secretProviders]);
+  }, [providers]);
 
   const imagePullSecrets = imagePullSecretsQuery.data?.imagePullSecrets ?? [];
   const isLoading = providersQuery.isPending || imagePullSecretsQuery.isPending;
@@ -395,6 +551,7 @@ export function OrganizationImagePullSecretsTab() {
 
   const visibleSecrets = listControls.filteredItems;
   const hasSearch = listControls.searchTerm.trim().length > 0;
+  const editInitialValues = useMemo(() => buildFormValuesFromSecret(editSecret), [editSecret]);
 
   const renderSourceSummary = (secret: ImagePullSecret, providers: Map<string, SecretProvider>) => {
     if (secret.source.case === 'remote') {
@@ -421,20 +578,6 @@ export function OrganizationImagePullSecretsTab() {
         </div>
       </div>
     );
-  };
-
-  const handleSourceChange = (
-    nextType: SourceType,
-    setType: (value: SourceType) => void,
-    resetInline: () => void,
-    resetRemote: () => void,
-  ) => {
-    setType(nextType);
-    if (nextType === 'value') {
-      resetRemote();
-    } else {
-      resetInline();
-    }
   };
 
   return (
@@ -565,374 +708,24 @@ export function OrganizationImagePullSecretsTab() {
           </CardContent>
         </Card>
       ) : null}
-      <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
-        <DialogContent data-testid="organization-image-pull-secrets-create-dialog">
-          <DialogHeader>
-            <DialogTitle data-testid="organization-image-pull-secrets-create-title">Add secret</DialogTitle>
-            <DialogDescription data-testid="organization-image-pull-secrets-create-description">
-              Store registry credentials for private images.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="organization-image-pull-secrets-create-registry">Registry</Label>
-              <Input
-                id="organization-image-pull-secrets-create-registry"
-                value={createRegistry}
-                onChange={(event) => {
-                  setCreateRegistry(event.target.value);
-                  if (createRegistryError) setCreateRegistryError('');
-                }}
-                placeholder="registry.example.com"
-                data-testid="organization-image-pull-secrets-create-registry"
-              />
-              {createRegistryError ? (
-                <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-create-registry-error">
-                  {createRegistryError}
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organization-image-pull-secrets-create-username">Username</Label>
-              <Input
-                id="organization-image-pull-secrets-create-username"
-                value={createUsername}
-                onChange={(event) => {
-                  setCreateUsername(event.target.value);
-                  if (createUsernameError) setCreateUsernameError('');
-                }}
-                placeholder="registry user"
-                data-testid="organization-image-pull-secrets-create-username"
-              />
-              {createUsernameError ? (
-                <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-create-username-error">
-                  {createUsernameError}
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organization-image-pull-secrets-create-description-input">Description</Label>
-              <Input
-                id="organization-image-pull-secrets-create-description-input"
-                value={createDescription}
-                onChange={(event) => setCreateDescription(event.target.value)}
-                placeholder="Optional description"
-                data-testid="organization-image-pull-secrets-create-description-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organization-image-pull-secrets-create-source-type">Source</Label>
-              <Select
-                value={createSourceType}
-                onValueChange={(value) =>
-                  handleSourceChange(
-                    value as SourceType,
-                    setCreateSourceType,
-                    () => {
-                      setCreateValue('');
-                      setCreateValueError('');
-                    },
-                    () => {
-                      setCreateProviderId('');
-                      setCreateReference('');
-                      setCreateProviderError('');
-                      setCreateReferenceError('');
-                    },
-                  )
-                }
-              >
-                <SelectTrigger
-                  id="organization-image-pull-secrets-create-source-type"
-                  data-testid="organization-image-pull-secrets-create-source-type"
-                >
-                  <SelectValue placeholder="Select source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOURCE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {createSourceType === 'value' ? (
-              <div className="space-y-2">
-                <Label htmlFor="organization-image-pull-secrets-create-value">Secret Value</Label>
-                <Input
-                  id="organization-image-pull-secrets-create-value"
-                  type="password"
-                  value={createValue}
-                  onChange={(event) => {
-                    setCreateValue(event.target.value);
-                    if (createValueError) setCreateValueError('');
-                  }}
-                  placeholder="Registry token"
-                  data-testid="organization-image-pull-secrets-create-value"
-                />
-                {createValueError ? (
-                  <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-create-value-error">
-                    {createValueError}
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="organization-image-pull-secrets-create-provider">Secret Provider</Label>
-                  <Select
-                    value={createProviderId}
-                    onValueChange={(value) => {
-                      setCreateProviderId(value);
-                      if (createProviderError) setCreateProviderError('');
-                    }}
-                  >
-                    <SelectTrigger
-                      id="organization-image-pull-secrets-create-provider"
-                      data-testid="organization-image-pull-secrets-create-provider"
-                    >
-                      <SelectValue placeholder="Select provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(providersQuery.data?.secretProviders ?? []).map((provider) => {
-                        const providerId = provider.meta?.id;
-                        if (!providerId) return null;
-                        return (
-                          <SelectItem key={providerId} value={providerId}>
-                            {provider.title} ({formatSecretProviderType(provider.type)})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {createProviderError ? (
-                    <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-create-provider-error">
-                      {createProviderError}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="organization-image-pull-secrets-create-reference">Value Reference</Label>
-                  <Input
-                    id="organization-image-pull-secrets-create-reference"
-                    value={createReference}
-                    onChange={(event) => {
-                      setCreateReference(event.target.value);
-                      if (createReferenceError) setCreateReferenceError('');
-                    }}
-                    placeholder="secret/path"
-                    data-testid="organization-image-pull-secrets-create-reference"
-                  />
-                  {createReferenceError ? (
-                    <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-create-reference-error">
-                      {createReferenceError}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="organization-image-pull-secrets-create-cancel">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button
-              size="sm"
-              onClick={handleCreate}
-              disabled={createImagePullSecretMutation.isPending}
-              data-testid="organization-image-pull-secrets-create-submit"
-            >
-              {createImagePullSecretMutation.isPending ? 'Creating...' : 'Add secret'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
-        <DialogContent data-testid="organization-image-pull-secrets-edit-dialog">
-          <DialogHeader>
-            <DialogTitle data-testid="organization-image-pull-secrets-edit-title">Edit secret</DialogTitle>
-            <DialogDescription data-testid="organization-image-pull-secrets-edit-description">
-              Update registry credentials for this secret.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="organization-image-pull-secrets-edit-registry">Registry</Label>
-              <Input
-                id="organization-image-pull-secrets-edit-registry"
-                value={editRegistry}
-                onChange={(event) => {
-                  setEditRegistry(event.target.value);
-                  if (editRegistryError) setEditRegistryError('');
-                }}
-                placeholder="registry.example.com"
-                data-testid="organization-image-pull-secrets-edit-registry"
-              />
-              {editRegistryError ? (
-                <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-edit-registry-error">
-                  {editRegistryError}
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organization-image-pull-secrets-edit-username">Username</Label>
-              <Input
-                id="organization-image-pull-secrets-edit-username"
-                value={editUsername}
-                onChange={(event) => {
-                  setEditUsername(event.target.value);
-                  if (editUsernameError) setEditUsernameError('');
-                }}
-                placeholder="registry user"
-                data-testid="organization-image-pull-secrets-edit-username"
-              />
-              {editUsernameError ? (
-                <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-edit-username-error">
-                  {editUsernameError}
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organization-image-pull-secrets-edit-description-input">Description</Label>
-              <Input
-                id="organization-image-pull-secrets-edit-description-input"
-                value={editDescription}
-                onChange={(event) => setEditDescription(event.target.value)}
-                placeholder="Optional description"
-                data-testid="organization-image-pull-secrets-edit-description-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organization-image-pull-secrets-edit-source-type">Source</Label>
-              <Select
-                value={editSourceType}
-                onValueChange={(value) =>
-                  handleSourceChange(
-                    value as SourceType,
-                    setEditSourceType,
-                    () => {
-                      setEditValue('');
-                      setEditValueError('');
-                    },
-                    () => {
-                      setEditProviderId('');
-                      setEditReference('');
-                      setEditProviderError('');
-                      setEditReferenceError('');
-                    },
-                  )
-                }
-              >
-                <SelectTrigger
-                  id="organization-image-pull-secrets-edit-source-type"
-                  data-testid="organization-image-pull-secrets-edit-source-type"
-                >
-                  <SelectValue placeholder="Select source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOURCE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {editSourceType === 'value' ? (
-              <div className="space-y-2">
-                <Label htmlFor="organization-image-pull-secrets-edit-value">Secret Value</Label>
-                <Input
-                  id="organization-image-pull-secrets-edit-value"
-                  type="password"
-                  value={editValue}
-                  onChange={(event) => {
-                    setEditValue(event.target.value);
-                    if (editValueError) setEditValueError('');
-                  }}
-                  placeholder="Registry token"
-                  data-testid="organization-image-pull-secrets-edit-value"
-                />
-                {editValueError ? (
-                  <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-edit-value-error">
-                    {editValueError}
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="organization-image-pull-secrets-edit-provider">Secret Provider</Label>
-                  <Select
-                    value={editProviderId}
-                    onValueChange={(value) => {
-                      setEditProviderId(value);
-                      if (editProviderError) setEditProviderError('');
-                    }}
-                  >
-                    <SelectTrigger
-                      id="organization-image-pull-secrets-edit-provider"
-                      data-testid="organization-image-pull-secrets-edit-provider"
-                    >
-                      <SelectValue placeholder="Select provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(providersQuery.data?.secretProviders ?? []).map((provider) => {
-                        const providerId = provider.meta?.id;
-                        if (!providerId) return null;
-                        return (
-                          <SelectItem key={providerId} value={providerId}>
-                            {provider.title} ({formatSecretProviderType(provider.type)})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {editProviderError ? (
-                    <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-edit-provider-error">
-                      {editProviderError}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="organization-image-pull-secrets-edit-reference">Value Reference</Label>
-                  <Input
-                    id="organization-image-pull-secrets-edit-reference"
-                    value={editReference}
-                    onChange={(event) => {
-                      setEditReference(event.target.value);
-                      if (editReferenceError) setEditReferenceError('');
-                    }}
-                    placeholder="secret/path"
-                    data-testid="organization-image-pull-secrets-edit-reference"
-                  />
-                  {editReferenceError ? (
-                    <p className="text-sm text-destructive" data-testid="organization-image-pull-secrets-edit-reference-error">
-                      {editReferenceError}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="organization-image-pull-secrets-edit-cancel">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button
-              size="sm"
-              onClick={handleEditSave}
-              disabled={updateImagePullSecretMutation.isPending}
-              data-testid="organization-image-pull-secrets-edit-submit"
-            >
-              {updateImagePullSecretMutation.isPending ? 'Saving...' : 'Save changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ImagePullSecretFormDialog
+        mode="create"
+        open={createOpen}
+        onOpenChange={handleCreateOpenChange}
+        providers={providers}
+        initialValues={DEFAULT_FORM_VALUES}
+        onSubmit={handleCreate}
+        isSubmitting={createImagePullSecretMutation.isPending}
+      />
+      <ImagePullSecretFormDialog
+        mode="edit"
+        open={editOpen}
+        onOpenChange={handleEditOpenChange}
+        providers={providers}
+        initialValues={editInitialValues}
+        onSubmit={handleEditSave}
+        isSubmitting={updateImagePullSecretMutation.isPending}
+      />
       <ConfirmDialog
         open={Boolean(deleteTargetId)}
         onOpenChange={(open) => {

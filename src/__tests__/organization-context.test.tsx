@@ -34,6 +34,7 @@ vi.mock('@/context/UserContext', () => ({
 
 function ContextProbe() {
   const {
+    contextMode,
     selectedOrganization,
     organizations,
     pendingMemberships,
@@ -42,6 +43,7 @@ function ContextProbe() {
   } = useOrganizationContext();
   return (
     <div>
+      <div data-testid="context-mode">{contextMode?.mode ?? 'none'}</div>
       <div data-testid="selected">{selectedOrganization?.id ?? 'none'}</div>
       <div data-testid="count">{organizations.length}</div>
       <div data-testid="pending-count">{pendingMembershipsCount}</div>
@@ -94,7 +96,7 @@ describe('OrganizationContext', () => {
     listAccessibleOrganizations.mockReset();
   });
 
-  it('persists and restores the selected organization', async () => {
+  it('migrates legacy selections into context mode storage', async () => {
     window.localStorage.setItem('console.selectedOrganization', 'org-2');
 
     mockMemberships([
@@ -119,9 +121,14 @@ describe('OrganizationContext', () => {
     await waitFor(() => {
       expect(screen.getByTestId('selected').textContent).toBe('org-2');
     });
+
+    const storedMode = window.localStorage.getItem('console.contextMode');
+    expect(storedMode).not.toBeNull();
+    expect(JSON.parse(storedMode ?? '')).toMatchObject({ mode: 'organization', organizationId: 'org-2' });
+    expect(window.localStorage.getItem('console.selectedOrganization')).toBeNull();
   });
 
-  it('auto-selects the first visible organization when none is stored', async () => {
+  it('auto-selects the first visible organization alphabetically', async () => {
     mockMemberships([
       create(MembershipSchema, {
         id: 'membership-1',
@@ -134,8 +141,8 @@ describe('OrganizationContext', () => {
 
     listAccessibleOrganizations.mockResolvedValue({
       organizations: [
-        create(OrganizationSchema, { id: 'org-1', name: 'Org One' }),
-        create(OrganizationSchema, { id: 'org-2', name: 'Org Two' }),
+        create(OrganizationSchema, { id: 'org-2', name: 'Zeta Org' }),
+        create(OrganizationSchema, { id: 'org-1', name: 'Alpha Org' }),
       ],
     });
 
@@ -143,6 +150,44 @@ describe('OrganizationContext', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('selected').textContent).toBe('org-1');
+    });
+  });
+
+  it('prefers persisted cluster mode for admins', async () => {
+    window.localStorage.setItem('console.contextMode', JSON.stringify({ mode: 'cluster' }));
+    userContext.isClusterAdmin = true;
+
+    mockMemberships([
+      create(MembershipSchema, {
+        id: 'membership-1',
+        organizationId: 'org-1',
+        identityId: 'identity-1',
+        role: MembershipRole.MEMBER,
+        status: MembershipStatus.ACTIVE,
+      }),
+    ]);
+
+    listAccessibleOrganizations.mockResolvedValue({
+      organizations: [create(OrganizationSchema, { id: 'org-1', name: 'Org One' })],
+    });
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('context-mode').textContent).toBe('cluster');
+    });
+  });
+
+  it('falls back to cluster mode for admins without organizations', async () => {
+    userContext.isClusterAdmin = true;
+
+    mockMemberships([]);
+    listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('context-mode').textContent).toBe('cluster');
     });
   });
 

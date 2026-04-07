@@ -114,6 +114,7 @@ function NoAccessScreen({ onSignOut, userMenu, pendingMembershipsCount }: NoAcce
 
 export function AppLayout() {
   const {
+    contextMode,
     selectedOrganization,
     hasConsoleAccess,
     pendingMembershipsCount,
@@ -191,7 +192,10 @@ export function AppLayout() {
   }
 
   const organizationBase = selectedOrganization ? `/organizations/${selectedOrganization.id}` : '/organizations';
-  const organizationRoute = (path: string) => (selectedOrganization ? `${organizationBase}${path}` : '/organizations');
+  const organizationRoute = (path: string) => `${organizationBase}${path}`;
+
+  const isClusterContext = contextMode?.mode === 'cluster';
+  const isOrganizationContext = contextMode?.mode === 'organization' && selectedOrganization;
 
   const origin = window.location.origin;
   const chatUrl = origin.replace('console.', 'chat.');
@@ -203,7 +207,7 @@ export function AppLayout() {
         className="flex w-64 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6 text-sidebar-foreground"
         data-testid="console-sidebar"
       >
-        {isClusterAdmin ? (
+        {isClusterContext ? (
           <div className="mb-6">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Platform</p>
             <nav className="mt-3 flex flex-col gap-1">
@@ -215,114 +219,124 @@ export function AppLayout() {
                 <UsersIcon className="h-4 w-4" />
                 Users
               </NavLink>
-              <NavLink to="/apps" className={navLinkClass} data-testid="nav-apps">
-                <BoxesIcon className="h-4 w-4" />
-                Apps
+              <NavLink to="/organizations" className={navLinkClass} data-testid="nav-organizations">
+                <BuildingIcon className="h-4 w-4" />
+                Organizations
               </NavLink>
               <NavLink to="/runners" className={navLinkClass} data-testid="nav-cluster-runners">
                 <ServerIcon className="h-4 w-4" />
                 Cluster Runners
               </NavLink>
-              <NavLink to="/organizations" className={navLinkClass} data-testid="nav-organizations">
-                <BuildingIcon className="h-4 w-4" />
-                Organizations
+              <NavLink to="/apps" className={navLinkClass} data-testid="nav-apps">
+                <BoxesIcon className="h-4 w-4" />
+                Apps
               </NavLink>
             </nav>
           </div>
         ) : null}
-        <div className="mb-6">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Organization</p>
-          <nav className="mt-3 flex flex-col gap-1">
-            <NavLink
-              to={organizationBase}
-              className={navLinkClass}
-              data-testid="nav-organization-overview"
-            >
-              <BuildingIcon className="h-4 w-4" />
-              Overview
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/members')}
-              className={navLinkClass}
-              data-testid="nav-organization-members"
-            >
-              <UsersIcon className="h-4 w-4" />
-              Members
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/agents')}
-              className={navLinkClass}
-              data-testid="nav-organization-agents"
-            >
-              <BotIcon className="h-4 w-4" />
-              Agents
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/volumes')}
-              className={navLinkClass}
-              data-testid="nav-organization-volumes"
-            >
-              <HardDriveIcon className="h-4 w-4" />
-              Volumes
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/llm-providers')}
-              className={navLinkClass}
-              data-testid="nav-organization-llm-providers"
-            >
-              <BrainIcon className="h-4 w-4" />
-              LLM Providers
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/models')}
-              className={navLinkClass}
-              data-testid="nav-organization-models"
-            >
-              <BoxesIcon className="h-4 w-4" />
-              Models
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/secrets')}
-              className={navLinkClass}
-              data-testid="nav-organization-secrets"
-            >
-              <ShieldIcon className="h-4 w-4" />
-              Secrets
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/image-pull-secrets')}
-              className={navLinkClass}
-              data-testid="nav-organization-image-pull-secrets"
-            >
-              <KeyIcon className="h-4 w-4" />
-              Image Pull Secrets
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/runners')}
-              className={navLinkClass}
-              data-testid="nav-organization-runners"
-            >
-              <ServerIcon className="h-4 w-4" />
-              Runners
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/apps')}
-              className={navLinkClass}
-              data-testid="nav-organization-apps"
-            >
-              <BoxesIcon className="h-4 w-4" />
-              Apps
-            </NavLink>
-            <NavLink
-              to={organizationRoute('/monitoring')}
-              className={navLinkClass}
-              data-testid="nav-organization-monitoring"
-            >
-              <ActivityIcon className="h-4 w-4" />
-              Monitoring
-            </NavLink>
-          </nav>
-        </div>
+        {isOrganizationContext ? (
+          <div className="mb-6">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Organization</p>
+            <nav className="mt-3 flex flex-col gap-1">
+              <NavLink
+                to={organizationBase}
+                className={navLinkClass}
+                data-testid="nav-organization-overview"
+              >
+                <BuildingIcon className="h-4 w-4" />
+                Overview
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/agents')}
+                className={navLinkClass}
+                data-testid="nav-organization-agents"
+              >
+                <BotIcon className="h-4 w-4" />
+                Agents
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/volumes')}
+                className={navLinkClass}
+                data-testid="nav-organization-volumes"
+              >
+                <HardDriveIcon className="h-4 w-4" />
+                Volumes
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/llm-providers')}
+                className={navLinkClass}
+                data-testid="nav-organization-llm-providers"
+              >
+                <BrainIcon className="h-4 w-4" />
+                LLM Providers
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/models')}
+                className={navLinkClass}
+                data-testid="nav-organization-models"
+              >
+                <BoxesIcon className="h-4 w-4" />
+                Models
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/secret-providers')}
+                className={navLinkClass}
+                data-testid="nav-organization-secret-providers"
+              >
+                <KeyIcon className="h-4 w-4" />
+                Secret Providers
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/secrets')}
+                className={navLinkClass}
+                data-testid="nav-organization-secrets"
+              >
+                <ShieldIcon className="h-4 w-4" />
+                Secrets
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/image-pull-secrets')}
+                className={navLinkClass}
+                data-testid="nav-organization-image-pull-secrets"
+              >
+                <KeyIcon className="h-4 w-4" />
+                Image Pull Secrets
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/runners')}
+                className={navLinkClass}
+                data-testid="nav-organization-runners"
+              >
+                <ServerIcon className="h-4 w-4" />
+                Runners
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/apps')}
+                className={navLinkClass}
+                data-testid="nav-organization-apps"
+              >
+                <BoxesIcon className="h-4 w-4" />
+                Apps
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/members')}
+                className={navLinkClass}
+                data-testid="nav-organization-members"
+              >
+                <UsersIcon className="h-4 w-4" />
+                Members
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/monitoring')}
+                className={navLinkClass}
+                data-testid="nav-organization-monitoring"
+              >
+                <ActivityIcon className="h-4 w-4" />
+                Monitoring
+              </NavLink>
+            </nav>
+          </div>
+        ) : null}
         <div className="mt-auto space-y-4">
           <NavLink to="/api-tokens" className={navLinkClass} data-testid="nav-api-tokens">
             <KeyIcon className="h-4 w-4" />

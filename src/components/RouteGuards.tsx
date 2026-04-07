@@ -30,7 +30,7 @@ export function RequireClusterAdmin({ children }: GuardProps) {
 }
 
 export function RequireOrganization({ children }: GuardProps) {
-  const { selectedOrganization, status, error, organizations, setSelectedOrganization } = useOrganizationContext();
+  const { selectedOrganization, status, error, organizations, setContextMode } = useOrganizationContext();
   const location = useLocation();
   const params = useParams();
   const orgId = params.id;
@@ -42,9 +42,9 @@ export function RequireOrganization({ children }: GuardProps) {
     if (!orgId) return;
     if (selectedOrganization?.id === orgId) return;
     if (matchingOrganization) {
-      setSelectedOrganization(matchingOrganization);
+      setContextMode({ mode: 'organization', organization: matchingOrganization });
     }
-  }, [matchingOrganization, orgId, selectedOrganization, setSelectedOrganization, status]);
+  }, [matchingOrganization, orgId, selectedOrganization, setContextMode, status]);
 
   if (status === 'loading') {
     return <div className="text-sm text-muted-foreground">Loading organizations...</div>;

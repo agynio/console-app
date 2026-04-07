@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import type { ReactNode } from 'react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { organizationsClient } from '@/api/client';
 import type { Membership } from '@/gen/agynio/api/organizations/v1/organizations_pb';
@@ -18,34 +18,70 @@ export type OrganizationSummary = {
   membershipStatus?: MembershipStatus;
 };
 
+export type ContextMode =
+  | { mode: 'organization'; organization: OrganizationSummary }
+  | { mode: 'cluster' };
+
 type OrganizationContextValue = {
   organizations: OrganizationSummary[];
   memberships: Membership[];
   pendingMemberships: Membership[];
   pendingMembershipsCount: number;
+  contextMode: ContextMode | null;
   selectedOrganization: OrganizationSummary | null;
   status: 'loading' | 'ready' | 'error';
   error: Error | null;
   hasConsoleAccess: boolean;
+  setContextMode: (mode: ContextMode | null) => void;
   setSelectedOrganization: (org: OrganizationSummary | null) => void;
 };
 
 const OrganizationContext = createContext<OrganizationContextValue | null>(null);
 
-const STORAGE_KEY = 'console.selectedOrganization';
+const STORAGE_KEY = 'console.contextMode';
+const LEGACY_STORAGE_KEY = 'console.selectedOrganization';
 
-function readStoredOrgId(): string | null {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(STORAGE_KEY);
+type StoredContextMode =
+  | { mode: 'organization'; organizationId: string }
+  | { mode: 'cluster' };
+
+function parseStoredContextMode(raw: string | null): StoredContextMode | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as StoredContextMode;
+    if (parsed.mode === 'cluster') {
+      return { mode: 'cluster' };
+    }
+    if (parsed.mode === 'organization' && typeof parsed.organizationId === 'string') {
+      return { mode: 'organization', organizationId: parsed.organizationId };
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
-function persistOrgId(orgId: string | null) {
+function readStoredContextMode(): StoredContextMode | null {
+  if (typeof window === 'undefined') return null;
+  const stored = parseStoredContextMode(window.localStorage.getItem(STORAGE_KEY));
+  if (stored) return stored;
+
+  const legacyOrgId = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!legacyOrgId) return null;
+  const migrated: StoredContextMode = { mode: 'organization', organizationId: legacyOrgId };
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  return migrated;
+}
+
+function persistContextMode(mode: StoredContextMode | null) {
   if (typeof window === 'undefined') return;
-  if (orgId) {
-    window.localStorage.setItem(STORAGE_KEY, orgId);
-  } else {
+  if (!mode) {
     window.localStorage.removeItem(STORAGE_KEY);
+    return;
   }
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(mode));
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 function mapOrganizations(
@@ -67,7 +103,8 @@ function mapOrganizations(
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
   const { identityId, isClusterAdmin, status: userStatus } = useUserContext();
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(readStoredOrgId);
+  const storedContextRef = useRef<StoredContextMode | null>(readStoredContextMode());
+  const [contextMode, setContextModeState] = useState<ContextMode | null>(null);
 
   // Memberships include role/status data used to filter org visibility.
   const membershipsQuery = useQuery({
@@ -128,29 +165,97 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     return mappedOrganizations.filter((org) => org.membershipStatus === MembershipStatus.ACTIVE);
   }, [isClusterAdmin, mappedOrganizations]);
 
-  const selectedOrganization = useMemo(
-    () => visibleOrganizations.find((org) => org.id === selectedOrgId) ?? null,
-    [visibleOrganizations, selectedOrgId],
+  const sortedOrganizations = useMemo(
+    () => [...visibleOrganizations].sort((a, b) => a.name.localeCompare(b.name)),
+    [visibleOrganizations],
   );
 
-  const setSelectedOrganization = useCallback((org: OrganizationSummary | null) => {
-    const nextId = org?.id ?? null;
-    setSelectedOrgId(nextId);
-    persistOrgId(nextId);
+  const selectedOrganization = useMemo(
+    () => (contextMode?.mode === 'organization' ? contextMode.organization : null),
+    [contextMode],
+  );
+
+  const setContextMode = useCallback((mode: ContextMode | null) => {
+    const storedMode: StoredContextMode | null = mode
+      ? mode.mode === 'cluster'
+        ? { mode: 'cluster' }
+        : { mode: 'organization', organizationId: mode.organization.id }
+      : null;
+    storedContextRef.current = storedMode;
+    persistContextMode(storedMode);
+    setContextModeState(mode);
+  }, []);
+
+  const setSelectedOrganization = useCallback(
+    (org: OrganizationSummary | null) => {
+      setContextMode(org ? { mode: 'organization', organization: org } : null);
+    },
+    [setContextMode],
+  );
+
+  const resolveContextMode = useCallback(
+    (current: ContextMode | null): ContextMode | null => {
+      if (current?.mode === 'organization') {
+        const match = sortedOrganizations.find((org) => org.id === current.organization.id);
+        if (match) return { mode: 'organization', organization: match };
+      }
+      if (current?.mode === 'cluster' && isClusterAdmin) {
+        return { mode: 'cluster' };
+      }
+
+      const storedContext = storedContextRef.current;
+      if (storedContext?.mode === 'cluster' && isClusterAdmin) {
+        return { mode: 'cluster' };
+      }
+      if (storedContext?.mode === 'organization') {
+        const storedOrg = sortedOrganizations.find((org) => org.id === storedContext.organizationId);
+        if (storedOrg) return { mode: 'organization', organization: storedOrg };
+      }
+
+      if (sortedOrganizations.length > 0) {
+        return { mode: 'organization', organization: sortedOrganizations[0] };
+      }
+      if (isClusterAdmin) {
+        return { mode: 'cluster' };
+      }
+      return null;
+    },
+    [isClusterAdmin, sortedOrganizations],
+  );
+
+  const isContextModeEqual = useCallback((a: ContextMode | null, b: ContextMode | null) => {
+    if (a?.mode !== b?.mode) return false;
+    if (!a && !b) return true;
+    if (a?.mode === 'cluster' && b?.mode === 'cluster') return true;
+    if (a?.mode === 'organization' && b?.mode === 'organization') {
+      return a.organization.id === b.organization.id && a.organization.name === b.organization.name;
+    }
+    return false;
   }, []);
 
   useEffect(() => {
     if (userStatus !== 'ready') return;
-    if (selectedOrganization) return;
-    if (visibleOrganizations.length > 0) {
-      const next = visibleOrganizations[0];
-      setSelectedOrgId(next.id);
-      persistOrgId(next.id);
-    } else if (selectedOrgId) {
-      setSelectedOrgId(null);
-      persistOrgId(null);
+    if (membershipsQuery.isPending || pendingMembershipsQuery.isPending || organizationsQuery.isPending) return;
+    const nextMode = resolveContextMode(contextMode);
+    if (!isContextModeEqual(contextMode, nextMode)) {
+      setContextModeState(nextMode);
+      const storedMode: StoredContextMode | null = nextMode
+        ? nextMode.mode === 'cluster'
+          ? { mode: 'cluster' }
+          : { mode: 'organization', organizationId: nextMode.organization.id }
+        : null;
+      storedContextRef.current = storedMode;
+      persistContextMode(storedMode);
     }
-  }, [selectedOrganization, selectedOrgId, userStatus, visibleOrganizations]);
+  }, [
+    contextMode,
+    membershipsQuery.isPending,
+    organizationsQuery.isPending,
+    pendingMembershipsQuery.isPending,
+    resolveContextMode,
+    isContextModeEqual,
+    userStatus,
+  ]);
 
   const pendingMembershipsCount = pendingMemberships.length;
 
@@ -173,10 +278,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     memberships,
     pendingMemberships,
     pendingMembershipsCount,
+    contextMode,
     selectedOrganization,
     status,
     error,
     hasConsoleAccess,
+    setContextMode,
     setSelectedOrganization,
   };
 

@@ -127,6 +127,7 @@ export function OrganizationMembersTab() {
   });
 
   const visibleMemberships = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   const inviteMemberMutation = useMutation({
     mutationFn: (payload: { identityId: string; role: MembershipRole }) =>
@@ -258,7 +259,9 @@ export function OrganizationMembersTab() {
             </div>
             <div className="divide-y divide-border">
               {visibleMemberships.length === 0 ? (
-                <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No members yet.'}
+                </div>
               ) : (
                 visibleMemberships.map((membership) => {
                   const user = userMap.get(membership.identityId);

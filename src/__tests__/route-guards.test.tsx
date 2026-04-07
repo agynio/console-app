@@ -35,10 +35,12 @@ describe('route guards', () => {
     orgContext = {
       organizations: [],
       memberships: [],
+      contextMode: null,
       selectedOrganization: null,
       status: 'ready',
       error: null,
       hasConsoleAccess: true,
+      setContextMode: vi.fn(),
       setSelectedOrganization: vi.fn(),
     };
   });
@@ -48,6 +50,7 @@ describe('route guards', () => {
       id: 'org-1',
       name: 'Org One',
     };
+    orgContext.contextMode = { mode: 'organization', organization: selectedOrganization };
     orgContext.selectedOrganization = selectedOrganization;
     orgContext.organizations = [selectedOrganization];
 

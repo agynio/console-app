@@ -215,6 +215,7 @@ export function OrganizationLlmProvidersTab() {
   });
 
   const visibleProviders = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -282,51 +283,53 @@ export function OrganizationLlmProvidersTab() {
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-            {visibleProviders.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
-            ) : (
-              visibleProviders.map((provider) => (
-                <div
-                  key={provider.meta?.id ?? provider.endpoint}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_140px]"
-                  data-testid="organization-llm-provider-row"
-                >
-                  <div>
-                    <div className="font-medium" data-testid="organization-llm-provider-endpoint">
-                      {provider.endpoint}
-                    </div>
-                    <div className="text-xs text-muted-foreground" data-testid="organization-llm-provider-id">
-                      {provider.meta?.id ?? '—'}
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-auth">
-                    {formatAuthMethod(provider.authMethod)}
-                  </span>
-                  <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-created">
-                    {formatDateOnly(provider.meta?.createdAt)}
-                  </span>
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditOpen(provider)}
-                      data-testid="organization-llm-provider-edit"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteOpen(provider)}
-                      data-testid="organization-llm-provider-delete"
-                    >
-                      Delete
-                    </Button>
-                  </div>
+              {visibleProviders.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No LLM providers configured.'}
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                visibleProviders.map((provider) => (
+                  <div
+                    key={provider.meta?.id ?? provider.endpoint}
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_140px]"
+                    data-testid="organization-llm-provider-row"
+                  >
+                    <div>
+                      <div className="font-medium" data-testid="organization-llm-provider-endpoint">
+                        {provider.endpoint}
+                      </div>
+                      <div className="text-xs text-muted-foreground" data-testid="organization-llm-provider-id">
+                        {provider.meta?.id ?? '—'}
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-auth">
+                      {formatAuthMethod(provider.authMethod)}
+                    </span>
+                    <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-created">
+                      {formatDateOnly(provider.meta?.createdAt)}
+                    </span>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditOpen(provider)}
+                        data-testid="organization-llm-provider-edit"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteOpen(provider)}
+                        data-testid="organization-llm-provider-delete"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : null}

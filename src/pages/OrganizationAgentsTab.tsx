@@ -68,6 +68,7 @@ export function OrganizationAgentsTab() {
   });
 
   const visibleAgents = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -144,7 +145,9 @@ export function OrganizationAgentsTab() {
             </div>
             <div className="divide-y divide-border">
               {visibleAgents.length === 0 ? (
-                <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No agents configured.'}
+                </div>
               ) : (
                 visibleAgents.map((agent) => {
                   const agentId = agent.meta?.id;

@@ -269,6 +269,7 @@ export function OrganizationModelsTab() {
   });
 
   const visibleModels = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
   const isLoading = modelsQuery.isPending || providersQuery.isPending;
   const isError = modelsQuery.isError || providersQuery.isError;
 
@@ -343,57 +344,59 @@ export function OrganizationModelsTab() {
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-            {visibleModels.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
-            ) : (
-              visibleModels.map((model) => {
-                const provider = providerMap.get(model.llmProviderId);
-                return (
-                  <div
-                    key={model.meta?.id ?? model.name}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
-                    data-testid="organization-model-row"
-                  >
-                    <div>
-                      <div className="font-medium" data-testid="organization-model-name">
-                        {model.name}
+              {visibleModels.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No models registered.'}
+                </div>
+              ) : (
+                visibleModels.map((model) => {
+                  const provider = providerMap.get(model.llmProviderId);
+                  return (
+                    <div
+                      key={model.meta?.id ?? model.name}
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+                      data-testid="organization-model-row"
+                    >
+                      <div>
+                        <div className="font-medium" data-testid="organization-model-name">
+                          {model.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground" data-testid="organization-model-id">
+                          {model.meta?.id ?? '—'}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground" data-testid="organization-model-id">
-                        {model.meta?.id ?? '—'}
+                      <span className="text-xs text-muted-foreground" data-testid="organization-model-provider">
+                        {provider?.endpoint ?? (model.llmProviderId || '—')}
+                      </span>
+                      <span className="text-xs text-muted-foreground" data-testid="organization-model-remote">
+                        {model.remoteName || '—'}
+                      </span>
+                      <span className="text-xs text-muted-foreground" data-testid="organization-model-created">
+                        {formatDateOnly(model.meta?.createdAt)}
+                      </span>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditOpen(model)}
+                          data-testid="organization-model-edit"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteOpen(model)}
+                          data-testid="organization-model-delete"
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground" data-testid="organization-model-provider">
-                      {provider?.endpoint ?? (model.llmProviderId || '—')}
-                    </span>
-                    <span className="text-xs text-muted-foreground" data-testid="organization-model-remote">
-                      {model.remoteName || '—'}
-                    </span>
-                    <span className="text-xs text-muted-foreground" data-testid="organization-model-created">
-                      {formatDateOnly(model.meta?.createdAt)}
-                    </span>
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditOpen(model)}
-                        data-testid="organization-model-edit"
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteOpen(model)}
-                        data-testid="organization-model-delete"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  );
+                })
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : null}

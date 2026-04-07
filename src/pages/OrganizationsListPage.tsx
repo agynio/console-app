@@ -48,6 +48,7 @@ export function OrganizationsListPage() {
   });
 
   const visibleOrganizations = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -125,7 +126,9 @@ export function OrganizationsListPage() {
             </div>
             <div className="divide-y divide-border">
               {visibleOrganizations.length === 0 ? (
-                <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No organizations available.'}
+                </div>
               ) : (
                 visibleOrganizations.map((org) => (
                   <div

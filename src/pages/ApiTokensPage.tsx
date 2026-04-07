@@ -57,6 +57,7 @@ export function ApiTokensPage() {
   });
 
   const visibleTokens = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -132,7 +133,9 @@ export function ApiTokensPage() {
             </div>
             <div className="divide-y divide-border">
               {visibleTokens.length === 0 ? (
-                <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No API tokens yet.'}
+                </div>
               ) : (
                 visibleTokens.map((token) => (
                   <div

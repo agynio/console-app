@@ -293,6 +293,7 @@ export function OrganizationSecretsTab() {
   });
 
   const visibleSecrets = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -367,57 +368,59 @@ export function OrganizationSecretsTab() {
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-            {visibleSecrets.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-muted-foreground">No results found.</div>
-            ) : (
-              visibleSecrets.map((secret) => {
-                const provider = providerMap.get(secret.secretProviderId);
-                return (
-                  <div
-                    key={secret.meta?.id ?? secret.title}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
-                    data-testid="secret-row"
-                  >
-                    <div>
-                      <div className="font-medium" data-testid="secret-title">
-                        {secret.title}
+              {visibleSecrets.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No secrets configured.'}
+                </div>
+              ) : (
+                visibleSecrets.map((secret) => {
+                  const provider = providerMap.get(secret.secretProviderId);
+                  return (
+                    <div
+                      key={secret.meta?.id ?? secret.title}
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+                      data-testid="secret-row"
+                    >
+                      <div>
+                        <div className="font-medium" data-testid="secret-title">
+                          {secret.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground" data-testid="secret-id">
+                          {secret.meta?.id ?? '—'}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground" data-testid="secret-id">
-                        {secret.meta?.id ?? '—'}
+                      <span className="text-xs text-muted-foreground" data-testid="secret-provider">
+                        {provider?.title ?? secret.secretProviderId}
+                      </span>
+                      <span className="text-xs text-muted-foreground" data-testid="secret-remote">
+                        {secret.remoteName}
+                      </span>
+                      <span className="text-xs text-muted-foreground" data-testid="secret-created">
+                        {formatDateOnly(secret.meta?.createdAt)}
+                      </span>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditOpen(secret)}
+                          data-testid="secret-edit"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteOpen(secret)}
+                          data-testid="secret-delete"
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground" data-testid="secret-provider">
-                      {provider?.title ?? secret.secretProviderId}
-                    </span>
-                    <span className="text-xs text-muted-foreground" data-testid="secret-remote">
-                      {secret.remoteName}
-                    </span>
-                    <span className="text-xs text-muted-foreground" data-testid="secret-created">
-                      {formatDateOnly(secret.meta?.createdAt)}
-                    </span>
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditOpen(secret)}
-                        data-testid="secret-edit"
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteOpen(secret)}
-                        data-testid="secret-delete"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  );
+                })
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : null}
