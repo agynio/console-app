@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { InstallAppDialog } from '@/components/InstallAppDialog';
 import { UpdateInstallationDialog } from '@/components/UpdateInstallationDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import type { Installation } from '@/gen/agynio/api/apps/v1/apps_pb';
-import { formatDateOnly } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -44,6 +47,32 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
   });
 
   const installations = installationsQuery.data?.installations ?? [];
+  const getConfigCount = (installation: Installation) =>
+    installation.configuration ? Object.keys(installation.configuration).length : 0;
+
+  const listControls = useListControls({
+    items: installations,
+    searchFields: [
+      (installation) => installation.slug,
+      (installation) => installation.meta?.id ?? '',
+      (installation) => installation.appId || '',
+      (installation) => {
+        const configCount = getConfigCount(installation);
+        return `${configCount} ${configCount === 1 ? 'key' : 'keys'}`;
+      },
+      (installation) => formatDateOnly(installation.meta?.createdAt),
+    ],
+    sortOptions: {
+      installation: (installation) => installation.slug,
+      app: (installation) => installation.appId || '',
+      configuration: (installation) => getConfigCount(installation),
+      created: (installation) => timestampToMillis(installation.meta?.createdAt),
+    },
+    defaultSortKey: 'installation',
+  });
+
+  const visibleInstallations = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -56,6 +85,14 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
         >
           Install app
         </Button>
+      </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search installations..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
       </div>
       {installationsQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading installations...</div>
@@ -77,14 +114,43 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
               data-testid="organization-apps-header"
             >
-              <span>Installation</span>
-              <span>App</span>
-              <span>Configuration</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Installation"
+                sortKey="installation"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="App"
+                sortKey="app"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Configuration"
+                sortKey="configuration"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {installations.map((installation) => {
+            {visibleInstallations.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No apps installed.'}
+              </div>
+            ) : (
+              visibleInstallations.map((installation) => {
                 const installationId = installation.meta?.id;
                 const configCount = installation.configuration
                   ? Object.keys(installation.configuration).length
@@ -139,8 +205,9 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              })
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

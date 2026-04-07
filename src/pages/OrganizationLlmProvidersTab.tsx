@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AuthMethod, type LLMProvider } from '@/gen/agynio/api/llm/v1/llm_pb';
-import { formatAuthMethod, formatDateOnly } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatAuthMethod, formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -196,6 +198,24 @@ export function OrganizationLlmProvidersTab() {
   };
 
   const providers = providersQuery.data?.providers ?? [];
+  const listControls = useListControls({
+    items: providers,
+    searchFields: [
+      (provider) => provider.endpoint,
+      (provider) => provider.meta?.id ?? '',
+      (provider) => formatAuthMethod(provider.authMethod),
+      (provider) => formatDateOnly(provider.meta?.createdAt),
+    ],
+    sortOptions: {
+      endpoint: (provider) => provider.endpoint,
+      authMethod: (provider) => formatAuthMethod(provider.authMethod),
+      created: (provider) => timestampToMillis(provider.meta?.createdAt),
+    },
+    defaultSortKey: 'endpoint',
+  });
+
+  const visibleProviders = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -215,6 +235,14 @@ export function OrganizationLlmProvidersTab() {
           Add provider
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search providers..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {providersQuery.isPending ? <div className="text-sm text-muted-foreground">Loading providers...</div> : null}
       {providersQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load providers.</div> : null}
       {providers.length === 0 && !providersQuery.isPending ? (
@@ -231,52 +259,76 @@ export function OrganizationLlmProvidersTab() {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_140px]"
               data-testid="organization-llm-providers-header"
             >
-              <span>Provider</span>
-              <span>Auth Method</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Provider"
+                sortKey="endpoint"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Auth Method"
+                sortKey="authMethod"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {providers.map((provider) => (
-                <div
-                  key={provider.meta?.id ?? provider.endpoint}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_140px]"
-                  data-testid="organization-llm-provider-row"
-                >
-                  <div>
-                    <div className="font-medium" data-testid="organization-llm-provider-endpoint">
-                      {provider.endpoint}
-                    </div>
-                    <div className="text-xs text-muted-foreground" data-testid="organization-llm-provider-id">
-                      {provider.meta?.id ?? '—'}
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-auth">
-                    {formatAuthMethod(provider.authMethod)}
-                  </span>
-                  <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-created">
-                    {formatDateOnly(provider.meta?.createdAt)}
-                  </span>
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditOpen(provider)}
-                      data-testid="organization-llm-provider-edit"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteOpen(provider)}
-                      data-testid="organization-llm-provider-delete"
-                    >
-                      Delete
-                    </Button>
-                  </div>
+              {visibleProviders.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No LLM providers configured.'}
                 </div>
-              ))}
+              ) : (
+                visibleProviders.map((provider) => (
+                  <div
+                    key={provider.meta?.id ?? provider.endpoint}
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_140px]"
+                    data-testid="organization-llm-provider-row"
+                  >
+                    <div>
+                      <div className="font-medium" data-testid="organization-llm-provider-endpoint">
+                        {provider.endpoint}
+                      </div>
+                      <div className="text-xs text-muted-foreground" data-testid="organization-llm-provider-id">
+                        {provider.meta?.id ?? '—'}
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-auth">
+                      {formatAuthMethod(provider.authMethod)}
+                    </span>
+                    <span className="text-xs text-muted-foreground" data-testid="organization-llm-provider-created">
+                      {formatDateOnly(provider.meta?.createdAt)}
+                    </span>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditOpen(provider)}
+                        data-testid="organization-llm-provider-edit"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteOpen(provider)}
+                        data-testid="organization-llm-provider-delete"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { secretsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,8 @@ import {
 import { Label } from '@/components/ui/label';
 import type { SecretProvider } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
-import { formatDateOnly, formatSecretProviderType } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, formatSecretProviderType, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -264,6 +266,30 @@ export function OrganizationSecretProvidersTab() {
   };
 
   const providers = providersQuery.data?.secretProviders ?? [];
+  const getVaultAddress = (provider: (typeof providers)[number]) =>
+    provider.config?.provider.case === 'vault' ? provider.config.provider.value.address : '—';
+
+  const listControls = useListControls({
+    items: providers,
+    searchFields: [
+      (provider) => provider.title,
+      (provider) => provider.description,
+      (provider) => provider.meta?.id ?? '',
+      (provider) => formatSecretProviderType(provider.type),
+      (provider) => getVaultAddress(provider),
+      (provider) => formatDateOnly(provider.meta?.createdAt),
+    ],
+    sortOptions: {
+      title: (provider) => provider.title,
+      type: (provider) => formatSecretProviderType(provider.type),
+      address: (provider) => getVaultAddress(provider),
+      created: (provider) => timestampToMillis(provider.meta?.createdAt),
+    },
+    defaultSortKey: 'title',
+  });
+
+  const visibleProviders = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -282,6 +308,14 @@ export function OrganizationSecretProvidersTab() {
         >
           Add provider
         </Button>
+      </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search providers..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
       </div>
       {providersQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading secret providers...</div>
@@ -303,16 +337,44 @@ export function OrganizationSecretProvidersTab() {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
               data-testid="organization-secret-providers-header"
             >
-              <span>Title</span>
-              <span>Type</span>
-              <span>Vault Address</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Title"
+                sortKey="title"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Type"
+                sortKey="type"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Vault Address"
+                sortKey="address"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {providers.map((provider) => {
-                const vaultAddress =
-                  provider.config?.provider.case === 'vault' ? provider.config.provider.value.address : '—';
+            {visibleProviders.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No secret providers configured.'}
+              </div>
+            ) : (
+              visibleProviders.map((provider) => {
+                const vaultAddress = getVaultAddress(provider);
                 return (
                   <div
                     key={provider.meta?.id ?? provider.title}
@@ -362,8 +424,9 @@ export function OrganizationSecretProvidersTab() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              })
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

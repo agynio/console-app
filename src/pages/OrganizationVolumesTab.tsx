@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ import {
 import { Label } from '@/components/ui/label';
 import type { Volume } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
 export function OrganizationVolumesTab() {
@@ -222,6 +224,26 @@ export function OrganizationVolumesTab() {
   };
 
   const volumes = volumesQuery.data?.volumes ?? [];
+  const listControls = useListControls({
+    items: volumes,
+    searchFields: [
+      (volume) => volume.description || 'Volume',
+      (volume) => volume.meta?.id ?? '',
+      (volume) => volume.mountPath || '',
+      (volume) => volume.size || '',
+      (volume) => (volume.persistent ? 'Yes' : 'No'),
+    ],
+    sortOptions: {
+      description: (volume) => volume.description || 'Volume',
+      mountPath: (volume) => volume.mountPath || '',
+      size: (volume) => volume.size || '',
+      persistent: (volume) => (volume.persistent ? 'Yes' : 'No'),
+    },
+    defaultSortKey: 'description',
+  });
+
+  const visibleVolumes = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -241,6 +263,14 @@ export function OrganizationVolumesTab() {
           Add volume
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search volumes..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {volumesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading volumes...</div> : null}
       {volumesQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load volumes.</div> : null}
       {volumes.length === 0 && !volumesQuery.isPending ? (
@@ -257,14 +287,43 @@ export function OrganizationVolumesTab() {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
               data-testid="organization-volumes-header"
             >
-              <span>Volume</span>
-              <span>Mount Path</span>
-              <span>Size</span>
-              <span>Persistent</span>
+              <SortableHeader
+                label="Volume"
+                sortKey="description"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Mount Path"
+                sortKey="mountPath"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Size"
+                sortKey="size"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Persistent"
+                sortKey="persistent"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {volumes.map((volume) => (
+            {visibleVolumes.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No volumes provisioned.'}
+              </div>
+            ) : (
+              visibleVolumes.map((volume) => (
                 <div
                   key={volume.meta?.id ?? volume.mountPath}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
@@ -309,8 +368,9 @@ export function OrganizationVolumesTab() {
                     </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, secretsClient } from '@/api/client';
+import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Env } from '@/gen/agynio/api/agents/v1/agents_pb';
 import type { Secret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
-import { formatDateOnly } from '@/lib/format';
+import { useListControls } from '@/hooks/useListControls';
+import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -144,6 +146,25 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
     }
     return '—';
   };
+
+  const listControls = useListControls({
+    items: envs,
+    searchFields: [
+      (env) => env.name,
+      (env) => env.description,
+      (env) => resolveSource(env, secretMap),
+      (env) => formatDateOnly(env.meta?.createdAt),
+    ],
+    sortOptions: {
+      name: (env) => env.name,
+      source: (env) => resolveSource(env, secretMap),
+      created: (env) => timestampToMillis(env.meta?.createdAt),
+    },
+    defaultSortKey: 'name',
+  });
+
+  const visibleEnvs = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
 
   const handleCreate = () => {
     const trimmedName = name.trim();
@@ -275,6 +296,14 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
           Add ENV
         </Button>
       </div>
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search envs..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
+      </div>
       {envsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading envs...</div> : null}
       {envsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load envs.</div> : null}
       {envs.length === 0 && !envsQuery.isPending ? (
@@ -291,13 +320,36 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_2fr_1fr_140px]"
               data-testid="agent-envs-header"
             >
-              <span>Name</span>
-              <span>Source</span>
-              <span>Created</span>
+              <SortableHeader
+                label="Name"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Source"
+                sortKey="source"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-              {envs.map((env) => (
+            {visibleEnvs.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground">
+                {hasSearch ? 'No results found.' : 'No environment variables configured.'}
+              </div>
+            ) : (
+              visibleEnvs.map((env) => (
                 <div
                   key={env.meta?.id ?? env.name}
                   className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_2fr_1fr_140px]"
@@ -336,8 +388,9 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                     </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : null}

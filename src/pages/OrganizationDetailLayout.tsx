@@ -12,6 +12,7 @@ function resolveTab(pathname: string): string {
   if (pathname.includes('/llm-providers')) return 'llm-providers';
   if (pathname.includes('/models')) return 'models';
   if (pathname.includes('/secret-providers')) return 'secret-providers';
+  if (pathname.includes('/image-pull-secrets')) return 'image-pull-secrets';
   if (pathname.includes('/secrets')) return 'secrets';
   if (pathname.includes('/runners')) return 'runners';
   if (pathname.includes('/apps')) return 'apps';
@@ -89,6 +90,11 @@ export function OrganizationDetailLayout() {
           <TabsTrigger asChild value="secrets">
             <NavLink to={`${base}/secrets`} data-testid="organization-tab-secrets">
               Secrets
+            </NavLink>
+          </TabsTrigger>
+          <TabsTrigger asChild value="image-pull-secrets">
+            <NavLink to={`${base}/image-pull-secrets`} data-testid="organization-tab-image-pull-secrets">
+              Image Pull Secrets
             </NavLink>
           </TabsTrigger>
           <TabsTrigger asChild value="secret-providers">

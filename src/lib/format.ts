@@ -12,6 +12,11 @@ function toDate(timestamp: Timestamp): Date {
   return new Date(millis);
 }
 
+export function timestampToMillis(timestamp?: Timestamp | null): number {
+  if (!timestamp) return 0;
+  return toDate(timestamp).getTime();
+}
+
 export function formatTimestamp(timestamp?: Timestamp | null, options?: Intl.DateTimeFormatOptions): string {
   if (!timestamp) return '—';
   const formatter = new Intl.DateTimeFormat('en-US', {
