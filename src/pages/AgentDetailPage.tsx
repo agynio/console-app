@@ -74,35 +74,27 @@ export function AgentDetailPage() {
       {agent ? (
         <div className="space-y-8">
           <section data-testid="agent-detail-section-configuration">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Configuration</h3>
             <AgentConfigurationTab agent={agent} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-mcps">
-            <h3 className="text-lg font-semibold text-foreground mb-4">MCPs</h3>
             <AgentMcpsTab agentId={resolvedAgentId} />
           </section>
           <section data-testid="agent-detail-section-skills">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Skills</h3>
             <AgentSkillsTab agentId={resolvedAgentId} />
           </section>
           <section data-testid="agent-detail-section-hooks">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Hooks</h3>
             <AgentHooksTab agentId={resolvedAgentId} />
           </section>
           <section data-testid="agent-detail-section-envs">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Environment Variables</h3>
             <AgentEnvsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-init-scripts">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Init Scripts</h3>
             <AgentInitScriptsTab agentId={resolvedAgentId} />
           </section>
           <section data-testid="agent-detail-section-volumes">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Volume Attachments</h3>
             <AgentVolumeAttachmentsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-image-pull-secrets">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Image Pull Secrets</h3>
             <AgentImagePullSecretsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
         </div>
