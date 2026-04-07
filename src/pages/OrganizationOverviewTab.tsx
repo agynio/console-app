@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { agentsClient, appsClient, organizationsClient, runnersClient, secretsClient } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { useNotifications } from '@/hooks/useNotifications';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
@@ -60,6 +61,20 @@ export function OrganizationOverviewTab() {
     refetchOnWindowFocus: false,
   });
 
+  const workloadsQuery = useQuery({
+    queryKey: ['workloads', organizationId, 'overview'],
+    queryFn: () =>
+      runnersClient.listWorkloads({
+        organizationId,
+        pageSize: MAX_PAGE_SIZE,
+        pageToken: '',
+        statuses: [WorkloadStatus.STARTING, WorkloadStatus.RUNNING],
+      }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
   const agentsQuery = useQuery({
     queryKey: ['agents', organizationId, 'overview'],
     queryFn: () => agentsClient.listAgents({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
@@ -84,6 +99,7 @@ export function OrganizationOverviewTab() {
     { label: 'Secret providers', value: providersQuery.data?.secretProviders.length ?? 0, to: `${base}/secret-providers` },
     { label: 'Secrets', value: secretsQuery.data?.secrets.length ?? 0, to: `${base}/secrets` },
     { label: 'Runners', value: runnersQuery.data?.runners.length ?? 0, to: `${base}/runners` },
+    { label: 'Active workloads', value: workloadsQuery.data?.workloads.length ?? 0, to: `${base}/monitoring` },
     { label: 'App installations', value: installationsQuery.data?.installations.length ?? 0, to: `${base}/apps` },
   ];
 
@@ -115,6 +131,7 @@ export function OrganizationOverviewTab() {
         providersQuery.isError ||
         secretsQuery.isError ||
         runnersQuery.isError ||
+        workloadsQuery.isError ||
         agentsQuery.isError ||
         installationsQuery.isError) && (
         <div className="text-sm text-muted-foreground">Failed to load organization metrics.</div>

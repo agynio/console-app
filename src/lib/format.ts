@@ -3,7 +3,7 @@ import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
-import { RunnerStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
+import { ContainerStatus, RunnerStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
 
@@ -61,6 +61,40 @@ export function formatRunnerStatus(status: RunnerStatus): string {
   if (status === RunnerStatus.PENDING) return 'Pending';
   if (status === RunnerStatus.OFFLINE) return 'Offline';
   return 'Unspecified';
+}
+
+export function formatWorkloadStatus(status: WorkloadStatus): string {
+  if (status === WorkloadStatus.STARTING) return 'Starting';
+  if (status === WorkloadStatus.RUNNING) return 'Running';
+  if (status === WorkloadStatus.STOPPING) return 'Stopping';
+  if (status === WorkloadStatus.STOPPED) return 'Stopped';
+  if (status === WorkloadStatus.FAILED) return 'Failed';
+  return 'Unspecified';
+}
+
+function formatContainerStatus(status: number): string {
+  if (status === ContainerStatus.RUNNING) return 'Running';
+  if (status === ContainerStatus.WAITING) return 'Waiting';
+  if (status === ContainerStatus.TERMINATED) return 'Terminated';
+  return 'Unspecified';
+}
+
+export function summarizeContainers(containers: Array<{ status: number }>): string {
+  if (containers.length === 0) return '—';
+  const counts: Record<string, number> = {};
+  containers.forEach((container) => {
+    const label = formatContainerStatus(container.status);
+    counts[label] = (counts[label] ?? 0) + 1;
+  });
+  const order = ['Running', 'Waiting', 'Terminated', 'Unspecified'];
+  const parts: string[] = [];
+  order.forEach((label) => {
+    const count = counts[label];
+    if (count) {
+      parts.push(`${label} (${count})`);
+    }
+  });
+  return parts.length > 0 ? parts.join(', ') : '—';
 }
 
 export function formatAppVisibility(visibility: AppVisibility): string {
