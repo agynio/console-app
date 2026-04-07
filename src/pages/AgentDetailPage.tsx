@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentConfigurationTab } from '@/pages/agent-detail/AgentConfigurationTab';
 import { AgentEnvsTab } from '@/pages/agent-detail/AgentEnvsTab';
 import { AgentHooksTab } from '@/pages/agent-detail/AgentHooksTab';
@@ -15,24 +14,12 @@ import { AgentImagePullSecretsTab } from '@/pages/agent-detail/AgentImagePullSec
 import { AgentVolumeAttachmentsTab } from '@/pages/agent-detail/AgentVolumeAttachmentsTab';
 import { toast } from 'sonner';
 
-const TAB_OPTIONS = [
-  { value: 'configuration', label: 'Configuration' },
-  { value: 'mcps', label: 'MCPs' },
-  { value: 'skills', label: 'Skills' },
-  { value: 'hooks', label: 'Hooks' },
-  { value: 'envs', label: 'ENVs' },
-  { value: 'init-scripts', label: 'Init Scripts' },
-  { value: 'volumes', label: 'Volumes' },
-  { value: 'image-pull-secrets', label: 'Image Pull Secrets' },
-];
-
 export function AgentDetailPage() {
   const { id, agentId } = useParams();
   const organizationId = id ?? '';
   const resolvedAgentId = agentId ?? '';
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('configuration');
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const agentQuery = useQuery({
@@ -85,39 +72,40 @@ export function AgentDetailPage() {
       {agentQuery.isPending ? <div className="text-sm text-muted-foreground">Loading agent...</div> : null}
       {agentQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load agent.</div> : null}
       {agent ? (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList data-testid="agent-detail-tabs">
-            {TAB_OPTIONS.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value} data-testid={`agent-detail-tab-${tab.value}`}>
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <TabsContent value="configuration" data-testid="agent-detail-tab-content-configuration">
+        <div className="space-y-8">
+          <section data-testid="agent-detail-section-configuration">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Configuration</h3>
             <AgentConfigurationTab agent={agent} organizationId={organizationId} />
-          </TabsContent>
-          <TabsContent value="mcps" data-testid="agent-detail-tab-content-mcps">
+          </section>
+          <section data-testid="agent-detail-section-mcps">
+            <h3 className="text-lg font-semibold text-foreground mb-4">MCPs</h3>
             <AgentMcpsTab agentId={resolvedAgentId} />
-          </TabsContent>
-          <TabsContent value="skills" data-testid="agent-detail-tab-content-skills">
+          </section>
+          <section data-testid="agent-detail-section-skills">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Skills</h3>
             <AgentSkillsTab agentId={resolvedAgentId} />
-          </TabsContent>
-          <TabsContent value="hooks" data-testid="agent-detail-tab-content-hooks">
+          </section>
+          <section data-testid="agent-detail-section-hooks">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Hooks</h3>
             <AgentHooksTab agentId={resolvedAgentId} />
-          </TabsContent>
-          <TabsContent value="envs" data-testid="agent-detail-tab-content-envs">
+          </section>
+          <section data-testid="agent-detail-section-envs">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Environment Variables</h3>
             <AgentEnvsTab agentId={resolvedAgentId} organizationId={organizationId} />
-          </TabsContent>
-          <TabsContent value="init-scripts" data-testid="agent-detail-tab-content-init-scripts">
+          </section>
+          <section data-testid="agent-detail-section-init-scripts">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Init Scripts</h3>
             <AgentInitScriptsTab agentId={resolvedAgentId} />
-          </TabsContent>
-          <TabsContent value="volumes" data-testid="agent-detail-tab-content-volumes">
+          </section>
+          <section data-testid="agent-detail-section-volumes">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Volume Attachments</h3>
             <AgentVolumeAttachmentsTab agentId={resolvedAgentId} organizationId={organizationId} />
-          </TabsContent>
-          <TabsContent value="image-pull-secrets" data-testid="agent-detail-tab-content-image-pull-secrets">
+          </section>
+          <section data-testid="agent-detail-section-image-pull-secrets">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Image Pull Secrets</h3>
             <AgentImagePullSecretsTab agentId={resolvedAgentId} organizationId={organizationId} />
-          </TabsContent>
-        </Tabs>
+          </section>
+        </div>
       ) : null}
       <ConfirmDialog
         open={deleteOpen}

@@ -197,10 +197,6 @@ export function AppLayout() {
   const isClusterContext = contextMode?.mode === 'cluster';
   const isOrganizationContext = contextMode?.mode === 'organization' && selectedOrganization;
 
-  const origin = window.location.origin;
-  const chatUrl = origin.replace('console.', 'chat.');
-  const tracingUrl = origin.replace('console.', 'tracing.');
-
   return (
     <div className="flex min-h-screen bg-muted/40">
       <aside
@@ -355,16 +351,6 @@ export function AppLayout() {
             <p className="text-sm text-muted-foreground">Platform administration</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" asChild>
-              <a href={chatUrl} target="_blank" rel="noreferrer">
-                Chat
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <a href={tracingUrl} target="_blank" rel="noreferrer">
-                Tracing
-              </a>
-            </Button>
             <ThemeToggle />
             <OrganizationSwitcher />
             {userMenu}
