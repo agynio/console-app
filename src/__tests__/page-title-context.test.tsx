@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PageTitleProvider, usePageTitle, useSetPageTitle } from '@/context/PageTitleContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 function TitleReader() {
   const title = usePageTitle();
@@ -19,6 +20,16 @@ function TitleUpdater() {
       </button>
     </div>
   );
+}
+
+type DocumentTitleProbeProps = {
+  title: string;
+};
+
+function DocumentTitleProbe({ title }: DocumentTitleProbeProps) {
+  useDocumentTitle(title);
+  const currentTitle = usePageTitle();
+  return <div data-testid="title">{currentTitle}</div>;
 }
 
 describe('PageTitleContext', () => {
@@ -47,6 +58,28 @@ describe('PageTitleContext', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('title').textContent).toBe('Dashboard');
+    });
+  });
+
+  it('updates the title when useDocumentTitle changes', async () => {
+    const { rerender } = render(
+      <PageTitleProvider>
+        <DocumentTitleProbe title="Initial" />
+      </PageTitleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('title').textContent).toBe('Initial');
+    });
+
+    rerender(
+      <PageTitleProvider>
+        <DocumentTitleProbe title="Updated" />
+      </PageTitleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('title').textContent).toBe('Updated');
     });
   });
 

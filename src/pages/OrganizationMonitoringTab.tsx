@@ -54,31 +54,29 @@ export function OrganizationMonitoringTab() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-6">
-        <div className="space-y-3" data-testid="organization-monitoring-active-workloads">
-          <div>
-            <h4 className="text-base font-semibold text-foreground">Active Workloads</h4>
-            <p className="text-sm text-muted-foreground">Track running workloads deployed for this organization.</p>
-          </div>
-          <WorkloadsTable
-            workloads={workloads}
-            query={workloadsQuery}
-            showRunnerColumn
-            testIdPrefix="organization-workloads"
-          />
+      <div className="space-y-3" data-testid="organization-monitoring-active-workloads">
+        <div>
+          <h4 className="text-base font-semibold text-foreground">Active Workloads</h4>
+          <p className="text-sm text-muted-foreground">Track running workloads deployed for this organization.</p>
         </div>
-        {stubSections.map((section) => (
-          <div key={section.id} className="space-y-3" data-testid={`organization-monitoring-${section.id}`}>
-            <div>
-              <h4 className="text-base font-semibold text-foreground">{section.title}</h4>
-              <p className="text-sm text-muted-foreground">{section.description}</p>
-            </div>
-            <Card className="border-border">
-              <CardContent className="py-6 text-sm text-muted-foreground">{section.stub}</CardContent>
-            </Card>
-          </div>
-        ))}
+        <WorkloadsTable
+          workloads={workloads}
+          query={workloadsQuery}
+          showRunnerColumn
+          testIdPrefix="organization-workloads"
+        />
       </div>
+      {stubSections.map((section) => (
+        <div key={section.id} className="space-y-3" data-testid={`organization-monitoring-${section.id}`}>
+          <div>
+            <h4 className="text-base font-semibold text-foreground">{section.title}</h4>
+            <p className="text-sm text-muted-foreground">{section.description}</p>
+          </div>
+          <Card className="border-border">
+            <CardContent className="py-6 text-sm text-muted-foreground">{section.stub}</CardContent>
+          </Card>
+        </div>
+      ))}
     </div>
   );
 }
