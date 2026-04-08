@@ -11,9 +11,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 
 export function OrganizationRunnersTab() {
+  useDocumentTitle('Runners');
+
   const { id } = useParams();
   const organizationId = id ?? '';
   const [enrollOpen, setEnrollOpen] = useState(false);
@@ -50,13 +53,7 @@ export function OrganizationRunnersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="organization-runners-heading">
-            Runners
-          </h3>
-          <p className="text-sm text-muted-foreground">Organization-scoped runners.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           variant="outline"
           size="sm"

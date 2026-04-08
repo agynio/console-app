@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 import { createLabelEntry, entriesToLabels, labelsToEntries, type LabelEntry } from '@/lib/labels';
@@ -47,6 +48,8 @@ export function RunnerDetailPage() {
   });
 
   const runner = runnerQuery.data?.runner;
+
+  useDocumentTitle(runner?.name ?? 'Runner');
 
   const workloadsQuery = useInfiniteQuery({
     queryKey: ['workloads', 'runner', runnerId],
@@ -116,13 +119,7 @@ export function RunnerDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground" data-testid="runner-heading">
-            Runner
-          </h2>
-          <p className="text-sm text-muted-foreground">Runner status and metadata.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         {runner ? (
           <div className="flex flex-wrap items-center gap-2" data-testid="runner-actions">
             <Button

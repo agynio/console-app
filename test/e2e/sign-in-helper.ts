@@ -314,12 +314,10 @@ export async function signInViaMockAuth(
     { key: storageKey, value: storageValue },
   );
 
-  const dashboardHeading = page.getByTestId('dashboard-heading');
-  const organizationsHeading = page.getByTestId('organizations-heading');
-  const organizationHeading = page.getByTestId('organization-heading');
+  const pageTitle = page.getByTestId('page-title');
   const sidebarNav = page.getByTestId('console-sidebar');
   const noAccessState = page.getByTestId('console-no-access');
-  const appReady = dashboardHeading.or(organizationsHeading).or(organizationHeading).or(sidebarNav).or(noAccessState);
+  const appReady = pageTitle.or(sidebarNav).or(noAccessState);
 
   await page.goto('/');
   const session = await readOidcSession(page);

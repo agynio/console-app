@@ -16,9 +16,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUserContext } from '@/context/UserContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { toast } from 'sonner';
 
 export function SettingsPage() {
+  useDocumentTitle('Settings');
+
   const { currentUser, isClusterAdmin, signOut } = useUserContext();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
@@ -107,12 +110,6 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-foreground" data-testid="settings-heading">
-          Settings
-        </h2>
-        <p className="text-sm text-muted-foreground">Profile and session settings.</p>
-      </div>
       <Card className="border-border" data-testid="settings-profile-card">
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">

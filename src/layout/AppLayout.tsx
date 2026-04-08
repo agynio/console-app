@@ -24,6 +24,7 @@ import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import { OrganizationSwitcher } from '@/components/OrganizationSwitcher';
 import { useCreateOrganization } from '@/hooks/useCreateOrganization';
+import { usePageTitle } from '@/context/PageTitleContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,6 +123,7 @@ export function AppLayout() {
     error: orgError,
   } = useOrganizationContext();
   const { currentUser, isClusterAdmin, status: userStatus, error: userError, signOut } = useUserContext();
+  const pageTitle = usePageTitle();
 
   if (userStatus === 'loading' || orgStatus === 'loading') {
     return (
@@ -346,10 +348,9 @@ export function AppLayout() {
       </aside>
       <main className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border bg-background px-6 py-4">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Agyn Console</h1>
-            <p className="text-sm text-muted-foreground">Platform administration</p>
-          </div>
+          <h1 className="text-lg font-semibold text-foreground" data-testid="page-title">
+            {pageTitle}
+          </h1>
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <OrganizationSwitcher />

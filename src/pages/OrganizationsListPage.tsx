@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import type { MembershipRole } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { useCreateOrganization } from '@/hooks/useCreateOrganization';
 import { formatDateOnly, formatMembershipRole, timestampToMillis } from '@/lib/format';
@@ -19,6 +20,8 @@ function describeRole(role?: MembershipRole, isClusterAdmin?: boolean): string {
 }
 
 export function OrganizationsListPage() {
+  useDocumentTitle('Organizations');
+
   const { organizations, status, error } = useOrganizationContext();
   const { isClusterAdmin } = useUserContext();
   const {
@@ -52,13 +55,7 @@ export function OrganizationsListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground" data-testid="organizations-heading">
-            Organizations
-          </h2>
-          <p className="text-sm text-muted-foreground">Manage organizations across the platform.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           variant="outline"
           size="sm"

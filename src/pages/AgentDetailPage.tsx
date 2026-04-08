@@ -12,6 +12,7 @@ import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
 import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
 import { AgentImagePullSecretsTab } from '@/pages/agent-detail/AgentImagePullSecretsTab';
 import { AgentVolumeAttachmentsTab } from '@/pages/agent-detail/AgentVolumeAttachmentsTab';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { toast } from 'sonner';
 
 export function AgentDetailPage() {
@@ -31,6 +32,8 @@ export function AgentDetailPage() {
   });
 
   const agent = agentQuery.data?.agent;
+
+  useDocumentTitle(agent?.name ?? 'Agent');
 
   const deleteAgentMutation = useMutation({
     mutationFn: () => agentsClient.deleteAgent({ id: resolvedAgentId }),
@@ -53,10 +56,6 @@ export function AgentDetailPage() {
           <Button variant="link" asChild data-testid="agent-detail-back">
             <NavLink to={`/organizations/${organizationId}/agents`}>← Back to Agents</NavLink>
           </Button>
-          <h2 className="text-2xl font-semibold text-foreground" data-testid="agent-detail-heading">
-            {agent?.name ?? 'Agent'}
-          </h2>
-          <p className="text-sm text-muted-foreground">Agent configuration and resources.</p>
         </div>
         {agent ? (
           <Button

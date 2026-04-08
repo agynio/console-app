@@ -9,11 +9,14 @@ import { EnrollRunnerDialog } from '@/components/EnrollRunnerDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { useListControls } from '@/hooks/useListControls';
 
 export function RunnersListPage() {
+  useDocumentTitle('Cluster Runners');
+
   const [enrollOpen, setEnrollOpen] = useState(false);
 
   const runnersQuery = useInfiniteQuery({
@@ -49,13 +52,7 @@ export function RunnersListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground" data-testid="runners-heading">
-            Cluster Runners
-          </h2>
-          <p className="text-sm text-muted-foreground">Runners enrolled at the cluster level.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           variant="outline"
           size="sm"

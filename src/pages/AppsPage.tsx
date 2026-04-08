@@ -9,11 +9,14 @@ import { Input } from '@/components/ui/input';
 import { RegisterAppDialog } from '@/components/RegisterAppDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { formatAppVisibility, formatDateOnly, timestampToMillis } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 export function AppsPage() {
+  useDocumentTitle('Apps');
+
   const [registerOpen, setRegisterOpen] = useState(false);
 
   const appsQuery = useInfiniteQuery({
@@ -51,11 +54,7 @@ export function AppsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">Apps</h2>
-          <p className="text-sm text-muted-foreground">Register and manage platform apps.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button variant="outline" size="sm" onClick={() => setRegisterOpen(true)} data-testid="apps-register">
           Register app
         </Button>

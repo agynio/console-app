@@ -3,10 +3,13 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { WorkloadsTable } from '@/components/WorkloadsTable';
 import { Card, CardContent } from '@/components/ui/card';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationMonitoringTab() {
+  useDocumentTitle('Monitoring');
+
   const { id } = useParams();
   const organizationId = id ?? '';
 
@@ -51,37 +54,29 @@ export function OrganizationMonitoringTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-foreground" data-testid="organization-monitoring-heading">
-          Monitoring
-        </h3>
-        <p className="text-sm text-muted-foreground">Observability for organization workloads.</p>
-      </div>
-      <div className="space-y-6">
-        <div className="space-y-3" data-testid="organization-monitoring-active-workloads">
-          <div>
-            <h4 className="text-base font-semibold text-foreground">Active Workloads</h4>
-            <p className="text-sm text-muted-foreground">Track running workloads deployed for this organization.</p>
-          </div>
-          <WorkloadsTable
-            workloads={workloads}
-            query={workloadsQuery}
-            showRunnerColumn
-            testIdPrefix="organization-workloads"
-          />
+      <div className="space-y-3" data-testid="organization-monitoring-active-workloads">
+        <div>
+          <h4 className="text-base font-semibold text-foreground">Active Workloads</h4>
+          <p className="text-sm text-muted-foreground">Track running workloads deployed for this organization.</p>
         </div>
-        {stubSections.map((section) => (
-          <div key={section.id} className="space-y-3" data-testid={`organization-monitoring-${section.id}`}>
-            <div>
-              <h4 className="text-base font-semibold text-foreground">{section.title}</h4>
-              <p className="text-sm text-muted-foreground">{section.description}</p>
-            </div>
-            <Card className="border-border">
-              <CardContent className="py-6 text-sm text-muted-foreground">{section.stub}</CardContent>
-            </Card>
-          </div>
-        ))}
+        <WorkloadsTable
+          workloads={workloads}
+          query={workloadsQuery}
+          showRunnerColumn
+          testIdPrefix="organization-workloads"
+        />
       </div>
+      {stubSections.map((section) => (
+        <div key={section.id} className="space-y-3" data-testid={`organization-monitoring-${section.id}`}>
+          <div>
+            <h4 className="text-base font-semibold text-foreground">{section.title}</h4>
+            <p className="text-sm text-muted-foreground">{section.description}</p>
+          </div>
+          <Card className="border-border">
+            <CardContent className="py-6 text-sm text-muted-foreground">{section.stub}</CardContent>
+          </Card>
+        </div>
+      ))}
     </div>
   );
 }

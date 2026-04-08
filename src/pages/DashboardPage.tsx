@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { organizationsClient, runnersClient, usersClient } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function DashboardPage() {
+  useDocumentTitle('Dashboard');
+
   const usersQuery = useQuery({
     queryKey: ['users', 'list', 'dashboard'],
     queryFn: () => usersClient.listUsers({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
@@ -35,12 +38,6 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-foreground" data-testid="dashboard-heading">
-          Dashboard
-        </h2>
-        <p className="text-sm text-muted-foreground">Platform overview and status.</p>
-      </div>
       <div className="grid gap-4 md:grid-cols-3" data-testid="dashboard-summary">
         {summaryCards.map((card) => (
           <Card key={card.label} className="border-border" data-testid="dashboard-stat-card">

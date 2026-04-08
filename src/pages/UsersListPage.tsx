@@ -21,12 +21,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatClusterRole, formatMembershipRole } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
 
 export function UsersListPage() {
+  useDocumentTitle('Users');
+
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [oidcSubject, setOidcSubject] = useState('');
@@ -215,13 +218,7 @@ export function UsersListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground" data-testid="users-heading">
-            Users
-          </h2>
-          <p className="text-sm text-muted-foreground">Manage platform users.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button variant="outline" size="sm" data-testid="users-create-button" onClick={() => setCreateOpen(true)}>
           Create user
         </Button>

@@ -20,6 +20,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatAppVisibility, formatDateOnly } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
@@ -61,6 +62,8 @@ export function AppDetailPage() {
 
   const app = appQuery.data?.app;
   const installations = installationsQuery.data?.installations ?? [];
+
+  useDocumentTitle(app?.name ?? 'App');
 
   const updateAppMutation = useMutation({
     mutationFn: (payload: { name: string; description: string; icon: string; visibility: AppVisibility }) =>
@@ -128,13 +131,7 @@ export function AppDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground" data-testid="app-detail-heading">
-            {app?.name ?? 'App'}
-          </h2>
-          <p className="text-sm text-muted-foreground">App metadata and installations.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         {app ? (
           <div className="flex flex-wrap items-center gap-2" data-testid="app-detail-actions">
             <Button variant="outline" size="sm" onClick={() => handleEditOpenChange(true)}>
