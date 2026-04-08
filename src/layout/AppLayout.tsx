@@ -209,7 +209,7 @@ export function AppLayout() {
           <div className="mb-6">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Platform</p>
             <nav className="mt-3 flex flex-col gap-1">
-              <NavLink to="/" className={navLinkClass} data-testid="nav-dashboard">
+              <NavLink to="/" end className={navLinkClass} data-testid="nav-dashboard">
                 <HomeIcon className="h-4 w-4" />
                 Dashboard
               </NavLink>
@@ -238,6 +238,7 @@ export function AppLayout() {
             <nav className="mt-3 flex flex-col gap-1">
               <NavLink
                 to={organizationBase}
+                end
                 className={navLinkClass}
                 data-testid="nav-organization-overview"
               >
