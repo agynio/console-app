@@ -300,7 +300,15 @@ export function OrganizationSecretProvidersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search providers..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -309,14 +317,6 @@ export function OrganizationSecretProvidersTab() {
         >
           Add provider
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search providers..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {providersQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading secret providers...</div>

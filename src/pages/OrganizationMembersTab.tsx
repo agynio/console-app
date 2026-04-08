@@ -200,7 +200,15 @@ export function OrganizationMembersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search members..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -210,14 +218,6 @@ export function OrganizationMembersTab() {
           <PlusIcon className="mr-2 h-4 w-4" />
           Invite member
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search members..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {(activeQuery.isPending || pendingQuery.isPending) && (
         <div className="text-sm text-muted-foreground">Loading members...</div>

@@ -54,18 +54,18 @@ export function AppsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search apps..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
         <Button variant="outline" size="sm" onClick={() => setRegisterOpen(true)} data-testid="apps-register">
           Register app
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search apps..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {appsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading apps...</div> : null}
       {appsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load apps.</div> : null}
