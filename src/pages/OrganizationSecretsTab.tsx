@@ -303,7 +303,15 @@ export function OrganizationSecretsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search secrets..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -312,14 +320,6 @@ export function OrganizationSecretsTab() {
         >
           Add secret
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search secrets..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {isLoading ? <div className="text-sm text-muted-foreground">Loading secrets...</div> : null}
       {isError ? <div className="text-sm text-muted-foreground">Failed to load secrets.</div> : null}

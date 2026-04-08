@@ -79,18 +79,18 @@ export function OrganizationAgentsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search agents..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
         <Button variant="outline" size="sm" asChild data-testid="organization-agents-create">
           <NavLink to={`/organizations/${organizationId}/agents/new`}>Create agent</NavLink>
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search agents..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {isLoading ? <div className="text-sm text-muted-foreground">Loading agents...</div> : null}
       {isError ? <div className="text-sm text-muted-foreground">Failed to load agents.</div> : null}

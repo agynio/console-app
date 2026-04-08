@@ -52,7 +52,15 @@ export function RunnersListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search runners..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -61,14 +69,6 @@ export function RunnersListPage() {
         >
           Enroll runner
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search runners..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {runnersQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading runners...</div>

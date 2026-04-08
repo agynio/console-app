@@ -218,19 +218,18 @@ export function UsersListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search users..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
         <Button variant="outline" size="sm" data-testid="users-create-button" onClick={() => setCreateOpen(true)}>
           Create user
         </Button>
-      </div>
-
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search users..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
 
       {usersQuery.isPending && <div className="text-sm text-muted-foreground">Loading users...</div>}
