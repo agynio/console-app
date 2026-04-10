@@ -53,7 +53,7 @@ export function OrganizationSecretProvidersTab() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const providersQuery = useInfiniteQuery({
-    queryKey: ['secrets', organizationId, 'providers'],
+    queryKey: ['secrets', organizationId, 'providers', 'infinite'],
     queryFn: ({ pageParam }) =>
       secretsClient.listSecretProviders({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
     initialPageParam: '',

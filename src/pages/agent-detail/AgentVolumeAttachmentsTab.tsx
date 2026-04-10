@@ -44,7 +44,7 @@ export function AgentVolumeAttachmentsTab({ agentId, organizationId }: AgentVolu
   });
 
   const volumesQuery = useQuery({
-    queryKey: ['volumes', organizationId, 'list'],
+    queryKey: ['volumes', organizationId, 'list', 'all'],
     queryFn: () => agentsClient.listVolumes({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60_000,

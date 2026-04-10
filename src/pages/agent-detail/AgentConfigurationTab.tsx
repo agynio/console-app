@@ -49,7 +49,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [resources, setResources] = useState<ComputeResources | undefined>(undefined);
 
   const modelsQuery = useQuery({
-    queryKey: ['llm', organizationId, 'models'],
+    queryKey: ['llm', organizationId, 'models', 'all'],
     queryFn: () => llmClient.listModels({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60_000,

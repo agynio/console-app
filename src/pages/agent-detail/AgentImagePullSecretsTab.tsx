@@ -53,7 +53,7 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
   });
 
   const imagePullSecretsQuery = useQuery({
-    queryKey: ['imagePullSecrets', organizationId, 'list'],
+    queryKey: ['imagePullSecrets', organizationId, 'list', 'all'],
     queryFn: () => secretsClient.listImagePullSecrets({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60_000,

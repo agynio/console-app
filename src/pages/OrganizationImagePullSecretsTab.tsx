@@ -369,7 +369,7 @@ export function OrganizationImagePullSecretsTab() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const providersQuery = useQuery({
-    queryKey: ['secrets', organizationId, 'providers'],
+    queryKey: ['secrets', organizationId, 'providers', 'all'],
     queryFn: () => secretsClient.listSecretProviders({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60_000,
@@ -377,7 +377,7 @@ export function OrganizationImagePullSecretsTab() {
   });
 
   const imagePullSecretsQuery = useInfiniteQuery({
-    queryKey: ['imagePullSecrets', organizationId, 'list'],
+    queryKey: ['imagePullSecrets', organizationId, 'list', 'infinite'],
     queryFn: ({ pageParam }) =>
       secretsClient.listImagePullSecrets({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
     initialPageParam: '',

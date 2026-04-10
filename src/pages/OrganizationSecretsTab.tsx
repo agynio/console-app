@@ -52,7 +52,7 @@ export function OrganizationSecretsTab() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const providersQuery = useQuery({
-    queryKey: ['secrets', organizationId, 'providers'],
+    queryKey: ['secrets', organizationId, 'providers', 'all'],
     queryFn: () => secretsClient.listSecretProviders({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60 * 1000,
@@ -60,7 +60,7 @@ export function OrganizationSecretsTab() {
   });
 
   const secretsQuery = useInfiniteQuery({
-    queryKey: ['secrets', organizationId, 'list'],
+    queryKey: ['secrets', organizationId, 'list', 'infinite'],
     queryFn: ({ pageParam }) =>
       secretsClient.listSecrets({
         organizationId,

@@ -38,7 +38,7 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
   const [configurationError, setConfigurationError] = useState('');
 
   const appsQuery = useQuery({
-    queryKey: ['apps', 'list'],
+    queryKey: ['apps', 'list', 'all'],
     queryFn: () => appsClient.listApps({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: open,
     staleTime: 60_000,
