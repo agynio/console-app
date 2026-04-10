@@ -20,7 +20,7 @@ export function AppsPage() {
   const [registerOpen, setRegisterOpen] = useState(false);
 
   const appsQuery = useInfiniteQuery({
-    queryKey: ['apps', 'list'],
+    queryKey: ['apps', 'list', 'infinite'],
     queryFn: ({ pageParam }) => appsClient.listApps({ pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,

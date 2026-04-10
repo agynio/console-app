@@ -47,7 +47,7 @@ export function OrganizationLlmProvidersTab() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const providersQuery = useInfiniteQuery({
-    queryKey: ['llm', organizationId, 'providers'],
+    queryKey: ['llm', organizationId, 'providers', 'infinite'],
     queryFn: ({ pageParam }) =>
       llmClient.listLLMProviders({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
     initialPageParam: '',

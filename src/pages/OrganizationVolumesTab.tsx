@@ -50,7 +50,7 @@ export function OrganizationVolumesTab() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const volumesQuery = useInfiniteQuery({
-    queryKey: ['volumes', organizationId, 'list'],
+    queryKey: ['volumes', organizationId, 'list', 'infinite'],
     queryFn: ({ pageParam }) =>
       agentsClient.listVolumes({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
     initialPageParam: '',

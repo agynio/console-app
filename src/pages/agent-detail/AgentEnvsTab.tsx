@@ -61,7 +61,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
   });
 
   const secretsQuery = useQuery({
-    queryKey: ['secrets', organizationId, 'list'],
+    queryKey: ['secrets', organizationId, 'list', 'all'],
     queryFn: () =>
       secretsClient.listSecrets({
         organizationId,

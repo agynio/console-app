@@ -50,7 +50,7 @@ export function OrganizationModelsTab() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const modelsQuery = useInfiniteQuery({
-    queryKey: ['llm', organizationId, 'models'],
+    queryKey: ['llm', organizationId, 'models', 'infinite'],
     queryFn: ({ pageParam }) =>
       llmClient.listModels({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
     initialPageParam: '',
@@ -61,7 +61,7 @@ export function OrganizationModelsTab() {
   });
 
   const providersQuery = useQuery({
-    queryKey: ['llm', organizationId, 'providers'],
+    queryKey: ['llm', organizationId, 'providers', 'all'],
     queryFn: () => llmClient.listLLMProviders({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60_000,
