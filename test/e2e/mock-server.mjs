@@ -483,7 +483,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/end-session') {
-    return sendText(res, 200, 'signed out');
+    const redirectUri = url.searchParams.get('post_logout_redirect_uri');
+    if (!redirectUri) {
+      return sendText(res, 400, 'missing post_logout_redirect_uri');
+    }
+    res.statusCode = 302;
+    res.setHeader('Location', redirectUri);
+    res.end();
+    return;
   }
 
   if (pathname === '/jwks.json') {

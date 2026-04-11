@@ -306,15 +306,17 @@ export async function signInViaMockAuth(
 
   const tokens = await exchangeAuthCode(config, { code, codeVerifier, redirectUri });
   const { storageKey, storageValue } = buildUserStorage(config, tokens);
+  const expectedOrigin = new URL(resolveBaseUrl()).origin;
 
   await page.addInitScript(
-    ({ key, value }) => {
+    ({ key, value, origin }) => {
+      if (window.location.origin !== origin) return;
       const seededKey = 'e2e:oidc-seeded';
       if (window.sessionStorage.getItem(seededKey)) return;
       window.sessionStorage.setItem(key, value);
       window.sessionStorage.setItem(seededKey, 'true');
     },
-    { key: storageKey, value: storageValue },
+    { key: storageKey, value: storageValue, origin: expectedOrigin },
   );
 
   const pageTitle = page.getByTestId('page-title');
