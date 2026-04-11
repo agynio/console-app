@@ -37,6 +37,13 @@ type RunnerWire = {
   status?: string | number;
 };
 
+type DeviceWire = {
+  meta?: { id?: string; createdAt?: string };
+  name?: string;
+  status?: string | number;
+  enrollmentJwt?: string;
+};
+
 type CreateOrganizationResponseWire = {
   organization?: { id?: string };
 };
@@ -95,6 +102,15 @@ type CreateSecretResponseWire = {
 
 type ListSecretsResponseWire = {
   secrets?: SecretWire[];
+};
+
+type CreateDeviceResponseWire = {
+  device?: DeviceWire;
+  enrollmentJwt?: string;
+};
+
+type ListDevicesResponseWire = {
+  devices?: DeviceWire[];
 };
 
 type ListRunnersResponseWire = {
@@ -504,6 +520,33 @@ export async function clearOrganizationSecrets(page: Page, organizationId: strin
     await page.waitForTimeout(500);
   }
   throw new Error('Timed out clearing organization secrets.');
+}
+
+export async function createDevice(page: Page, opts: { name: string }): Promise<CreateDeviceResponseWire> {
+  const response = await postConnect<CreateDeviceResponseWire>(page, USERS_GATEWAY_PATH, 'CreateDevice', {
+    name: opts.name,
+  });
+  if (!response.device?.meta?.id) {
+    throw new Error('CreateDevice response missing device id.');
+  }
+  return response;
+}
+
+export async function listDevices(page: Page): Promise<DeviceWire[]> {
+  const response = await postConnect<ListDevicesResponseWire>(page, USERS_GATEWAY_PATH, 'ListDevices', {
+    pageSize: 200,
+    pageToken: '',
+  });
+  return response.devices ?? [];
+}
+
+export async function deleteDevice(page: Page, deviceId: string): Promise<void> {
+  try {
+    await postConnect(page, USERS_GATEWAY_PATH, 'DeleteDevice', { id: deviceId });
+  } catch (error) {
+    if (isNotFoundError(error)) return;
+    throw error;
+  }
 }
 
 export async function listRunners(page: Page): Promise<RunnerWire[]> {
