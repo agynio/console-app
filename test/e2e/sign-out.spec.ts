@@ -1,3 +1,4 @@
+import { argosScreenshot } from '@argos-ci/playwright';
 import { test, expect } from './fixtures';
 import { readOidcSession } from './oidc-helpers';
 
@@ -16,6 +17,9 @@ test('signs out from user menu', async ({ page }) => {
     }
     return true;
   }, { timeout: 20000 });
+
+  await page.waitForLoadState('networkidle');
+  await argosScreenshot(page, 'sign-out-user-menu');
 });
 
 test('signs out from settings page', async ({ page }) => {
@@ -33,4 +37,7 @@ test('signs out from settings page', async ({ page }) => {
     }
     return true;
   }, { timeout: 20000 });
+
+  await page.waitForLoadState('networkidle');
+  await argosScreenshot(page, 'sign-out-settings-page');
 });
