@@ -309,7 +309,10 @@ export async function signInViaMockAuth(
 
   await page.addInitScript(
     ({ key, value }) => {
+      const seededKey = 'e2e:oidc-seeded';
+      if (window.sessionStorage.getItem(seededKey)) return;
       window.sessionStorage.setItem(key, value);
+      window.sessionStorage.setItem(seededKey, 'true');
     },
     { key: storageKey, value: storageValue },
   );
