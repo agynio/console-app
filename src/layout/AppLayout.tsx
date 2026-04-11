@@ -10,6 +10,7 @@ import {
   HardDriveIcon,
   HomeIcon,
   KeyIcon,
+  MonitorSmartphoneIcon,
   SettingsIcon,
   ShieldIcon,
   ServerIcon,
@@ -337,6 +338,10 @@ export function AppLayout() {
           </div>
         ) : null}
         <div className="mt-auto space-y-4">
+          <NavLink to="/devices" className={navLinkClass} data-testid="nav-devices">
+            <MonitorSmartphoneIcon className="h-4 w-4" />
+            Devices
+          </NavLink>
           <NavLink to="/api-tokens" className={navLinkClass} data-testid="nav-api-tokens">
             <KeyIcon className="h-4 w-4" />
             API Tokens

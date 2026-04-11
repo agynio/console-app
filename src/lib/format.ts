@@ -5,7 +5,7 @@ import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { ContainerStatus, RunnerStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
-import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
+import { ClusterRole, DeviceStatus } from '@/gen/agynio/api/users/v1/users_pb';
 
 function toDate(timestamp: Timestamp): Date {
   const millis = Number(timestamp.seconds) * 1000 + Math.floor(timestamp.nanos / 1_000_000);
@@ -60,6 +60,12 @@ export function formatRunnerStatus(status: RunnerStatus): string {
   if (status === RunnerStatus.ENROLLED) return 'Enrolled';
   if (status === RunnerStatus.PENDING) return 'Pending';
   if (status === RunnerStatus.OFFLINE) return 'Offline';
+  return 'Unspecified';
+}
+
+export function formatDeviceStatus(status: DeviceStatus): string {
+  if (status === DeviceStatus.PENDING) return 'Pending';
+  if (status === DeviceStatus.ENROLLED) return 'Enrolled';
   return 'Unspecified';
 }
 

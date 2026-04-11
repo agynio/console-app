@@ -26,6 +26,7 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { AppsPage } from '@/pages/AppsPage';
 import { ApiTokensPage } from '@/pages/ApiTokensPage';
 import { AppDetailPage } from '@/pages/AppDetailPage';
+import { DevicesPage } from '@/pages/DevicesPage';
 
 export default function App() {
   return (
@@ -91,6 +92,10 @@ export default function App() {
         <Route
           path="api-tokens"
           element={<ApiTokensPage />}
+        />
+        <Route
+          path="devices"
+          element={<DevicesPage />}
         />
         <Route
           path="users/:id"
