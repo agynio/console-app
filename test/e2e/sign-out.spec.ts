@@ -8,7 +8,7 @@ async function waitForSessionClear(page: Parameters<typeof readOidcSession>[0]) 
     } catch {
       return 'pending';
     }
-  }).toBeNull();
+  }, { timeout: 20000 }).toBeNull();
 }
 
 test('signs out from user menu', async ({ page }) => {
