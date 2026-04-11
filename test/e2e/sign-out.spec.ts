@@ -1,16 +1,6 @@
 import { test, expect } from './fixtures';
 import { readOidcSession } from './oidc-helpers';
 
-async function waitForSessionClear(page: Parameters<typeof readOidcSession>[0]) {
-  await expect.poll(async () => {
-    try {
-      return await readOidcSession(page);
-    } catch {
-      return 'pending';
-    }
-  }, { timeout: 20000 }).toBeNull();
-}
-
 test('signs out from user menu', async ({ page }) => {
   const session = await readOidcSession(page);
   expect(session?.accessToken).toBeTruthy();
@@ -19,7 +9,13 @@ test('signs out from user menu', async ({ page }) => {
   await page.getByTestId('user-menu-trigger').click();
   await page.getByTestId('user-menu-signout').click({ noWaitAfter: true });
 
-  await waitForSessionClear(page);
+  await page.waitForFunction(() => {
+    for (let i = 0; i < window.sessionStorage.length; i += 1) {
+      const key = window.sessionStorage.key(i);
+      if (key && key.startsWith('oidc.user:')) return false;
+    }
+    return true;
+  }, { timeout: 20000 });
 });
 
 test('signs out from settings page', async ({ page }) => {
@@ -30,5 +26,11 @@ test('signs out from settings page', async ({ page }) => {
   expect(session?.accessToken).toBeTruthy();
 
   await page.getByTestId('settings-signout').click({ noWaitAfter: true });
-  await waitForSessionClear(page);
+  await page.waitForFunction(() => {
+    for (let i = 0; i < window.sessionStorage.length; i += 1) {
+      const key = window.sessionStorage.key(i);
+      if (key && key.startsWith('oidc.user:')) return false;
+    }
+    return true;
+  }, { timeout: 20000 });
 });
