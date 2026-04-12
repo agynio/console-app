@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { ConnectError } from '@connectrpc/connect';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -125,13 +126,6 @@ export function OrganizationModelsTab() {
   const testModelMutation = useMutation({
     mutationFn: (modelId: string) => llmClient.testModel({ modelId }),
     onSuccess: (response) => {
-      const trimmedError = response.errorMessage?.trim() ?? '';
-      if (trimmedError) {
-        setTestStatus('failure');
-        setTestError(trimmedError);
-        setTestOutput('');
-        return;
-      }
       const trimmedOutput = response.outputText?.trim() ?? '';
       if (!trimmedOutput) {
         setTestStatus('failure');
@@ -146,6 +140,10 @@ export function OrganizationModelsTab() {
     onError: (error) => {
       setTestStatus('failure');
       setTestOutput('');
+      if (error instanceof ConnectError) {
+        setTestError(error.message);
+        return;
+      }
       setTestError(error instanceof Error ? error.message : 'Failed to test model.');
     },
   });
