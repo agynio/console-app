@@ -61,8 +61,8 @@ functions:
       exit 0
     fi
     echo "Deploying gateway PR image to cluster..."
-    kubectl set image deployment/gateway gateway="$IMAGE" -n ${APP_NAMESPACE}
-    kubectl rollout status deployment/gateway -n ${APP_NAMESPACE} --timeout=120s
+    kubectl set image deployment -l app.kubernetes.io/instance=gateway gateway="$IMAGE" -n ${APP_NAMESPACE}
+    kubectl rollout status deployment -l app.kubernetes.io/instance=gateway -n ${APP_NAMESPACE} --timeout=120s
     echo "Gateway PR image deployed successfully"
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
