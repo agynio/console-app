@@ -92,19 +92,19 @@ test('manages MCP image pull secrets dialog', async ({ page }) => {
 
   const dialog = page.getByTestId('nested-image-pull-secrets-dialog');
   await expect(dialog.getByText('No image pull secrets attached.')).toBeVisible({ timeout: 15000 });
-  await argosScreenshot(page, 'agent-mcp-image-pull-secrets-empty');
+  await argosScreenshot(page, 'agent-mcp-image-pull-secrets-empty', { element: dialog });
 
   const secretLabel = `${registry} (${username})`;
   await attachSecret(page, secretLabel);
 
   const attachedRow = dialog.getByTestId('nested-image-pull-secret-row').filter({ hasText: registry });
   await expect(attachedRow).toBeVisible({ timeout: 15000 });
-  await argosScreenshot(page, 'agent-mcp-image-pull-secrets-attached');
+  await argosScreenshot(page, 'agent-mcp-image-pull-secrets-attached', { element: dialog });
 
   await attachedRow.getByTestId('nested-image-pull-secret-detach').click();
   await expect(attachedRow).toHaveCount(0, { timeout: 15000 });
   await expect(dialog.getByText('No image pull secrets attached.')).toBeVisible({ timeout: 15000 });
-  await argosScreenshot(page, 'agent-mcp-image-pull-secrets-detached');
+  await argosScreenshot(page, 'agent-mcp-image-pull-secrets-detached', { element: dialog });
 });
 
 test('manages Hook image pull secrets dialog', async ({ page }) => {
@@ -130,17 +130,17 @@ test('manages Hook image pull secrets dialog', async ({ page }) => {
 
   const dialog = page.getByTestId('nested-image-pull-secrets-dialog');
   await expect(dialog.getByText('No image pull secrets attached.')).toBeVisible({ timeout: 15000 });
-  await argosScreenshot(page, 'agent-hook-image-pull-secrets-empty');
+  await argosScreenshot(page, 'agent-hook-image-pull-secrets-empty', { element: dialog });
 
   const secretLabel = `${registry} (${username})`;
   await attachSecret(page, secretLabel);
 
   const attachedRow = dialog.getByTestId('nested-image-pull-secret-row').filter({ hasText: registry });
   await expect(attachedRow).toBeVisible({ timeout: 15000 });
-  await argosScreenshot(page, 'agent-hook-image-pull-secrets-attached');
+  await argosScreenshot(page, 'agent-hook-image-pull-secrets-attached', { element: dialog });
 
   await attachedRow.getByTestId('nested-image-pull-secret-detach').click();
   await expect(attachedRow).toHaveCount(0, { timeout: 15000 });
   await expect(dialog.getByText('No image pull secrets attached.')).toBeVisible({ timeout: 15000 });
-  await argosScreenshot(page, 'agent-hook-image-pull-secrets-detached');
+  await argosScreenshot(page, 'agent-hook-image-pull-secrets-detached', { element: dialog });
 });
