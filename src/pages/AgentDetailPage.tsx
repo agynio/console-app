@@ -76,13 +76,13 @@ export function AgentDetailPage() {
             <AgentConfigurationTab agent={agent} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-mcps">
-            <AgentMcpsTab agentId={resolvedAgentId} />
+            <AgentMcpsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-skills">
             <AgentSkillsTab agentId={resolvedAgentId} />
           </section>
           <section data-testid="agent-detail-section-hooks">
-            <AgentHooksTab agentId={resolvedAgentId} />
+            <AgentHooksTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-envs">
             <AgentEnvsTab agentId={resolvedAgentId} organizationId={organizationId} />

@@ -23,14 +23,16 @@ import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { NestedEnvsDialog } from '@/pages/agent-detail/NestedEnvsDialog';
+import { NestedImagePullSecretsDialog } from '@/pages/agent-detail/NestedImagePullSecretsDialog';
 import { NestedInitScriptsDialog } from '@/pages/agent-detail/NestedInitScriptsDialog';
 import { toast } from 'sonner';
 
 type AgentHooksTabProps = {
   agentId: string;
+  organizationId: string;
 };
 
-export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
+export function AgentHooksTab({ agentId, organizationId }: AgentHooksTabProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [createEvent, setCreateEvent] = useState('');
@@ -53,6 +55,7 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
   const [editImageError, setEditImageError] = useState('');
   const [envTargetId, setEnvTargetId] = useState<string | null>(null);
   const [initTargetId, setInitTargetId] = useState<string | null>(null);
+  const [imagePullSecretsTargetId, setImagePullSecretsTargetId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const hooksQuery = useQuery({
@@ -232,6 +235,15 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
     setInitTargetId(hookId);
   };
 
+  const handleImagePullSecretsOpen = (hook: Hook) => {
+    const hookId = hook.meta?.id;
+    if (!hookId) {
+      toast.error('Missing hook ID.');
+      return;
+    }
+    setImagePullSecretsTargetId(hookId);
+  };
+
   const handleDeleteOpen = (hook: Hook) => {
     const hookId = hook.meta?.id;
     if (!hookId) {
@@ -265,6 +277,12 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
   const handleInitOpenChange = (open: boolean) => {
     if (!open) {
       setInitTargetId(null);
+    }
+  };
+
+  const handleImagePullSecretsOpenChange = (open: boolean) => {
+    if (!open) {
+      setImagePullSecretsTargetId(null);
     }
   };
 
@@ -378,6 +396,12 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleInitOpen(hook)} data-testid="agent-hook-init-scripts">
                           Init Scripts
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleImagePullSecretsOpen(hook)}
+                          data-testid="agent-hook-image-pull-secrets"
+                        >
+                          Image Pull Secrets
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleDeleteOpen(hook)} data-testid="agent-hook-delete">
                           Delete
@@ -573,6 +597,16 @@ export function AgentHooksTab({ agentId }: AgentHooksTabProps) {
         onOpenChange={handleInitOpenChange}
         title="Init Scripts"
         description="Manage hook init scripts."
+      />
+
+      <NestedImagePullSecretsDialog
+        targetCase="hookId"
+        targetId={imagePullSecretsTargetId}
+        organizationId={organizationId}
+        open={Boolean(imagePullSecretsTargetId)}
+        onOpenChange={handleImagePullSecretsOpenChange}
+        title="Image Pull Secrets"
+        description="Manage hook image pull secrets."
       />
 
       <ConfirmDialog
