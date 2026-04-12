@@ -85,6 +85,30 @@ jobs:
           push: true
           tags: ${{ env.PR_IMAGE }}
 
+      - name: Checkout gateway branch
+        id: checkout_gateway
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: agynio/gateway
+          ref: ${{ github.head_ref || github.ref_name }}
+          path: gateway
+
+      - name: Set gateway PR image tag
+        if: ${{ steps.checkout_gateway.outcome == 'success' }}
+        run: |
+          gateway_sha=$(git -C gateway rev-parse HEAD)
+          echo "GATEWAY_PR_IMAGE=ghcr.io/agynio/gateway:pr-${{ github.event.pull_request.number || github.run_id }}-${gateway_sha}" >> $GITHUB_ENV
+
+      - name: Build and push gateway PR image
+        if: ${{ steps.checkout_gateway.outcome == 'success' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./gateway
+          push: true
+          tags: ${{ env.GATEWAY_PR_IMAGE }}
+
       - name: Checkout bootstrap
         uses: actions/checkout@v4
         with:
@@ -134,6 +158,7 @@ jobs:
         env:
           KUBECONFIG: ${{ github.workspace }}/bootstrap/stacks/k8s/.kube/agyn-local-kubeconfig.yaml
           PR_IMAGE: ${{ env.PR_IMAGE }}
+          GATEWAY_PR_IMAGE: ${{ env.GATEWAY_PR_IMAGE }}
           ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}
           ARGOS_BRANCH: ${{ github.head_ref || github.ref_name }}
           ARGOS_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}

@@ -54,6 +54,16 @@ functions:
     kubectl set image deployment/console-app console-app="$IMAGE" -n ${APP_NAMESPACE}
     kubectl rollout status deployment/console-app -n ${APP_NAMESPACE} --timeout=120s
     echo "PR image deployed successfully"
+  deploy_gateway_pr_image: |-
+    IMAGE="${GATEWAY_PR_IMAGE:-}"
+    if [ -z "$IMAGE" ]; then
+      echo "No GATEWAY_PR_IMAGE provided, skipping gateway deploy"
+      exit 0
+    fi
+    echo "Deploying gateway PR image to cluster..."
+    kubectl set image deployment/gateway gateway="$IMAGE" -n ${APP_NAMESPACE}
+    kubectl rollout status deployment/gateway -n ${APP_NAMESPACE} --timeout=120s
+    echo "Gateway PR image deployed successfully"
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
     kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
@@ -120,6 +130,7 @@ pipelines:
     run: |-
       disable_argocd_sync
       deploy_pr_image
+      deploy_gateway_pr_image
       create_deployments e2e-runner
       start_dev e2e-runner &
       sleep 5
@@ -130,10 +141,10 @@ pipelines:
         -- bash -c '
           echo "Waiting for file sync..."
           for i in $(seq 1 60); do
-            [ -f /opt/app/data/package.json ] && [ -f /opt/app/data/package-lock.json ] && [ -f /opt/app/data/test/e2e/fixtures.ts ] && [ -f /opt/app/data/test/e2e/console-api.ts ] && [ -f /opt/app/data/test/e2e/sign-in-helper.ts ] && [ -f /opt/app/data/test/e2e/sign-in.spec.ts ] && [ -f /opt/app/data/test/e2e/dashboard.spec.ts ] && [ -f /opt/app/data/test/e2e/organizations.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-members.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] && [ -f /opt/app/data/test/e2e/users.spec.ts ] && [ -f /opt/app/data/test/e2e/runners.spec.ts ] && [ -f /opt/app/data/test/e2e/settings.spec.ts ] && break
+            [ -f /opt/app/data/package.json ] && [ -f /opt/app/data/package-lock.json ] && [ -f /opt/app/data/test/e2e/fixtures.ts ] && [ -f /opt/app/data/test/e2e/console-api.ts ] && [ -f /opt/app/data/test/e2e/sign-in-helper.ts ] && [ -f /opt/app/data/test/e2e/sign-in.spec.ts ] && [ -f /opt/app/data/test/e2e/dashboard.spec.ts ] && [ -f /opt/app/data/test/e2e/organizations.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-members.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] && [ -f /opt/app/data/test/e2e/model-test.spec.ts ] && [ -f /opt/app/data/test/e2e/users.spec.ts ] && [ -f /opt/app/data/test/e2e/runners.spec.ts ] && [ -f /opt/app/data/test/e2e/settings.spec.ts ] && break
             sleep 2
           done
-          if [ ! -f /opt/app/data/package.json ] || [ ! -f /opt/app/data/package-lock.json ] || [ ! -f /opt/app/data/test/e2e/fixtures.ts ] || [ ! -f /opt/app/data/test/e2e/console-api.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in-helper.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in.spec.ts ] || [ ! -f /opt/app/data/test/e2e/dashboard.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organizations.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-members.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] || [ ! -f /opt/app/data/test/e2e/users.spec.ts ] || [ ! -f /opt/app/data/test/e2e/runners.spec.ts ] || [ ! -f /opt/app/data/test/e2e/settings.spec.ts ]; then
+          if [ ! -f /opt/app/data/package.json ] || [ ! -f /opt/app/data/package-lock.json ] || [ ! -f /opt/app/data/test/e2e/fixtures.ts ] || [ ! -f /opt/app/data/test/e2e/console-api.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in-helper.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in.spec.ts ] || [ ! -f /opt/app/data/test/e2e/dashboard.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organizations.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-members.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] || [ ! -f /opt/app/data/test/e2e/model-test.spec.ts ] || [ ! -f /opt/app/data/test/e2e/users.spec.ts ] || [ ! -f /opt/app/data/test/e2e/runners.spec.ts ] || [ ! -f /opt/app/data/test/e2e/settings.spec.ts ]; then
             echo "ERROR: File sync timed out (package.json, package-lock.json, or test/e2e files not found after 120s)"
             exit 1
           fi
