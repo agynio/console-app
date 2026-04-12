@@ -4,6 +4,7 @@ import { readOidcSession } from './oidc-helpers';
 const USERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.UsersGateway';
 const ORGS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.OrganizationsGateway';
 const SECRETS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.SecretsGateway';
+const AGENTS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.AgentsGateway';
 const RUNNERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.RunnersGateway';
 
 const CONNECT_HEADERS = {
@@ -96,8 +97,36 @@ type SecretWire = {
   secretProviderId?: string;
 };
 
+type AgentWire = {
+  meta?: { id?: string };
+  name?: string;
+  role?: string;
+  model?: string;
+  description?: string;
+  configuration?: string;
+  image?: string;
+  initImage?: string;
+  organizationId?: string;
+};
+
+type McpWire = {
+  meta?: { id?: string };
+  name?: string;
+  agentId?: string;
+};
+
+type HookWire = {
+  meta?: { id?: string };
+  event?: string;
+  agentId?: string;
+};
+
 type CreateSecretResponseWire = {
   secret?: { meta?: { id?: string } };
+};
+
+type CreateImagePullSecretResponseWire = {
+  imagePullSecret?: { meta?: { id?: string } };
 };
 
 type ListSecretsResponseWire = {
@@ -111,6 +140,18 @@ type CreateDeviceResponseWire = {
 
 type ListDevicesResponseWire = {
   devices?: DeviceWire[];
+};
+
+type CreateAgentResponseWire = {
+  agent?: AgentWire;
+};
+
+type CreateMcpResponseWire = {
+  mcp?: McpWire;
+};
+
+type CreateHookResponseWire = {
+  hook?: HookWire;
 };
 
 type ListRunnersResponseWire = {
@@ -476,6 +517,101 @@ export async function createSecret(
     throw new Error('CreateSecret response missing secret id.');
   }
   return secretId;
+}
+
+export async function createImagePullSecret(
+  page: Page,
+  opts: { organizationId: string; registry: string; username: string; value: string; description?: string },
+): Promise<string> {
+  const response = await postConnect<CreateImagePullSecretResponseWire>(
+    page,
+    SECRETS_GATEWAY_PATH,
+    'CreateImagePullSecret',
+    {
+      description: opts.description ?? `E2E image pull secret for ${opts.registry}`,
+      registry: opts.registry,
+      username: opts.username,
+      source: { case: 'value', value: opts.value },
+      organizationId: opts.organizationId,
+    },
+  );
+  const secretId = response.imagePullSecret?.meta?.id;
+  if (!secretId) {
+    throw new Error('CreateImagePullSecret response missing image pull secret id.');
+  }
+  return secretId;
+}
+
+export async function createAgent(
+  page: Page,
+  opts: {
+    organizationId: string;
+    name: string;
+    role?: string;
+    model?: string;
+    description?: string;
+    configuration?: string;
+    image?: string;
+    initImage?: string;
+  },
+): Promise<string> {
+  const response = await postConnect<CreateAgentResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateAgent', {
+    name: opts.name,
+    role: opts.role ?? 'assistant',
+    model: opts.model ?? '',
+    description: opts.description ?? '',
+    configuration: opts.configuration ?? '',
+    image: opts.image ?? '',
+    initImage: opts.initImage ?? '',
+    organizationId: opts.organizationId,
+  });
+  const agentId = response.agent?.meta?.id;
+  if (!agentId) {
+    throw new Error('CreateAgent response missing agent id.');
+  }
+  return agentId;
+}
+
+export async function createMcp(
+  page: Page,
+  opts: { agentId: string; name: string; image: string; command: string; description?: string },
+): Promise<string> {
+  const response = await postConnect<CreateMcpResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateMcp', {
+    agentId: opts.agentId,
+    name: opts.name,
+    image: opts.image,
+    command: opts.command,
+    description: opts.description ?? '',
+  });
+  const mcpId = response.mcp?.meta?.id;
+  if (!mcpId) {
+    throw new Error('CreateMcp response missing mcp id.');
+  }
+  return mcpId;
+}
+
+export async function createHook(
+  page: Page,
+  opts: {
+    agentId: string;
+    event: string;
+    functionName: string;
+    image: string;
+    description?: string;
+  },
+): Promise<string> {
+  const response = await postConnect<CreateHookResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateHook', {
+    agentId: opts.agentId,
+    event: opts.event,
+    function: opts.functionName,
+    image: opts.image,
+    description: opts.description ?? '',
+  });
+  const hookId = response.hook?.meta?.id;
+  if (!hookId) {
+    throw new Error('CreateHook response missing hook id.');
+  }
+  return hookId;
 }
 
 export async function deleteSecret(page: Page, secretId: string): Promise<void> {

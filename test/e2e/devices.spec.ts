@@ -40,7 +40,8 @@ test('creates a device and shows enrollment JWT', async ({ page }) => {
   await page.getByTestId('devices-create').click();
   await expect(page.getByTestId('devices-create-dialog')).toBeVisible({ timeout: 15000 });
 
-  await page.getByTestId('devices-name').fill(deviceName);
+  const createDialog = page.getByTestId('devices-create-dialog');
+  await createDialog.getByTestId('devices-name').fill(deviceName);
   await page.getByTestId('devices-submit').click();
 
   await expect(page.getByTestId('devices-jwt-value')).toBeVisible({ timeout: 15000 });
