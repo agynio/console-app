@@ -17,6 +17,7 @@ const devices = new Map();
 const agents = new Map();
 const mcps = new Map();
 const hooks = new Map();
+const models = new Map();
 const imagePullSecretAttachments = new Map();
 
 const defaultUser = {
@@ -42,6 +43,16 @@ const defaultRunner = {
 };
 
 runners.set(defaultRunner.id, defaultRunner);
+
+const defaultModel = {
+  id: 'model-e2e',
+  name: 'E2E Model',
+  llmProviderId: 'llm-provider-e2e',
+  remoteName: 'gpt-4o-mini',
+  createdAt: new Date().toISOString(),
+};
+
+models.set(defaultModel.id, defaultModel);
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -247,6 +258,15 @@ function mapHook(hook) {
     image: hook.image,
     description: hook.description,
     resources: hook.resources,
+  };
+}
+
+function mapModel(model) {
+  return {
+    meta: mapEntityMeta(model),
+    name: model.name,
+    llmProviderId: model.llmProviderId,
+    remoteName: model.remoteName,
   };
 }
 
@@ -732,9 +752,13 @@ function handleAppsGateway(method, _body, res) {
   return sendText(res, 404, 'Unknown AppsGateway method');
 }
 
-function handleLlmGateway(method, _body, res) {
+function handleLlmGateway(method, body, res) {
   if (method === 'ListModels') {
-    return sendJson(res, 200, { models: [], nextPageToken: '' });
+    const providerId = body.llmProviderId ?? '';
+    const result = Array.from(models.values()).filter(
+      (model) => !providerId || model.llmProviderId === providerId,
+    );
+    return sendJson(res, 200, { models: result.map(mapModel), nextPageToken: '' });
   }
   return sendText(res, 404, 'Unknown LLMGateway method');
 }

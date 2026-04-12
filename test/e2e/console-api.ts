@@ -5,6 +5,7 @@ const USERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.UsersGateway';
 const ORGS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.OrganizationsGateway';
 const SECRETS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.SecretsGateway';
 const AGENTS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.AgentsGateway';
+const LLM_GATEWAY_PATH = '/api/agynio.api.gateway.v1.LLMGateway';
 const RUNNERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.RunnersGateway';
 
 const CONNECT_HEADERS = {
@@ -121,6 +122,13 @@ type HookWire = {
   agentId?: string;
 };
 
+type ModelWire = {
+  meta?: { id?: string };
+  name?: string;
+  llmProviderId?: string;
+  remoteName?: string;
+};
+
 type CreateSecretResponseWire = {
   secret?: { meta?: { id?: string } };
 };
@@ -140,6 +148,10 @@ type CreateDeviceResponseWire = {
 
 type ListDevicesResponseWire = {
   devices?: DeviceWire[];
+};
+
+type ListModelsResponseWire = {
+  models?: ModelWire[];
 };
 
 type CreateAgentResponseWire = {
@@ -501,6 +513,19 @@ export async function listSecrets(
   return response.secrets ?? [];
 }
 
+export async function listModels(
+  page: Page,
+  opts: { organizationId: string; llmProviderId?: string },
+): Promise<ModelWire[]> {
+  const response = await postConnect<ListModelsResponseWire>(page, LLM_GATEWAY_PATH, 'ListModels', {
+    organizationId: opts.organizationId,
+    llmProviderId: opts.llmProviderId ?? '',
+    pageSize: 200,
+    pageToken: '',
+  });
+  return response.models ?? [];
+}
+
 export async function createSecret(
   page: Page,
   opts: { providerId: string; name: string; value: string; organizationId: string },
@@ -531,7 +556,7 @@ export async function createImagePullSecret(
       description: opts.description ?? `E2E image pull secret for ${opts.registry}`,
       registry: opts.registry,
       username: opts.username,
-      source: { case: 'value', value: opts.value },
+      value: opts.value,
       organizationId: opts.organizationId,
     },
   );
@@ -555,10 +580,18 @@ export async function createAgent(
     initImage?: string;
   },
 ): Promise<string> {
+  let modelId = opts.model?.trim() ?? '';
+  if (!modelId) {
+    const models = await listModels(page, { organizationId: opts.organizationId });
+    modelId = models.find((model) => model.meta?.id)?.meta?.id ?? '';
+    if (!modelId) {
+      throw new Error('ListModels response missing model id for agent creation.');
+    }
+  }
   const response = await postConnect<CreateAgentResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateAgent', {
     name: opts.name,
     role: opts.role ?? 'assistant',
-    model: opts.model ?? '',
+    model: modelId,
     description: opts.description ?? '',
     configuration: opts.configuration ?? '',
     image: opts.image ?? '',
