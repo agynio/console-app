@@ -197,10 +197,10 @@ export function NestedImagePullSecretsDialog({
                 if (selectedSecretError) setSelectedSecretError('');
               }}
             >
-            <SelectTrigger id="nested-image-pull-secrets-select" data-testid="nested-image-pull-secrets-select">
-              <SelectValue placeholder="Select secret" />
-            </SelectTrigger>
-            <SelectContent>
+              <SelectTrigger id="nested-image-pull-secrets-select" data-testid="nested-image-pull-secrets-select">
+                <SelectValue placeholder="Select secret" />
+              </SelectTrigger>
+              <SelectContent>
                 {availableSecrets.map((secret) => {
                   const secretId = secret.meta?.id;
                   if (!secretId) return null;
