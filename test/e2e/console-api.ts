@@ -124,9 +124,18 @@ type HookWire = {
 
 type ModelWire = {
   meta?: { id?: string };
+  id?: string;
   name?: string;
   llmProviderId?: string;
   remoteName?: string;
+};
+
+type LlmProviderWire = {
+  meta?: { id?: string };
+  id?: string;
+  endpoint?: string;
+  authMethod?: string | number;
+  organizationId?: string;
 };
 
 type CreateSecretResponseWire = {
@@ -153,6 +162,20 @@ type ListDevicesResponseWire = {
 type ListModelsResponseWire = {
   models?: ModelWire[];
 };
+
+type ListLlmProvidersResponseWire = {
+  providers?: LlmProviderWire[];
+};
+
+type CreateLlmProviderResponseWire = {
+  provider?: LlmProviderWire;
+};
+
+type CreateModelResponseWire = {
+  model?: ModelWire;
+};
+
+type EntityWithId = { meta?: { id?: string }; id?: string };
 
 type CreateAgentResponseWire = {
   agent?: AgentWire;
@@ -190,6 +213,15 @@ function resolveBaseUrl(): string {
 
 function buildRpcUrl(servicePath: string, method: string): string {
   return new URL(`${servicePath}/${method}`, resolveBaseUrl()).toString();
+}
+
+function findEntityId(entities: EntityWithId[] | undefined): string {
+  if (!entities) return '';
+  for (const entity of entities) {
+    const id = entity.meta?.id ?? entity.id ?? '';
+    if (id) return id;
+  }
+  return '';
 }
 
 const CLUSTER_ROLE_ADMIN = 1;
@@ -513,6 +545,18 @@ export async function listSecrets(
   return response.secrets ?? [];
 }
 
+export async function listLlmProviders(
+  page: Page,
+  opts: { organizationId: string },
+): Promise<LlmProviderWire[]> {
+  const response = await postConnect<ListLlmProvidersResponseWire>(page, LLM_GATEWAY_PATH, 'ListLLMProviders', {
+    organizationId: opts.organizationId,
+    pageSize: 200,
+    pageToken: '',
+  });
+  return response.providers ?? [];
+}
+
 export async function listModels(
   page: Page,
   opts: { organizationId: string; llmProviderId?: string },
@@ -524,6 +568,68 @@ export async function listModels(
     pageToken: '',
   });
   return response.models ?? [];
+}
+
+async function createLlmProvider(
+  page: Page,
+  opts: { organizationId: string; endpoint: string; token: string; authMethod?: string | number },
+): Promise<string> {
+  const response = await postConnect<CreateLlmProviderResponseWire>(page, LLM_GATEWAY_PATH, 'CreateLLMProvider', {
+    endpoint: opts.endpoint,
+    authMethod: opts.authMethod ?? 'AUTH_METHOD_BEARER',
+    token: opts.token,
+    organizationId: opts.organizationId,
+  });
+  const providerId = response.provider?.meta?.id ?? response.provider?.id ?? '';
+  if (!providerId) {
+    throw new Error('CreateLLMProvider response missing provider id.');
+  }
+  return providerId;
+}
+
+async function createModel(
+  page: Page,
+  opts: { organizationId: string; llmProviderId: string; name: string; remoteName: string },
+): Promise<string> {
+  const response = await postConnect<CreateModelResponseWire>(page, LLM_GATEWAY_PATH, 'CreateModel', {
+    name: opts.name,
+    llmProviderId: opts.llmProviderId,
+    remoteName: opts.remoteName,
+    organizationId: opts.organizationId,
+  });
+  const modelId = response.model?.meta?.id ?? response.model?.id ?? '';
+  if (!modelId) {
+    throw new Error('CreateModel response missing model id.');
+  }
+  return modelId;
+}
+
+async function ensureLlmProviderId(page: Page, organizationId: string): Promise<string> {
+  const providers = await listLlmProviders(page, { organizationId });
+  const providerId = findEntityId(providers);
+  if (providerId) return providerId;
+
+  const now = Date.now();
+  return createLlmProvider(page, {
+    organizationId,
+    endpoint: `https://llm.e2e.agyn.dev/${now}`,
+    token: `e2e-token-${now}`,
+  });
+}
+
+async function ensureModelId(page: Page, organizationId: string): Promise<string> {
+  const models = await listModels(page, { organizationId });
+  const modelId = findEntityId(models);
+  if (modelId) return modelId;
+
+  const providerId = await ensureLlmProviderId(page, organizationId);
+  const now = Date.now();
+  return createModel(page, {
+    organizationId,
+    llmProviderId: providerId,
+    name: `E2E Model ${now}`,
+    remoteName: 'gpt-4o-mini',
+  });
 }
 
 export async function createSecret(
@@ -582,11 +688,7 @@ export async function createAgent(
 ): Promise<string> {
   let modelId = opts.model?.trim() ?? '';
   if (!modelId) {
-    const models = await listModels(page, { organizationId: opts.organizationId });
-    modelId = models.find((model) => model.meta?.id)?.meta?.id ?? '';
-    if (!modelId) {
-      throw new Error('ListModels response missing model id for agent creation.');
-    }
+    modelId = await ensureModelId(page, opts.organizationId);
   }
   const response = await postConnect<CreateAgentResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateAgent', {
     name: opts.name,

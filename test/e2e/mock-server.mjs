@@ -17,6 +17,7 @@ const devices = new Map();
 const agents = new Map();
 const mcps = new Map();
 const hooks = new Map();
+const llmProviders = new Map();
 const models = new Map();
 const imagePullSecretAttachments = new Map();
 
@@ -44,11 +45,23 @@ const defaultRunner = {
 
 runners.set(defaultRunner.id, defaultRunner);
 
+const defaultLlmProvider = {
+  id: 'llm-provider-e2e',
+  endpoint: 'https://llm.e2e.agyn.dev',
+  authMethod: 'AUTH_METHOD_BEARER',
+  organizationId: '',
+  token: 'e2e-token',
+  createdAt: new Date().toISOString(),
+};
+
+llmProviders.set(defaultLlmProvider.id, defaultLlmProvider);
+
 const defaultModel = {
   id: 'model-e2e',
   name: 'E2E Model',
   llmProviderId: 'llm-provider-e2e',
   remoteName: 'gpt-4o-mini',
+  organizationId: defaultLlmProvider.organizationId,
   createdAt: new Date().toISOString(),
 };
 
@@ -267,6 +280,15 @@ function mapModel(model) {
     name: model.name,
     llmProviderId: model.llmProviderId,
     remoteName: model.remoteName,
+  };
+}
+
+function mapLlmProvider(provider) {
+  return {
+    meta: mapEntityMeta(provider),
+    endpoint: provider.endpoint,
+    authMethod: provider.authMethod,
+    organizationId: provider.organizationId,
   };
 }
 
@@ -753,14 +775,51 @@ function handleAppsGateway(method, _body, res) {
 }
 
 function handleLlmGateway(method, body, res) {
-  if (method === 'ListModels') {
-    const providerId = body.llmProviderId ?? '';
-    const result = Array.from(models.values()).filter(
-      (model) => !providerId || model.llmProviderId === providerId,
-    );
-    return sendJson(res, 200, { models: result.map(mapModel), nextPageToken: '' });
+  switch (method) {
+    case 'ListLLMProviders': {
+      const organizationId = body.organizationId ?? '';
+      const result = Array.from(llmProviders.values()).filter(
+        (provider) => !organizationId || provider.organizationId === organizationId,
+      );
+      return sendJson(res, 200, { providers: result.map(mapLlmProvider), nextPageToken: '' });
+    }
+    case 'CreateLLMProvider': {
+      const provider = {
+        id: randomUUID(),
+        endpoint: body.endpoint ?? '',
+        authMethod: body.authMethod ?? 'AUTH_METHOD_BEARER',
+        organizationId: body.organizationId ?? '',
+        token: body.token ?? '',
+        createdAt: new Date().toISOString(),
+      };
+      llmProviders.set(provider.id, provider);
+      return sendJson(res, 200, { provider: mapLlmProvider(provider) });
+    }
+    case 'CreateModel': {
+      const model = {
+        id: randomUUID(),
+        name: body.name ?? '',
+        llmProviderId: body.llmProviderId ?? '',
+        remoteName: body.remoteName ?? '',
+        organizationId: body.organizationId ?? '',
+        createdAt: new Date().toISOString(),
+      };
+      models.set(model.id, model);
+      return sendJson(res, 200, { model: mapModel(model) });
+    }
+    case 'ListModels': {
+      const providerId = body.llmProviderId ?? '';
+      const organizationId = body.organizationId ?? '';
+      const result = Array.from(models.values()).filter((model) => {
+        if (providerId && model.llmProviderId !== providerId) return false;
+        if (organizationId && model.organizationId !== organizationId) return false;
+        return true;
+      });
+      return sendJson(res, 200, { models: result.map(mapModel), nextPageToken: '' });
+    }
+    default:
+      return sendText(res, 404, 'Unknown LLMGateway method');
   }
-  return sendText(res, 404, 'Unknown LLMGateway method');
 }
 
 const server = http.createServer(async (req, res) => {
