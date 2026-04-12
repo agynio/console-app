@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Agent, ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { NO_MODEL } from '@/lib/constants';
+import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
 import { formatComputeResources } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
@@ -46,6 +47,8 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [initImage, setInitImage] = useState('');
   const [configuration, setConfiguration] = useState('');
   const [configurationError, setConfigurationError] = useState('');
+  const [idleTimeout, setIdleTimeout] = useState('');
+  const [idleTimeoutError, setIdleTimeoutError] = useState('');
   const [resources, setResources] = useState<ComputeResources | undefined>(undefined);
 
   const modelsQuery = useQuery({
@@ -87,6 +90,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       configuration?: string;
       image?: string;
       initImage?: string;
+      idleTimeout?: string;
       resources?: ComputeResources;
     }) => agentsClient.updateAgent(payload),
     onSuccess: () => {
@@ -111,9 +115,11 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setImage(agent.image);
       setInitImage(agent.initImage);
       setConfiguration(agent.configuration);
+      setIdleTimeout(agent.idleTimeout ?? '');
       setResources(agent.resources ?? undefined);
       setNameError('');
       setConfigurationError('');
+      setIdleTimeoutError('');
       setEditOpen(true);
       return;
     }
@@ -137,6 +143,14 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       }
     }
 
+    const trimmedIdleTimeout = idleTimeout.trim();
+    if (trimmedIdleTimeout && !isValidGoDuration(trimmedIdleTimeout)) {
+      setIdleTimeoutError('Enter a valid Go duration.');
+      return;
+    }
+
+    setIdleTimeoutError('');
+
     if (!agentId) {
       toast.error('Missing agent ID.');
       return;
@@ -151,6 +165,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       configuration: trimmedConfig,
       image: image.trim(),
       initImage: initImage.trim(),
+      ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
       resources,
     });
   };
@@ -199,6 +214,10 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Init Image</div>
               <div className="text-sm text-foreground">{agent.initImage || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Idle Timeout</div>
+              <div className="text-sm text-foreground">{agent.idleTimeout || '—'}</div>
             </div>
             <div className="md:col-span-2">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compute Resources</div>
@@ -298,6 +317,25 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                 onChange={(event) => setInitImage(event.target.value)}
                 data-testid="agent-configuration-init-image"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-idle-timeout">Idle Timeout</Label>
+              <Input
+                id="agent-configuration-idle-timeout"
+                value={idleTimeout}
+                onChange={(event) => {
+                  setIdleTimeout(event.target.value);
+                  if (idleTimeoutError) setIdleTimeoutError('');
+                }}
+                placeholder="5m"
+                data-testid="agent-configuration-idle-timeout"
+              />
+              {idleTimeoutError ? (
+                <p className="text-sm text-destructive" data-testid="agent-configuration-idle-timeout-error">
+                  {idleTimeoutError}
+                </p>
+              ) : null}
+              <p className="text-xs text-muted-foreground">{GO_DURATION_HELP_TEXT}</p>
             </div>
             <JsonEditor
               label="Configuration"

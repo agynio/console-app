@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { NO_MODEL } from '@/lib/constants';
+import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -31,6 +32,8 @@ export function AgentCreatePage() {
   const [initImage, setInitImage] = useState('');
   const [configuration, setConfiguration] = useState('');
   const [configurationError, setConfigurationError] = useState('');
+  const [idleTimeout, setIdleTimeout] = useState('');
+  const [idleTimeoutError, setIdleTimeoutError] = useState('');
   const [resources, setResources] = useState<ComputeResources | undefined>(undefined);
 
   const modelsQuery = useQuery({
@@ -53,6 +56,7 @@ export function AgentCreatePage() {
       image: string;
       initImage: string;
       organizationId: string;
+      idleTimeout?: string;
       resources?: ComputeResources;
     }) => agentsClient.createAgent(payload),
     onSuccess: (response) => {
@@ -91,8 +95,15 @@ export function AgentCreatePage() {
       }
     }
 
+    const trimmedIdleTimeout = idleTimeout.trim();
+    if (trimmedIdleTimeout && !isValidGoDuration(trimmedIdleTimeout)) {
+      setIdleTimeoutError('Enter a valid Go duration.');
+      return;
+    }
+
     setNameError('');
     setConfigurationError('');
+    setIdleTimeoutError('');
 
     createAgentMutation.mutate({
       name: trimmedName,
@@ -103,6 +114,7 @@ export function AgentCreatePage() {
       image: image.trim(),
       initImage: initImage.trim(),
       organizationId,
+      ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
       resources,
     });
   };
@@ -193,6 +205,25 @@ export function AgentCreatePage() {
               onChange={(event) => setInitImage(event.target.value)}
               data-testid="agent-create-init-image"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-idle-timeout">Idle Timeout</Label>
+            <Input
+              id="agent-create-idle-timeout"
+              placeholder="5m"
+              value={idleTimeout}
+              onChange={(event) => {
+                setIdleTimeout(event.target.value);
+                if (idleTimeoutError) setIdleTimeoutError('');
+              }}
+              data-testid="agent-create-idle-timeout"
+            />
+            {idleTimeoutError ? (
+              <p className="text-sm text-destructive" data-testid="agent-create-idle-timeout-error">
+                {idleTimeoutError}
+              </p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">{GO_DURATION_HELP_TEXT}</p>
           </div>
           <JsonEditor
             label="Configuration"
