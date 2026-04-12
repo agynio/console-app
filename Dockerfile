@@ -6,6 +6,10 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN npm ci
 
 COPY . .
