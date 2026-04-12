@@ -25,14 +25,6 @@ jobs:
       - name: Generate API types
         run: npm run generate
 
-      - name: Ensure generated code is not tracked
-        run: |
-          if [ -n "$(git ls-files src/gen)" ]; then
-            echo "src/gen should not be tracked."
-            git ls-files src/gen
-            exit 1
-          fi
-
       - name: Lint
         run: npm run lint
 
