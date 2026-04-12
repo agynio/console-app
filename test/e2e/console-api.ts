@@ -281,6 +281,14 @@ function isNotFoundError(error: unknown): boolean {
   return error.message.includes('status 404');
 }
 
+function isAlreadyClusterAdminError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message.includes('tuple to be written already existed') ||
+    error.message.includes('tuple to be written already exists')
+  );
+}
+
 export async function getMe(page: Page): Promise<GetMeResponseWire> {
   const response = await postConnect<GetMeResponseWire>(page, USERS_GATEWAY_PATH, 'GetMe', {});
   if (!response.user?.meta?.id) {
@@ -298,10 +306,16 @@ export async function ensureClusterAdmin(page: Page): Promise<void> {
   if (!identityId) {
     throw new Error('GetMe response missing identity id for cluster role update.');
   }
-  await postConnectAsClusterAdmin<UpdateUserResponseWire>(page, USERS_GATEWAY_PATH, 'UpdateUser', {
-    identityId,
-    clusterRole: 'CLUSTER_ROLE_ADMIN',
-  });
+  try {
+    await postConnectAsClusterAdmin<UpdateUserResponseWire>(page, USERS_GATEWAY_PATH, 'UpdateUser', {
+      identityId,
+      clusterRole: 'CLUSTER_ROLE_ADMIN',
+    });
+  } catch (error) {
+    if (!isAlreadyClusterAdminError(error)) {
+      throw error;
+    }
+  }
   const start = Date.now();
   while (Date.now() - start < 10000) {
     const updated = await getMe(page);

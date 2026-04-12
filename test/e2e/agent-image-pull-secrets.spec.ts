@@ -11,6 +11,7 @@ import {
 } from './console-api';
 
 const buildName = (prefix: string, now: number) => `${prefix}-${now}`;
+const buildMcpName = (prefix: string, now: number) => buildName(prefix, now).replace(/-/g, '_');
 
 async function prepareAgentFixture(page: Page, suffix: string) {
   const now = Date.now();
@@ -70,7 +71,7 @@ async function attachSecret(page: Page, secretLabel: string) {
 
 test('manages MCP image pull secrets dialog', async ({ page }) => {
   const { organizationId, agentId, registry, username, now } = await prepareAgentFixture(page, 'mcp');
-  const mcpName = buildName('e2e-mcp', now);
+  const mcpName = buildMcpName('e2e-mcp', now);
   await createMcp(page, {
     agentId,
     name: mcpName,
