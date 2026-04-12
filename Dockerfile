@@ -10,6 +10,8 @@ RUN npm ci
 
 COPY . .
 
+RUN npm run generate
+
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
