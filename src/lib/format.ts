@@ -7,6 +7,8 @@ import { ContainerStatus, RunnerStatus, WorkloadStatus } from '@/gen/agynio/api/
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { ClusterRole, DeviceStatus } from '@/gen/agynio/api/users/v1/users_pb';
 
+export const EMPTY_PLACEHOLDER = '—';
+
 function toDate(timestamp: Timestamp): Date {
   const millis = Number(timestamp.seconds) * 1000 + Math.floor(timestamp.nanos / 1_000_000);
   return new Date(millis);
@@ -18,7 +20,7 @@ export function timestampToMillis(timestamp?: Timestamp | null): number {
 }
 
 export function formatTimestamp(timestamp?: Timestamp | null, options?: Intl.DateTimeFormatOptions): string {
-  if (!timestamp) return '—';
+  if (!timestamp) return EMPTY_PLACEHOLDER;
   const formatter = new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -33,7 +35,7 @@ export function formatDateOnly(timestamp?: Timestamp | null): string {
 
 export function formatLabelPairs(labels: Record<string, string>): string {
   const entries = Object.entries(labels);
-  if (entries.length === 0) return '—';
+  if (entries.length === 0) return EMPTY_PLACEHOLDER;
   return entries
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${key}=${value}`)
@@ -41,17 +43,17 @@ export function formatLabelPairs(labels: Record<string, string>): string {
 }
 
 export function formatComputeResources(resources?: ComputeResources): string {
-  if (!resources) return '—';
+  if (!resources) return EMPTY_PLACEHOLDER;
   const parts: string[] = [];
   if (resources.requestsCpu) parts.push(`req-cpu: ${resources.requestsCpu}`);
   if (resources.requestsMemory) parts.push(`req-mem: ${resources.requestsMemory}`);
   if (resources.limitsCpu) parts.push(`lim-cpu: ${resources.limitsCpu}`);
   if (resources.limitsMemory) parts.push(`lim-mem: ${resources.limitsMemory}`);
-  return parts.length > 0 ? parts.join(', ') : '—';
+  return parts.length > 0 ? parts.join(', ') : EMPTY_PLACEHOLDER;
 }
 
 export function truncate(value?: string | null, maxLength = 100): string {
-  if (!value) return '—';
+  if (!value) return EMPTY_PLACEHOLDER;
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength)}...`;
 }
@@ -86,7 +88,7 @@ export function formatContainerStatus(status: ContainerStatus): string {
 }
 
 export function summarizeContainers(containers: Array<{ status: ContainerStatus }>): string {
-  if (containers.length === 0) return '—';
+  if (containers.length === 0) return EMPTY_PLACEHOLDER;
   const counts: Record<string, number> = {};
   containers.forEach((container) => {
     const label = formatContainerStatus(container.status);
@@ -100,7 +102,7 @@ export function summarizeContainers(containers: Array<{ status: ContainerStatus 
       parts.push(`${label} (${count})`);
     }
   });
-  return parts.length > 0 ? parts.join(', ') : '—';
+  return parts.length > 0 ? parts.join(', ') : EMPTY_PLACEHOLDER;
 }
 
 export function formatAppVisibility(visibility: AppVisibility): string {

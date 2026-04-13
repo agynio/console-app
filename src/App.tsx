@@ -14,6 +14,7 @@ import { OrganizationModelsTab } from '@/pages/OrganizationModelsTab';
 import { OrganizationMonitoringTab } from '@/pages/OrganizationMonitoringTab';
 import { OrganizationOverviewTab } from '@/pages/OrganizationOverviewTab';
 import { OrganizationRunnersTab } from '@/pages/OrganizationRunnersTab';
+import { OrganizationUsageTab } from '@/pages/OrganizationUsageTab';
 import { OrganizationImagePullSecretsTab } from '@/pages/OrganizationImagePullSecretsTab';
 import { OrganizationSecretProvidersTab } from '@/pages/OrganizationSecretProvidersTab';
 import { OrganizationSecretsTab } from '@/pages/OrganizationSecretsTab';
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="apps" element={<OrganizationAppsTab />} />
           <Route path="apps/:appId" element={<AppDetailPage />} />
           <Route path="monitoring" element={<OrganizationMonitoringTab />} />
+          <Route path="usage" element={<OrganizationUsageTab />} />
         </Route>
         <Route
           path="users"
