@@ -55,9 +55,14 @@ functions:
       echo "WARNING: console-app container not found in ${APP_NAMESPACE} namespace."
       return 0
     fi
+    image=$(kubectl get deployment "$deploy" -n ${APP_NAMESPACE} -o jsonpath='{.spec.template.spec.containers[0].image}')
+    if [ -z "$image" ]; then
+      echo "WARNING: console-app container image not found in ${APP_NAMESPACE} namespace."
+      return 0
+    fi
     kubectl patch deployment "$deploy" -n ${APP_NAMESPACE} \
       --type strategic \
-      -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"${container}\",\"securityContext\":{\"readOnlyRootFilesystem\":false,\"runAsUser\":0,\"runAsGroup\":0,\"runAsNonRoot\":false}}]}}}}"
+      -p "{\"spec\":{\"template\":{\"spec\":{\"securityContext\":{\"fsGroup\":101},\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"initContainers\":[{\"name\":\"console-app-html-init\",\"image\":\"${image}\",\"command\":[\"sh\",\"-c\",\"cp -R /usr/share/nginx/html/. /workdir/\"],\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/workdir\"}]}],\"containers\":[{\"name\":\"${container}\",\"securityContext\":{\"readOnlyRootFilesystem\":true,\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
     kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
