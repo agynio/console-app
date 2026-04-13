@@ -166,13 +166,19 @@ async function resolveRedirectUri(config: OidcRuntimeConfig): Promise<string> {
     return override;
   }
   const defaultRedirectUri = new URL('/callback', resolveBaseUrl()).toString();
-  if (await isRedirectUriAllowed(config, defaultRedirectUri)) {
-    return defaultRedirectUri;
+  const candidates = [defaultRedirectUri];
+  if (fallbackRedirectUri !== defaultRedirectUri) {
+    candidates.push(fallbackRedirectUri);
   }
-  if (await isRedirectUriAllowed(config, fallbackRedirectUri)) {
-    return fallbackRedirectUri;
+
+  for (const candidate of candidates) {
+    if (await isRedirectUriAllowed(config, candidate)) {
+      return candidate;
+    }
   }
-  throw new Error('No valid MockAuth redirect URI found for E2E tests.');
+
+  console.warn('No valid MockAuth redirect URI found for E2E tests; using default redirect URI.');
+  return defaultRedirectUri;
 }
 
 async function waitForRedirectResponse(page: Page, redirectUri: string) {

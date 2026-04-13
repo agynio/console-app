@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { usersClient } from '@/api/client';
 import { oidcConfig } from '@/config';
+import { setSignedOutFlag } from '@/auth/signed-out';
 import type { User } from '@/gen/agynio/api/users/v1/users_pb';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
 
@@ -77,7 +78,27 @@ function OidcUserProvider({ children }: { children: ReactNode }) {
     isClusterAdmin,
     status,
     error,
-    signOut: () => void auth.signoutRedirect(),
+    signOut: () => {
+      try {
+        setSignedOutFlag();
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < window.sessionStorage.length; i += 1) {
+          const key = window.sessionStorage.key(i);
+          if (key?.startsWith('oidc.user:')) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((key) => window.sessionStorage.removeItem(key));
+      } catch (removeError) {
+        console.warn('Failed to clear OIDC session storage.', removeError);
+      }
+      void auth.removeUser().catch((removeError) => {
+        console.warn('Failed to clear OIDC user session.', removeError);
+      });
+      void auth.signoutRedirect().catch((signoutError) => {
+        console.warn('OIDC sign-out redirect failed.', signoutError);
+      });
+    },
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
