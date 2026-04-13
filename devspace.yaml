@@ -44,6 +44,16 @@ functions:
         echo "WARNING: ArgoCD Application '$app' not found."
       fi
     done
+  ensure_console_app_html_writable: |-
+    deploy=$(kubectl get deployment -n ${APP_NAMESPACE} -l app.kubernetes.io/name=console-app -o jsonpath='{.items[0].metadata.name}')
+    if [ -z "$deploy" ]; then
+      echo "WARNING: console-app deployment not found in ${APP_NAMESPACE} namespace."
+      return 0
+    fi
+    kubectl patch deployment "$deploy" -n ${APP_NAMESPACE} \
+      --type merge \
+      -p '{"spec":{"template":{"spec":{"volumes":[{"name":"console-app-html","emptyDir":{}}],"containers":[{"name":"console-app","volumeMounts":[{"name":"console-app-html","mountPath":"/usr/share/nginx/html"}]}]}}}}'
+    kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=180s
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
     kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
@@ -98,6 +108,7 @@ pipelines:
         description: "Keep DevSpace running and stream logs"
     run: |-
       disable_argocd_sync
+      ensure_console_app_html_writable
       if [ "$(get_flag "watch")" == "true" ]; then
         start_dev --disable-pod-replace console-app
       else
