@@ -135,10 +135,9 @@ jobs:
         working-directory: bootstrap
         run: |
           domain=$(terraform -chdir=stacks/k8s output -raw domain)
-          base_url="http://console-app:3000"
-          redirect_base_url="https://console.${domain}"
+          base_url="https://console.${domain}"
           echo "E2E_BASE_URL=${base_url}" >> "$GITHUB_ENV"
-          echo "E2E_OIDC_REDIRECT_URI=${redirect_base_url}/callback" >> "$GITHUB_ENV"
+          echo "E2E_OIDC_REDIRECT_URI=${base_url}/callback" >> "$GITHUB_ENV"
 
       - name: Run E2E tests
         env:
