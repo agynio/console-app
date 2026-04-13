@@ -604,7 +604,7 @@ async function createLlmProvider(
   return providerId;
 }
 
-async function createModel(
+async function createModelInternal(
   page: Page,
   opts: { organizationId: string; llmProviderId: string; name: string; remoteName: string },
 ): Promise<string> {
@@ -641,7 +641,7 @@ async function ensureModelId(page: Page, organizationId: string): Promise<string
 
   const providerId = await ensureLlmProviderId(page, organizationId);
   const now = Date.now();
-  return createModel(page, {
+  return createModelInternal(page, {
     organizationId,
     llmProviderId: providerId,
     name: `E2E Model ${now}`,
