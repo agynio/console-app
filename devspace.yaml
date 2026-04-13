@@ -61,14 +61,27 @@ functions:
       exit 0
     fi
     echo "Deploying gateway PR image to cluster..."
-    gateway_deployment=$(kubectl get deployment -n ${APP_NAMESPACE} -l app.kubernetes.io/instance=gateway,app.kubernetes.io/name=gateway -o jsonpath='{.items[0].metadata.name}')
-    if [ -z "$gateway_deployment" ]; then
-      echo "ERROR: gateway deployment not found in namespace ${APP_NAMESPACE}"
-      kubectl get deployments -n ${APP_NAMESPACE}
+    gateway_deployments=$(kubectl get deployment -A -l app.kubernetes.io/instance=gateway,app.kubernetes.io/name=gateway -o jsonpath='{range .items[*]}{.metadata.namespace}{"|"}{.metadata.name}{"\n"}{end}')
+    if [ -z "$gateway_deployments" ]; then
+      gateway_deployments=$(kubectl get deployment -A --no-headers | awk '$2 ~ /gateway/ {print $1 "|" $2}')
+    fi
+    if [ -z "$gateway_deployments" ]; then
+      echo "ERROR: gateway deployment not found in any namespace"
+      kubectl get deployments -A
       exit 1
     fi
-    kubectl set image "deployment/${gateway_deployment}" gateway="$IMAGE" -n ${APP_NAMESPACE}
-    kubectl rollout status "deployment/${gateway_deployment}" -n ${APP_NAMESPACE} --timeout=120s
+    echo "Gateway deployments found:"
+    echo "$gateway_deployments"
+    while IFS='|' read -r gateway_namespace gateway_name; do
+      if [ -z "$gateway_namespace" ] || [ -z "$gateway_name" ]; then
+        continue
+      fi
+      echo "Updating gateway deployment ${gateway_name} in namespace ${gateway_namespace}"
+      kubectl set image "deployment/${gateway_name}" gateway="$IMAGE" -n "${gateway_namespace}" || exit 1
+      kubectl rollout status "deployment/${gateway_name}" -n "${gateway_namespace}" --timeout=120s || exit 1
+    done <<EOF
+$gateway_deployments
+EOF
     echo "Gateway PR image deployed successfully"
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
