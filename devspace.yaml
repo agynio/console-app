@@ -61,8 +61,14 @@ functions:
       exit 0
     fi
     echo "Deploying gateway PR image to cluster..."
-    kubectl set image deployment -l app.kubernetes.io/instance=gateway gateway="$IMAGE" -n ${APP_NAMESPACE}
-    kubectl rollout status deployment -l app.kubernetes.io/instance=gateway -n ${APP_NAMESPACE} --timeout=120s
+    gateway_deployment=$(kubectl get deployment -n ${APP_NAMESPACE} -l app.kubernetes.io/instance=gateway,app.kubernetes.io/name=gateway -o jsonpath='{.items[0].metadata.name}')
+    if [ -z "$gateway_deployment" ]; then
+      echo "ERROR: gateway deployment not found in namespace ${APP_NAMESPACE}"
+      kubectl get deployments -n ${APP_NAMESPACE}
+      exit 1
+    fi
+    kubectl set image "deployment/${gateway_deployment}" gateway="$IMAGE" -n ${APP_NAMESPACE}
+    kubectl rollout status "deployment/${gateway_deployment}" -n ${APP_NAMESPACE} --timeout=120s
     echo "Gateway PR image deployed successfully"
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
