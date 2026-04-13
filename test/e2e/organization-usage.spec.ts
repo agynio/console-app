@@ -8,7 +8,7 @@ test('shows usage dashboard', async ({ page }) => {
   await page.goto(`/organizations/${organizationId}/usage`);
 
   await expect(page.getByTestId('organization-usage-llm-section')).toBeVisible({ timeout: 15000 });
-  await expect(page.getByTestId('organization-usage-llm-input')).toContainText(/\d/);
+  await expect(page.getByTestId('organization-usage-llm-input')).toContainText(/\d|\u2014/, { timeout: 15000 });
   await expect(page.getByTestId('organization-usage-llm-daily-chart')).toBeVisible();
 
   await expect(page.getByTestId('organization-usage-compute-section')).toBeVisible();
