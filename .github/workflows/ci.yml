@@ -42,7 +42,6 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-      packages: write
     steps:
       - name: Free disk space
         run: |
@@ -65,51 +64,17 @@ jobs:
           sudo rm -rf /usr/local/lib/android
       - name: Checkout service repo
         uses: actions/checkout@v4
-      - name: Set PR image tag
-        run: echo "PR_IMAGE=ghcr.io/agynio/console-app:pr-${{ github.event.pull_request.number || github.run_id }}-${{ github.sha }}" >> $GITHUB_ENV
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 20
+          cache: 'npm'
 
-      - name: Build and push PR image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ env.PR_IMAGE }}
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Checkout gateway branch
-        id: checkout_gateway
-        if: ${{ github.event_name == 'pull_request' }}
-        continue-on-error: true
-        uses: actions/checkout@v4
-        with:
-          repository: agynio/gateway
-          ref: ${{ github.head_ref || github.ref_name }}
-          path: gateway
-
-      - name: Set gateway PR image tag
-        if: ${{ steps.checkout_gateway.outcome == 'success' }}
-        run: |
-          gateway_sha=$(git -C gateway rev-parse HEAD)
-          echo "GATEWAY_PR_IMAGE=ghcr.io/agynio/console-app-gateway:pr-${{ github.event.pull_request.number || github.run_id }}-${gateway_sha}" >> $GITHUB_ENV
-
-      - name: Build and push gateway PR image
-        if: ${{ steps.checkout_gateway.outcome == 'success' }}
-        uses: docker/build-push-action@v6
-        with:
-          context: ./gateway
-          push: true
-          tags: ${{ env.GATEWAY_PR_IMAGE }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/agynio/console-app
+      - name: Build assets
+        run: npm run build
 
       - name: Checkout bootstrap
         uses: actions/checkout@v4
@@ -156,16 +121,19 @@ jobs:
         working-directory: bootstrap
         run: ./.github/scripts/verify_platform_health.sh
 
+      - name: Sync console app sources
+        env:
+          KUBECONFIG: ${{ github.workspace }}/bootstrap/stacks/k8s/.kube/agyn-local-kubeconfig.yaml
+        run: devspace dev --pipeline dev
+
       - name: Run E2E tests
         env:
           KUBECONFIG: ${{ github.workspace }}/bootstrap/stacks/k8s/.kube/agyn-local-kubeconfig.yaml
-          PR_IMAGE: ${{ env.PR_IMAGE }}
-          GATEWAY_PR_IMAGE: ${{ env.GATEWAY_PR_IMAGE }}
           ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}
           ARGOS_BRANCH: ${{ github.head_ref || github.ref_name }}
           ARGOS_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
           CLUSTER_ADMIN_TOKEN: ${{ env.CLUSTER_ADMIN_TOKEN }}
-        run: devspace run-pipeline test-e2e
+        run: devspace run test-e2e
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

@@ -44,45 +44,6 @@ functions:
         echo "WARNING: ArgoCD Application '$app' not found."
       fi
     done
-  deploy_pr_image: |-
-    echo "Deploying PR image to cluster..."
-    IMAGE="${PR_IMAGE:-}"
-    if [ -z "$IMAGE" ]; then
-      echo "ERROR: PR_IMAGE not set, aborting hot deploy"
-      exit 1
-    fi
-    kubectl set image deployment/console-app console-app="$IMAGE" -n ${APP_NAMESPACE}
-    kubectl rollout status deployment/console-app -n ${APP_NAMESPACE} --timeout=120s
-    echo "PR image deployed successfully"
-  deploy_gateway_pr_image: |-
-    IMAGE="${GATEWAY_PR_IMAGE:-}"
-    if [ -z "$IMAGE" ]; then
-      echo "No GATEWAY_PR_IMAGE provided, skipping gateway deploy"
-      exit 0
-    fi
-    echo "Deploying gateway PR image to cluster..."
-    gateway_deployments=$(kubectl get deployment -A -l app.kubernetes.io/instance=gateway,app.kubernetes.io/name=gateway -o jsonpath='{range .items[*]}{.metadata.namespace}{"|"}{.metadata.name}{"\n"}{end}')
-    if [ -z "$gateway_deployments" ]; then
-      gateway_deployments=$(kubectl get deployment -A --no-headers | awk '$2 ~ /gateway/ {print $1 "|" $2}')
-    fi
-    if [ -z "$gateway_deployments" ]; then
-      echo "ERROR: gateway deployment not found in any namespace"
-      kubectl get deployments -A
-      exit 1
-    fi
-    echo "Gateway deployments found:"
-    echo "$gateway_deployments"
-    while IFS='|' read -r gateway_namespace gateway_name; do
-      if [ -z "$gateway_namespace" ] || [ -z "$gateway_name" ]; then
-        continue
-      fi
-      echo "Updating gateway deployment ${gateway_name} in namespace ${gateway_namespace}"
-      kubectl set image "deployment/${gateway_name}" gateway="$IMAGE" -n "${gateway_namespace}" || exit 1
-      kubectl rollout status "deployment/${gateway_name}" -n "${gateway_namespace}" --timeout=120s || exit 1
-    done <<EOF
-$gateway_deployments
-EOF
-    echo "Gateway PR image deployed successfully"
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
     kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
@@ -148,8 +109,6 @@ pipelines:
   test-e2e:
     run: |-
       disable_argocd_sync
-      deploy_pr_image
-      deploy_gateway_pr_image
       create_deployments e2e-runner
       start_dev e2e-runner &
       sleep 5
