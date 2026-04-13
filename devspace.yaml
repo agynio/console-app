@@ -5,7 +5,7 @@ vars:
   E2E_IMAGE: mcr.microsoft.com/playwright:v1.59.1-noble
   E2E_BASE_URL:
     source: env
-    default: "https://console.agyn.dev"
+    default: "http://console-app:3000"
   ARGOS_TOKEN:
     source: env
     default: ""
