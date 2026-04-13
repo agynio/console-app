@@ -56,7 +56,7 @@ functions:
       return 0
     fi
     kubectl patch deployment "$deploy" -n ${APP_NAMESPACE} \
-      --type merge \
+      --type strategic \
       -p "{\"spec\":{\"template\":{\"spec\":{\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"containers\":[{\"name\":\"${container}\",\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
     kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=180s
   dump_agent_logs: |-
