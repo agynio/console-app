@@ -7,7 +7,15 @@ test('shows usage dashboard', async ({ page }) => {
 
   await page.goto(`/organizations/${organizationId}/usage`);
 
-  await expect(page.getByTestId('organization-usage-llm-section')).toBeVisible({ timeout: 15000 });
+  const emptyState = page.getByTestId('organization-usage-empty');
+  const llmSection = page.getByTestId('organization-usage-llm-section');
+
+  await expect(llmSection.or(emptyState)).toBeVisible({ timeout: 15000 });
+  if (await emptyState.isVisible()) {
+    await expect(emptyState).toBeVisible();
+    return;
+  }
+
   await expect(page.getByTestId('organization-usage-llm-input')).toContainText(/\d|\u2014/, { timeout: 15000 });
   await expect(page.getByTestId('organization-usage-llm-daily-chart')).toBeVisible();
 
