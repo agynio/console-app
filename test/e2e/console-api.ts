@@ -4,6 +4,8 @@ import { readOidcSession } from './oidc-helpers';
 const USERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.UsersGateway';
 const ORGS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.OrganizationsGateway';
 const SECRETS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.SecretsGateway';
+const AGENTS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.AgentsGateway';
+const LLM_GATEWAY_PATH = '/api/agynio.api.gateway.v1.LLMGateway';
 const RUNNERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.RunnersGateway';
 
 const CONNECT_HEADERS = {
@@ -96,8 +98,52 @@ type SecretWire = {
   secretProviderId?: string;
 };
 
+type AgentWire = {
+  meta?: { id?: string };
+  name?: string;
+  role?: string;
+  model?: string;
+  description?: string;
+  configuration?: string;
+  image?: string;
+  initImage?: string;
+  organizationId?: string;
+};
+
+type McpWire = {
+  meta?: { id?: string };
+  name?: string;
+  agentId?: string;
+};
+
+type HookWire = {
+  meta?: { id?: string };
+  event?: string;
+  agentId?: string;
+};
+
+type ModelWire = {
+  meta?: { id?: string };
+  id?: string;
+  name?: string;
+  llmProviderId?: string;
+  remoteName?: string;
+};
+
+type LlmProviderWire = {
+  meta?: { id?: string };
+  id?: string;
+  endpoint?: string;
+  authMethod?: string | number;
+  organizationId?: string;
+};
+
 type CreateSecretResponseWire = {
   secret?: { meta?: { id?: string } };
+};
+
+type CreateImagePullSecretResponseWire = {
+  imagePullSecret?: { meta?: { id?: string } };
 };
 
 type ListSecretsResponseWire = {
@@ -111,6 +157,36 @@ type CreateDeviceResponseWire = {
 
 type ListDevicesResponseWire = {
   devices?: DeviceWire[];
+};
+
+type ListModelsResponseWire = {
+  models?: ModelWire[];
+};
+
+type ListLlmProvidersResponseWire = {
+  providers?: LlmProviderWire[];
+};
+
+type CreateLlmProviderResponseWire = {
+  provider?: LlmProviderWire;
+};
+
+type CreateModelResponseWire = {
+  model?: ModelWire;
+};
+
+type EntityWithId = { meta?: { id?: string }; id?: string };
+
+type CreateAgentResponseWire = {
+  agent?: AgentWire;
+};
+
+type CreateMcpResponseWire = {
+  mcp?: McpWire;
+};
+
+type CreateHookResponseWire = {
+  hook?: HookWire;
 };
 
 type ListRunnersResponseWire = {
@@ -137,6 +213,15 @@ function resolveBaseUrl(): string {
 
 function buildRpcUrl(servicePath: string, method: string): string {
   return new URL(`${servicePath}/${method}`, resolveBaseUrl()).toString();
+}
+
+function findEntityId(entities: EntityWithId[] | undefined): string {
+  if (!entities) return '';
+  for (const entity of entities) {
+    const id = entity.meta?.id ?? entity.id ?? '';
+    if (id) return id;
+  }
+  return '';
 }
 
 const CLUSTER_ROLE_ADMIN = 1;
@@ -196,6 +281,14 @@ function isNotFoundError(error: unknown): boolean {
   return error.message.includes('status 404');
 }
 
+function isAlreadyClusterAdminError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message.includes('tuple to be written already existed') ||
+    error.message.includes('tuple to be written already exists')
+  );
+}
+
 export async function getMe(page: Page): Promise<GetMeResponseWire> {
   const response = await postConnect<GetMeResponseWire>(page, USERS_GATEWAY_PATH, 'GetMe', {});
   if (!response.user?.meta?.id) {
@@ -213,10 +306,16 @@ export async function ensureClusterAdmin(page: Page): Promise<void> {
   if (!identityId) {
     throw new Error('GetMe response missing identity id for cluster role update.');
   }
-  await postConnectAsClusterAdmin<UpdateUserResponseWire>(page, USERS_GATEWAY_PATH, 'UpdateUser', {
-    identityId,
-    clusterRole: 'CLUSTER_ROLE_ADMIN',
-  });
+  try {
+    await postConnectAsClusterAdmin<UpdateUserResponseWire>(page, USERS_GATEWAY_PATH, 'UpdateUser', {
+      identityId,
+      clusterRole: 'CLUSTER_ROLE_ADMIN',
+    });
+  } catch (error) {
+    if (!isAlreadyClusterAdminError(error)) {
+      throw error;
+    }
+  }
   const start = Date.now();
   while (Date.now() - start < 10000) {
     const updated = await getMe(page);
@@ -460,6 +559,93 @@ export async function listSecrets(
   return response.secrets ?? [];
 }
 
+export async function listLlmProviders(
+  page: Page,
+  opts: { organizationId: string },
+): Promise<LlmProviderWire[]> {
+  const response = await postConnect<ListLlmProvidersResponseWire>(page, LLM_GATEWAY_PATH, 'ListLLMProviders', {
+    organizationId: opts.organizationId,
+    pageSize: 200,
+    pageToken: '',
+  });
+  return response.providers ?? [];
+}
+
+export async function listModels(
+  page: Page,
+  opts: { organizationId: string; llmProviderId?: string },
+): Promise<ModelWire[]> {
+  const response = await postConnect<ListModelsResponseWire>(page, LLM_GATEWAY_PATH, 'ListModels', {
+    organizationId: opts.organizationId,
+    llmProviderId: opts.llmProviderId ?? '',
+    pageSize: 200,
+    pageToken: '',
+  });
+  return response.models ?? [];
+}
+
+async function createLlmProvider(
+  page: Page,
+  opts: { organizationId: string; endpoint: string; token: string; authMethod?: string | number },
+): Promise<string> {
+  const response = await postConnect<CreateLlmProviderResponseWire>(page, LLM_GATEWAY_PATH, 'CreateLLMProvider', {
+    endpoint: opts.endpoint,
+    authMethod: opts.authMethod ?? 'AUTH_METHOD_BEARER',
+    token: opts.token,
+    organizationId: opts.organizationId,
+  });
+  const providerId = response.provider?.meta?.id ?? response.provider?.id ?? '';
+  if (!providerId) {
+    throw new Error('CreateLLMProvider response missing provider id.');
+  }
+  return providerId;
+}
+
+async function createModel(
+  page: Page,
+  opts: { organizationId: string; llmProviderId: string; name: string; remoteName: string },
+): Promise<string> {
+  const response = await postConnect<CreateModelResponseWire>(page, LLM_GATEWAY_PATH, 'CreateModel', {
+    name: opts.name,
+    llmProviderId: opts.llmProviderId,
+    remoteName: opts.remoteName,
+    organizationId: opts.organizationId,
+  });
+  const modelId = response.model?.meta?.id ?? response.model?.id ?? '';
+  if (!modelId) {
+    throw new Error('CreateModel response missing model id.');
+  }
+  return modelId;
+}
+
+async function ensureLlmProviderId(page: Page, organizationId: string): Promise<string> {
+  const providers = await listLlmProviders(page, { organizationId });
+  const providerId = findEntityId(providers);
+  if (providerId) return providerId;
+
+  const now = Date.now();
+  return createLlmProvider(page, {
+    organizationId,
+    endpoint: `https://llm.e2e.agyn.dev/${now}`,
+    token: `e2e-token-${now}`,
+  });
+}
+
+async function ensureModelId(page: Page, organizationId: string): Promise<string> {
+  const models = await listModels(page, { organizationId });
+  const modelId = findEntityId(models);
+  if (modelId) return modelId;
+
+  const providerId = await ensureLlmProviderId(page, organizationId);
+  const now = Date.now();
+  return createModel(page, {
+    organizationId,
+    llmProviderId: providerId,
+    name: `E2E Model ${now}`,
+    remoteName: 'gpt-4o-mini',
+  });
+}
+
 export async function createSecret(
   page: Page,
   opts: { providerId: string; name: string; value: string; organizationId: string },
@@ -476,6 +662,105 @@ export async function createSecret(
     throw new Error('CreateSecret response missing secret id.');
   }
   return secretId;
+}
+
+export async function createImagePullSecret(
+  page: Page,
+  opts: { organizationId: string; registry: string; username: string; value: string; description?: string },
+): Promise<string> {
+  const response = await postConnect<CreateImagePullSecretResponseWire>(
+    page,
+    SECRETS_GATEWAY_PATH,
+    'CreateImagePullSecret',
+    {
+      description: opts.description ?? `E2E image pull secret for ${opts.registry}`,
+      registry: opts.registry,
+      username: opts.username,
+      value: opts.value,
+      organizationId: opts.organizationId,
+    },
+  );
+  const secretId = response.imagePullSecret?.meta?.id;
+  if (!secretId) {
+    throw new Error('CreateImagePullSecret response missing image pull secret id.');
+  }
+  return secretId;
+}
+
+export async function createAgent(
+  page: Page,
+  opts: {
+    organizationId: string;
+    name: string;
+    role?: string;
+    model?: string;
+    description?: string;
+    configuration?: string;
+    image?: string;
+    initImage?: string;
+  },
+): Promise<string> {
+  let modelId = opts.model?.trim() ?? '';
+  if (!modelId) {
+    modelId = await ensureModelId(page, opts.organizationId);
+  }
+  const response = await postConnect<CreateAgentResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateAgent', {
+    name: opts.name,
+    role: opts.role ?? 'assistant',
+    model: modelId,
+    description: opts.description ?? '',
+    configuration: opts.configuration ?? '',
+    image: opts.image ?? '',
+    initImage: opts.initImage ?? '',
+    organizationId: opts.organizationId,
+  });
+  const agentId = response.agent?.meta?.id;
+  if (!agentId) {
+    throw new Error('CreateAgent response missing agent id.');
+  }
+  return agentId;
+}
+
+export async function createMcp(
+  page: Page,
+  opts: { agentId: string; name: string; image: string; command: string; description?: string },
+): Promise<string> {
+  const response = await postConnect<CreateMcpResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateMcp', {
+    agentId: opts.agentId,
+    name: opts.name,
+    image: opts.image,
+    command: opts.command,
+    description: opts.description ?? '',
+  });
+  const mcpId = response.mcp?.meta?.id;
+  if (!mcpId) {
+    throw new Error('CreateMcp response missing mcp id.');
+  }
+  return mcpId;
+}
+
+export async function createHook(
+  page: Page,
+  opts: {
+    agentId: string;
+    event: string;
+    functionName: string;
+    image: string;
+    description?: string;
+  },
+): Promise<string> {
+  const response = await postConnect<CreateHookResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateHook', {
+    agentId: opts.agentId,
+    event: opts.event,
+    function: opts.functionName,
+    image: opts.image,
+    description: opts.description ?? '',
+  });
+  const hookId = response.hook?.meta?.id;
+  if (!hookId) {
+    throw new Error('CreateHook response missing hook id.');
+  }
+  return hookId;
 }
 
 export async function deleteSecret(page: Page, secretId: string): Promise<void> {

@@ -23,14 +23,16 @@ import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { NestedEnvsDialog } from '@/pages/agent-detail/NestedEnvsDialog';
+import { NestedImagePullSecretsDialog } from '@/pages/agent-detail/NestedImagePullSecretsDialog';
 import { NestedInitScriptsDialog } from '@/pages/agent-detail/NestedInitScriptsDialog';
 import { toast } from 'sonner';
 
 type AgentMcpsTabProps = {
   agentId: string;
+  organizationId: string;
 };
 
-export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
+export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -50,6 +52,7 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   const [editImageError, setEditImageError] = useState('');
   const [envTargetId, setEnvTargetId] = useState<string | null>(null);
   const [initTargetId, setInitTargetId] = useState<string | null>(null);
+  const [imagePullSecretsTargetId, setImagePullSecretsTargetId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const mcpsQuery = useQuery({
@@ -212,6 +215,15 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
     setInitTargetId(mcpId);
   };
 
+  const handleImagePullSecretsOpen = (mcp: Mcp) => {
+    const mcpId = mcp.meta?.id;
+    if (!mcpId) {
+      toast.error('Missing MCP ID.');
+      return;
+    }
+    setImagePullSecretsTargetId(mcpId);
+  };
+
   const handleDeleteOpen = (mcp: Mcp) => {
     const mcpId = mcp.meta?.id;
     if (!mcpId) {
@@ -243,6 +255,12 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   const handleInitOpenChange = (open: boolean) => {
     if (!open) {
       setInitTargetId(null);
+    }
+  };
+
+  const handleImagePullSecretsOpenChange = (open: boolean) => {
+    if (!open) {
+      setImagePullSecretsTargetId(null);
     }
   };
 
@@ -356,6 +374,12 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleInitOpen(mcp)} data-testid="agent-mcp-init-scripts">
                           Init Scripts
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleImagePullSecretsOpen(mcp)}
+                          data-testid="agent-mcp-image-pull-secrets"
+                        >
+                          Image Pull Secrets
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleDeleteOpen(mcp)} data-testid="agent-mcp-delete">
                           Delete
@@ -538,6 +562,16 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
         onOpenChange={handleInitOpenChange}
         title="Init Scripts"
         description="Manage MCP init scripts."
+      />
+
+      <NestedImagePullSecretsDialog
+        targetCase="mcpId"
+        targetId={imagePullSecretsTargetId}
+        organizationId={organizationId}
+        open={Boolean(imagePullSecretsTargetId)}
+        onOpenChange={handleImagePullSecretsOpenChange}
+        title="Image Pull Secrets"
+        description="Manage MCP image pull secrets."
       />
 
       <ConfirmDialog

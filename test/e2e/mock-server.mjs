@@ -11,7 +11,15 @@ const organizations = new Map();
 const memberships = new Map();
 const secretProviders = new Map();
 const secrets = new Map();
+const imagePullSecrets = new Map();
 const runners = new Map();
+const devices = new Map();
+const agents = new Map();
+const mcps = new Map();
+const hooks = new Map();
+const llmProviders = new Map();
+const models = new Map();
+const imagePullSecretAttachments = new Map();
 
 const defaultUser = {
   id: defaultUserId,
@@ -36,6 +44,28 @@ const defaultRunner = {
 };
 
 runners.set(defaultRunner.id, defaultRunner);
+
+const defaultLlmProvider = {
+  id: 'llm-provider-e2e',
+  endpoint: 'https://llm.e2e.agyn.dev',
+  authMethod: 'AUTH_METHOD_BEARER',
+  organizationId: '',
+  token: 'e2e-token',
+  createdAt: new Date().toISOString(),
+};
+
+llmProviders.set(defaultLlmProvider.id, defaultLlmProvider);
+
+const defaultModel = {
+  id: 'model-e2e',
+  name: 'E2E Model',
+  llmProviderId: 'llm-provider-e2e',
+  remoteName: 'gpt-4o-mini',
+  organizationId: defaultLlmProvider.organizationId,
+  createdAt: new Date().toISOString(),
+};
+
+models.set(defaultModel.id, defaultModel);
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -188,6 +218,98 @@ function mapSecret(secret) {
   };
 }
 
+function mapEntityMeta(entity) {
+  return {
+    id: entity.id,
+    createdAt: entity.createdAt,
+  };
+}
+
+function mapDevice(device) {
+  return {
+    meta: mapEntityMeta(device),
+    userIdentityId: device.userIdentityId,
+    name: device.name,
+    openzitiIdentityId: device.openzitiIdentityId,
+    status: device.status,
+  };
+}
+
+function mapAgent(agent) {
+  return {
+    meta: mapEntityMeta(agent),
+    name: agent.name,
+    role: agent.role,
+    model: agent.model,
+    description: agent.description,
+    configuration: agent.configuration,
+    image: agent.image,
+    initImage: agent.initImage,
+    resources: agent.resources,
+    organizationId: agent.organizationId,
+  };
+}
+
+function mapMcp(mcp) {
+  return {
+    meta: mapEntityMeta(mcp),
+    agentId: mcp.agentId,
+    image: mcp.image,
+    command: mcp.command,
+    description: mcp.description,
+    name: mcp.name,
+    resources: mcp.resources,
+  };
+}
+
+function mapHook(hook) {
+  return {
+    meta: mapEntityMeta(hook),
+    agentId: hook.agentId,
+    event: hook.event,
+    function: hook.functionName,
+    image: hook.image,
+    description: hook.description,
+    resources: hook.resources,
+  };
+}
+
+function mapModel(model) {
+  return {
+    meta: mapEntityMeta(model),
+    name: model.name,
+    llmProviderId: model.llmProviderId,
+    remoteName: model.remoteName,
+  };
+}
+
+function mapLlmProvider(provider) {
+  return {
+    meta: mapEntityMeta(provider),
+    endpoint: provider.endpoint,
+    authMethod: provider.authMethod,
+    organizationId: provider.organizationId,
+  };
+}
+
+function mapImagePullSecret(secret) {
+  return {
+    meta: mapEntityMeta(secret),
+    description: secret.description,
+    registry: secret.registry,
+    username: secret.username,
+    organizationId: secret.organizationId,
+  };
+}
+
+function mapImagePullSecretAttachment(attachment) {
+  return {
+    meta: mapEntityMeta(attachment),
+    imagePullSecretId: attachment.imagePullSecretId,
+    target: attachment.target,
+  };
+}
+
 function handleUsersGateway(method, body, res) {
   switch (method) {
     case 'GetMe': {
@@ -247,6 +369,29 @@ function handleUsersGateway(method, body, res) {
     }
     case 'DeleteUser': {
       if (body.identityId) users.delete(body.identityId);
+      return sendJson(res, 200, {});
+    }
+    case 'CreateDevice': {
+      const id = randomUUID();
+      const device = {
+        id,
+        userIdentityId: defaultUserId,
+        name: body.name ?? `device-${id}`,
+        openzitiIdentityId: `openziti-${id}`,
+        status: 'DEVICE_STATUS_PENDING',
+        createdAt: new Date().toISOString(),
+      };
+      devices.set(id, device);
+      return sendJson(res, 200, { device: mapDevice(device), enrollmentJwt: createJwt({ deviceId: id }) });
+    }
+    case 'ListDevices': {
+      return sendJson(res, 200, {
+        devices: Array.from(devices.values()).map(mapDevice),
+        nextPageToken: '',
+      });
+    }
+    case 'DeleteDevice': {
+      if (body.id) devices.delete(body.id);
       return sendJson(res, 200, {});
     }
     default:
@@ -383,6 +528,44 @@ function handleSecretsGateway(method, body, res) {
       if (body.id) secrets.delete(body.id);
       return sendJson(res, 200, {});
     }
+    case 'CreateImagePullSecret': {
+      const id = randomUUID();
+      const secret = {
+        id,
+        description: body.description ?? '',
+        registry: body.registry ?? '',
+        username: body.username ?? '',
+        organizationId: body.organizationId ?? '',
+        createdAt: new Date().toISOString(),
+      };
+      imagePullSecrets.set(id, secret);
+      return sendJson(res, 200, { imagePullSecret: mapImagePullSecret(secret) });
+    }
+    case 'ListImagePullSecrets': {
+      const result = Array.from(imagePullSecrets.values()).filter(
+        (secret) => secret.organizationId === body.organizationId,
+      );
+      return sendJson(res, 200, { imagePullSecrets: result.map(mapImagePullSecret), nextPageToken: '' });
+    }
+    case 'UpdateImagePullSecret': {
+      const secret = imagePullSecrets.get(body.id);
+      if (!secret) return sendText(res, 404, 'Image pull secret not found');
+      secret.description = body.description ?? secret.description;
+      secret.registry = body.registry ?? secret.registry;
+      secret.username = body.username ?? secret.username;
+      return sendJson(res, 200, { imagePullSecret: mapImagePullSecret(secret) });
+    }
+    case 'DeleteImagePullSecret': {
+      if (body.id) {
+        imagePullSecrets.delete(body.id);
+        for (const [attachmentId, attachment] of imagePullSecretAttachments.entries()) {
+          if (attachment.imagePullSecretId === body.id) {
+            imagePullSecretAttachments.delete(attachmentId);
+          }
+        }
+      }
+      return sendJson(res, 200, {});
+    }
     default:
       return sendText(res, 404, 'Unknown SecretsGateway method');
   }
@@ -421,11 +604,167 @@ function handleRunnersGateway(method, body, res) {
   }
 }
 
-function handleAgentsGateway(method, _body, res) {
-  if (method === 'ListAgents') {
-    return sendJson(res, 200, { agents: [], nextPageToken: '' });
+function handleAgentsGateway(method, body, res) {
+  switch (method) {
+    case 'CreateAgent': {
+      const id = randomUUID();
+      const agent = {
+        id,
+        name: body.name ?? `agent-${id}`,
+        role: body.role ?? '',
+        model: body.model ?? '',
+        description: body.description ?? '',
+        configuration: body.configuration ?? '',
+        image: body.image ?? '',
+        initImage: body.initImage ?? '',
+        resources: body.resources,
+        organizationId: body.organizationId ?? '',
+        createdAt: new Date().toISOString(),
+      };
+      agents.set(id, agent);
+      return sendJson(res, 200, { agent: mapAgent(agent) });
+    }
+    case 'GetAgent': {
+      const agent = agents.get(body.id);
+      if (!agent) return sendText(res, 404, 'Agent not found');
+      return sendJson(res, 200, { agent: mapAgent(agent) });
+    }
+    case 'ListAgents': {
+      const orgId = body.organizationId ?? '';
+      const result = Array.from(agents.values()).filter((agent) => !orgId || agent.organizationId === orgId);
+      return sendJson(res, 200, { agents: result.map(mapAgent), nextPageToken: '' });
+    }
+    case 'DeleteAgent': {
+      if (body.id) {
+        agents.delete(body.id);
+        for (const [mcpId, mcp] of mcps.entries()) {
+          if (mcp.agentId === body.id) mcps.delete(mcpId);
+        }
+        for (const [hookId, hook] of hooks.entries()) {
+          if (hook.agentId === body.id) hooks.delete(hookId);
+        }
+        for (const [attachmentId, attachment] of imagePullSecretAttachments.entries()) {
+          if (attachment.target.case === 'agentId' && attachment.target.value === body.id) {
+            imagePullSecretAttachments.delete(attachmentId);
+          }
+        }
+      }
+      return sendJson(res, 200, {});
+    }
+    case 'CreateMcp': {
+      const id = randomUUID();
+      const mcp = {
+        id,
+        agentId: body.agentId ?? '',
+        image: body.image ?? '',
+        command: body.command ?? '',
+        description: body.description ?? '',
+        name: body.name ?? `mcp-${id}`,
+        resources: body.resources,
+        createdAt: new Date().toISOString(),
+      };
+      mcps.set(id, mcp);
+      return sendJson(res, 200, { mcp: mapMcp(mcp) });
+    }
+    case 'ListMcps': {
+      const agentId = body.agentId ?? '';
+      const result = Array.from(mcps.values()).filter((mcp) => !agentId || mcp.agentId === agentId);
+      return sendJson(res, 200, { mcps: result.map(mapMcp), nextPageToken: '' });
+    }
+    case 'CreateHook': {
+      const id = randomUUID();
+      const hook = {
+        id,
+        agentId: body.agentId ?? '',
+        event: body.event ?? '',
+        functionName: body.function ?? '',
+        image: body.image ?? '',
+        description: body.description ?? '',
+        resources: body.resources,
+        createdAt: new Date().toISOString(),
+      };
+      hooks.set(id, hook);
+      return sendJson(res, 200, { hook: mapHook(hook) });
+    }
+    case 'ListHooks': {
+      const agentId = body.agentId ?? '';
+      const result = Array.from(hooks.values()).filter((hook) => !agentId || hook.agentId === agentId);
+      return sendJson(res, 200, { hooks: result.map(mapHook), nextPageToken: '' });
+    }
+    case 'CreateImagePullSecretAttachment': {
+      const imagePullSecretId = body.imagePullSecretId ?? '';
+      let target = body.target;
+      if (!target?.case || !target?.value) {
+        if (body.agentId) {
+          target = { case: 'agentId', value: body.agentId };
+        } else if (body.mcpId) {
+          target = { case: 'mcpId', value: body.mcpId };
+        } else if (body.hookId) {
+          target = { case: 'hookId', value: body.hookId };
+        }
+      }
+      if (!imagePullSecretId || !target?.case || !target?.value) {
+        return sendText(res, 400, 'Missing image pull secret attachment target');
+      }
+      const alreadyExists = Array.from(imagePullSecretAttachments.values()).some(
+        (attachment) =>
+          attachment.imagePullSecretId === imagePullSecretId &&
+          attachment.target.case === target.case &&
+          attachment.target.value === target.value,
+      );
+      if (alreadyExists) {
+        return sendText(res, 409, 'Image pull secret attachment already exists');
+      }
+      const id = randomUUID();
+      const attachment = {
+        id,
+        imagePullSecretId,
+        target: { case: target.case, value: target.value },
+        createdAt: new Date().toISOString(),
+      };
+      imagePullSecretAttachments.set(id, attachment);
+      return sendJson(res, 200, { imagePullSecretAttachment: mapImagePullSecretAttachment(attachment) });
+    }
+    case 'ListImagePullSecretAttachments': {
+      const result = Array.from(imagePullSecretAttachments.values()).filter((attachment) => {
+        if (body.imagePullSecretId && attachment.imagePullSecretId !== body.imagePullSecretId) {
+          return false;
+        }
+        if (body.agentId) {
+          return attachment.target.case === 'agentId' && attachment.target.value === body.agentId;
+        }
+        if (body.mcpId) {
+          return attachment.target.case === 'mcpId' && attachment.target.value === body.mcpId;
+        }
+        if (body.hookId) {
+          return attachment.target.case === 'hookId' && attachment.target.value === body.hookId;
+        }
+        return true;
+      });
+      return sendJson(res, 200, { imagePullSecretAttachments: result.map(mapImagePullSecretAttachment), nextPageToken: '' });
+    }
+    case 'DeleteImagePullSecretAttachment': {
+      if (body.id) imagePullSecretAttachments.delete(body.id);
+      return sendJson(res, 200, {});
+    }
+    case 'ListSkills': {
+      return sendJson(res, 200, { skills: [], nextPageToken: '' });
+    }
+    case 'ListEnvs': {
+      return sendJson(res, 200, { envs: [], nextPageToken: '' });
+    }
+    case 'ListInitScripts': {
+      return sendJson(res, 200, { initScripts: [], nextPageToken: '' });
+    }
+    case 'ListVolumeAttachments': {
+      return sendJson(res, 200, { volumeAttachments: [], nextPageToken: '' });
+    }
+    case 'ListVolumes': {
+      return sendJson(res, 200, { volumes: [], nextPageToken: '' });
+    }
+    default:
+      return sendText(res, 404, 'Unknown AgentsGateway method');
   }
-  return sendText(res, 404, 'Unknown AgentsGateway method');
 }
 
 function handleAppsGateway(method, _body, res) {
@@ -433,6 +772,54 @@ function handleAppsGateway(method, _body, res) {
     return sendJson(res, 200, { installations: [], nextPageToken: '' });
   }
   return sendText(res, 404, 'Unknown AppsGateway method');
+}
+
+function handleLlmGateway(method, body, res) {
+  switch (method) {
+    case 'ListLLMProviders': {
+      const organizationId = body.organizationId ?? '';
+      const result = Array.from(llmProviders.values()).filter(
+        (provider) => !organizationId || provider.organizationId === organizationId,
+      );
+      return sendJson(res, 200, { providers: result.map(mapLlmProvider), nextPageToken: '' });
+    }
+    case 'CreateLLMProvider': {
+      const provider = {
+        id: randomUUID(),
+        endpoint: body.endpoint ?? '',
+        authMethod: body.authMethod ?? 'AUTH_METHOD_BEARER',
+        organizationId: body.organizationId ?? '',
+        token: body.token ?? '',
+        createdAt: new Date().toISOString(),
+      };
+      llmProviders.set(provider.id, provider);
+      return sendJson(res, 200, { provider: mapLlmProvider(provider) });
+    }
+    case 'CreateModel': {
+      const model = {
+        id: randomUUID(),
+        name: body.name ?? '',
+        llmProviderId: body.llmProviderId ?? '',
+        remoteName: body.remoteName ?? '',
+        organizationId: body.organizationId ?? '',
+        createdAt: new Date().toISOString(),
+      };
+      models.set(model.id, model);
+      return sendJson(res, 200, { model: mapModel(model) });
+    }
+    case 'ListModels': {
+      const providerId = body.llmProviderId ?? '';
+      const organizationId = body.organizationId ?? '';
+      const result = Array.from(models.values()).filter((model) => {
+        if (providerId && model.llmProviderId !== providerId) return false;
+        if (organizationId && model.organizationId !== organizationId) return false;
+        return true;
+      });
+      return sendJson(res, 200, { models: result.map(mapModel), nextPageToken: '' });
+    }
+    default:
+      return sendText(res, 404, 'Unknown LLMGateway method');
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -531,6 +918,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (service === 'agynio.api.gateway.v1.AgentsGateway') {
       return handleAgentsGateway(method, body, res);
+    }
+    if (service === 'agynio.api.gateway.v1.LLMGateway') {
+      return handleLlmGateway(method, body, res);
     }
     if (service === 'agynio.api.gateway.v1.AppsGateway') {
       return handleAppsGateway(method, body, res);
