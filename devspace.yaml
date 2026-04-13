@@ -58,7 +58,7 @@ functions:
     kubectl patch deployment "$deploy" -n ${APP_NAMESPACE} \
       --type strategic \
       -p "{\"spec\":{\"template\":{\"spec\":{\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"containers\":[{\"name\":\"${container}\",\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
-    kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=180s
+    kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
     kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
