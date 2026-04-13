@@ -50,9 +50,14 @@ functions:
       echo "WARNING: console-app deployment not found in ${APP_NAMESPACE} namespace."
       return 0
     fi
+    container=$(kubectl get deployment "$deploy" -n ${APP_NAMESPACE} -o jsonpath='{.spec.template.spec.containers[0].name}')
+    if [ -z "$container" ]; then
+      echo "WARNING: console-app container not found in ${APP_NAMESPACE} namespace."
+      return 0
+    fi
     kubectl patch deployment "$deploy" -n ${APP_NAMESPACE} \
       --type merge \
-      -p '{"spec":{"template":{"spec":{"volumes":[{"name":"console-app-html","emptyDir":{}}],"containers":[{"name":"console-app","volumeMounts":[{"name":"console-app-html","mountPath":"/usr/share/nginx/html"}]}]}}}}'
+      -p "{\"spec\":{\"template\":{\"spec\":{\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"containers\":[{\"name\":\"${container}\",\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
     kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=180s
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
