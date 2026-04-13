@@ -62,7 +62,7 @@ functions:
     fi
     kubectl patch deployment "$deploy" -n ${APP_NAMESPACE} \
       --type strategic \
-      -p "{\"spec\":{\"template\":{\"spec\":{\"securityContext\":{\"fsGroup\":101},\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"initContainers\":[{\"name\":\"console-app-html-init\",\"image\":\"${image}\",\"command\":[\"sh\",\"-c\",\"cp -R /usr/share/nginx/html/. /workdir/\"],\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/workdir\"}]}],\"containers\":[{\"name\":\"${container}\",\"securityContext\":{\"readOnlyRootFilesystem\":true,\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
+      -p "{\"spec\":{\"template\":{\"spec\":{\"securityContext\":{\"fsGroup\":101},\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"initContainers\":[{\"name\":\"console-app-html-init\",\"image\":\"${image}\",\"command\":[\"sh\",\"-c\",\"cp -R /usr/share/nginx/html/. /workdir/\"],\"securityContext\":{\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/workdir\"}]}],\"containers\":[{\"name\":\"${container}\",\"securityContext\":{\"readOnlyRootFilesystem\":true,\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
     kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
