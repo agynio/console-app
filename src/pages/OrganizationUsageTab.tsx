@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
+import { Code, ConnectError } from '@connectrpc/connect';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useQueries } from '@tanstack/react-query';
 import { create } from '@bufbuild/protobuf';
@@ -21,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Granularity,
+  QueryUsageResponseSchema,
   Unit,
   type QueryUsageResponse,
   type UsageBucket,
@@ -166,6 +168,39 @@ function toTimestamp(date: Date): Timestamp {
     seconds: BigInt(Math.floor(date.getTime() / 1000)),
     nanos: 0,
   });
+}
+
+function isUsageUnavailable(error: unknown): boolean {
+  return error instanceof ConnectError && (error.code === Code.Unimplemented || error.code === Code.NotFound);
+}
+
+async function queryUsageSafely({
+  organizationId,
+  start,
+  end,
+  config,
+}: {
+  organizationId: string;
+  start: Timestamp;
+  end: Timestamp;
+  config: UsageQueryConfig;
+}): Promise<QueryUsageResponse> {
+  try {
+    return await meteringClient.queryUsage({
+      orgId: organizationId,
+      start,
+      end,
+      unit: config.unit,
+      labelFilters: config.labelFilters ?? {},
+      groupBy: config.groupBy ?? '',
+      granularity: config.granularity,
+    });
+  } catch (error) {
+    if (isUsageUnavailable(error)) {
+      return create(QueryUsageResponseSchema, { buckets: [] });
+    }
+    throw error;
+  }
 }
 
 function formatDateInput(date: Date): string {
@@ -395,14 +430,11 @@ export function OrganizationUsageTab() {
         if (!startTimestamp || !endTimestamp) {
           throw new Error('Usage range not available.');
         }
-        return meteringClient.queryUsage({
-          orgId: organizationId,
+        return queryUsageSafely({
+          organizationId,
           start: startTimestamp,
           end: endTimestamp,
-          unit: config.unit,
-          labelFilters: config.labelFilters ?? {},
-          groupBy: config.groupBy ?? '',
-          granularity: config.granularity,
+          config,
         });
       },
       enabled: isRangeReady,

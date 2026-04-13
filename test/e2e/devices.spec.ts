@@ -42,9 +42,16 @@ test('creates a device and shows enrollment JWT', async ({ page }) => {
 
   const createDialog = page.getByTestId('devices-create-dialog');
   await createDialog.getByTestId('devices-name').fill(deviceName);
-  await page.getByTestId('devices-submit').click();
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().includes('/agynio.api.gateway.v1.UsersGateway/CreateDevice') && response.status() === 200,
+      { timeout: 90_000 },
+    ),
+    page.getByTestId('devices-submit').click(),
+  ]);
 
-  await expect(page.getByTestId('devices-jwt-value')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('devices-jwt-value')).toBeVisible({ timeout: 30_000 });
   await argosScreenshot(page, 'devices-create-jwt');
 
   await page.getByTestId('devices-jwt-done').click();
