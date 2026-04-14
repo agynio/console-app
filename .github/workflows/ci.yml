@@ -112,12 +112,7 @@ jobs:
         working-directory: bootstrap
         env:
           TF_VAR_k8s_runner_identity_id: 439e0da2-88cd-46d7-bb9c-56c723c15606
-          TF_VAR_llm_image_tag: main
-          GATEWAY_CHART_VERSION: ${{ vars.GATEWAY_CHART_VERSION }}
         run: |
-          if [ -n "${GATEWAY_CHART_VERSION}" ]; then
-            export TF_VAR_gateway_chart_version="${GATEWAY_CHART_VERSION}"
-          fi
           ./apply.sh -y
 
       - name: Export cluster admin token
