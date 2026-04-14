@@ -204,20 +204,20 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             </Button>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Name</div>
-            <div className="text-sm text-foreground">{agent.name || '—'}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Nickname</div>
-            <div className="text-sm text-foreground">
-              {agent.nickname ? `@${agent.nickname}` : '—'}
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Name</div>
+              <div className="text-sm text-foreground">{agent.name || '—'}</div>
             </div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Role</div>
-            <div className="text-sm text-foreground">{agent.role || '—'}</div>
-          </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Nickname</div>
+              <div className="text-sm text-foreground">
+                {agent.nickname ? `@${agent.nickname}` : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Role</div>
+              <div className="text-sm text-foreground">{agent.role || '—'}</div>
+            </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Model</div>
               <div className="text-sm text-foreground">
