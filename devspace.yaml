@@ -67,6 +67,21 @@ functions:
       --type strategic \
       -p "{\"spec\":{\"template\":{\"spec\":{\"securityContext\":{\"fsGroup\":101},\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"initContainers\":[{\"name\":\"console-app-html-init\",\"image\":\"${image}\",\"command\":[\"sh\",\"-c\",\"cp -R /usr/share/nginx/html/. /workdir/\"],\"securityContext\":{\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/workdir\"}]}],\"containers\":[{\"name\":\"${container}\",\"securityContext\":{\"readOnlyRootFilesystem\":true,\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
     kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
+  patch_console_app_nginx: |-
+    if [ ! -f docker/default.conf.template ]; then
+      echo "ERROR: docker/default.conf.template not found."
+      return 1
+    fi
+    kubectl create configmap console-app-nginx -n ${APP_NAMESPACE} \
+      --from-file=default.conf.template=docker/default.conf.template \
+      --dry-run=client -o yaml | kubectl apply -f -
+    deploy=$(kubectl get deployment -n ${APP_NAMESPACE} -l app.kubernetes.io/name=console-app -o jsonpath='{.items[0].metadata.name}')
+    if [ -z "$deploy" ]; then
+      echo "WARNING: console-app deployment not found in ${APP_NAMESPACE} namespace."
+      return 0
+    fi
+    kubectl rollout restart deployment "$deploy" -n ${APP_NAMESPACE}
+    kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
     kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
@@ -122,6 +137,7 @@ pipelines:
     run: |-
       disable_argocd_sync
       ensure_console_app_html_writable
+      patch_console_app_nginx
       if [ "$(get_flag "watch")" == "true" ]; then
         start_dev --disable-pod-replace console-app
       else
