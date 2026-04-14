@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { ConnectError } from '@connectrpc/connect';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { llmClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -48,6 +49,11 @@ export function OrganizationModelsTab() {
   const [editProviderError, setEditProviderError] = useState('');
   const [editRemoteError, setEditRemoteError] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [testOpen, setTestOpen] = useState(false);
+  const [testModelName, setTestModelName] = useState('');
+  const [testStatus, setTestStatus] = useState<'idle' | 'pending' | 'success' | 'failure'>('idle');
+  const [testOutput, setTestOutput] = useState('');
+  const [testError, setTestError] = useState('');
 
   const modelsQuery = useInfiniteQuery({
     queryKey: ['llm', organizationId, 'models', 'infinite'],
@@ -114,6 +120,31 @@ export function OrganizationModelsTab() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to delete model.');
+    },
+  });
+
+  const testModelMutation = useMutation({
+    mutationFn: (modelId: string) => llmClient.testModel({ modelId }),
+    onSuccess: (response) => {
+      const trimmedOutput = response.outputText?.trim() ?? '';
+      if (!trimmedOutput) {
+        setTestStatus('failure');
+        setTestError('Test response missing output.');
+        setTestOutput('');
+        return;
+      }
+      setTestStatus('success');
+      setTestOutput(trimmedOutput);
+      setTestError('');
+    },
+    onError: (error) => {
+      setTestStatus('failure');
+      setTestOutput('');
+      if (error instanceof ConnectError) {
+        setTestError(error.message);
+        return;
+      }
+      setTestError(error instanceof Error ? error.message : 'Failed to test model.');
     },
   });
 
@@ -243,6 +274,31 @@ export function OrganizationModelsTab() {
     setDeleteTargetId(modelId);
   };
 
+  const handleTestOpen = (model: Model) => {
+    const modelId = model.meta?.id;
+    if (!modelId) {
+      toast.error('Missing model ID.');
+      return;
+    }
+    setTestModelName(model.name);
+    setTestStatus('pending');
+    setTestOutput('');
+    setTestError('');
+    setTestOpen(true);
+    testModelMutation.mutate(modelId);
+  };
+
+  const handleTestOpenChange = (open: boolean) => {
+    setTestOpen(open);
+    if (!open) {
+      setTestModelName('');
+      setTestStatus('idle');
+      setTestOutput('');
+      setTestError('');
+      testModelMutation.reset();
+    }
+  };
+
   const providerMap = useMemo(() => {
     const providers = providersQuery.data?.providers ?? [];
     return new Map(
@@ -311,7 +367,7 @@ export function OrganizationModelsTab() {
         <Card className="border-border" data-testid="organization-models-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_200px]"
               data-testid="organization-models-header"
             >
               <SortableHeader
@@ -355,7 +411,7 @@ export function OrganizationModelsTab() {
                   return (
                     <div
                       key={model.meta?.id ?? model.name}
-                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_140px]"
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_200px]"
                       data-testid="organization-model-row"
                     >
                       <div>
@@ -376,6 +432,14 @@ export function OrganizationModelsTab() {
                         {formatDateOnly(model.meta?.createdAt)}
                       </span>
                       <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTestOpen(model)}
+                          data-testid="organization-model-test"
+                        >
+                          Test
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -571,6 +635,52 @@ export function OrganizationModelsTab() {
             >
               {updateModelMutation.isPending ? 'Saving...' : 'Save changes'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={testOpen} onOpenChange={handleTestOpenChange}>
+        <DialogContent data-testid="organization-model-test-dialog">
+          <DialogHeader>
+            <DialogTitle>Test model</DialogTitle>
+            <DialogDescription>
+              Sending "Hello, world" to {testModelName || 'the selected model'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {testStatus === 'pending' ? (
+              <div className="text-sm text-muted-foreground" data-testid="organization-model-test-pending">
+                Testing model...
+              </div>
+            ) : null}
+            {testStatus === 'success' ? (
+              <div className="space-y-2" data-testid="organization-model-test-success">
+                <div className="text-sm font-medium">Success</div>
+                <div
+                  className="whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-3 text-sm"
+                  data-testid="organization-model-test-output"
+                >
+                  {testOutput}
+                </div>
+              </div>
+            ) : null}
+            {testStatus === 'failure' ? (
+              <div className="space-y-2" data-testid="organization-model-test-failure">
+                <div className="text-sm font-medium text-destructive">Failure</div>
+                <div
+                  className="whitespace-pre-wrap rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+                  data-testid="organization-model-test-error"
+                >
+                  {testError || 'Test failed.'}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" data-testid="organization-model-test-close">
+                Close
+              </Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>

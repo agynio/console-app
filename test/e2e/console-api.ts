@@ -89,6 +89,10 @@ type CreateSecretProviderResponseWire = {
   secretProvider?: { meta?: { id?: string } };
 };
 
+type CreateLLMProviderResponseWire = {
+  provider?: { meta?: { id?: string } };
+};
+
 type ListSecretProvidersResponseWire = {
   secretProviders?: Array<{ meta?: { id?: string }; title?: string }>;
 };
@@ -141,7 +145,6 @@ type LlmProviderWire = {
 type CreateSecretResponseWire = {
   secret?: { meta?: { id?: string } };
 };
-
 type CreateImagePullSecretResponseWire = {
   imagePullSecret?: { meta?: { id?: string } };
 };
@@ -601,7 +604,7 @@ async function createLlmProvider(
   return providerId;
 }
 
-async function createModel(
+async function createModelInternal(
   page: Page,
   opts: { organizationId: string; llmProviderId: string; name: string; remoteName: string },
 ): Promise<string> {
@@ -638,7 +641,7 @@ async function ensureModelId(page: Page, organizationId: string): Promise<string
 
   const providerId = await ensureLlmProviderId(page, organizationId);
   const now = Date.now();
-  return createModel(page, {
+  return createModelInternal(page, {
     organizationId,
     llmProviderId: providerId,
     name: `E2E Model ${now}`,
@@ -805,6 +808,41 @@ export async function clearOrganizationSecrets(page: Page, organizationId: strin
     await page.waitForTimeout(500);
   }
   throw new Error('Timed out clearing organization secrets.');
+}
+
+export async function createLLMProvider(
+  page: Page,
+  opts: { organizationId: string; endpoint: string; authMethod: string; token: string; protocol: string },
+): Promise<string> {
+  const response = await postConnect<CreateLLMProviderResponseWire>(page, LLM_GATEWAY_PATH, 'CreateLLMProvider', {
+    endpoint: opts.endpoint,
+    authMethod: opts.authMethod,
+    token: opts.token,
+    organizationId: opts.organizationId,
+    protocol: opts.protocol,
+  });
+  const providerId = response.provider?.meta?.id;
+  if (!providerId) {
+    throw new Error('CreateLLMProvider response missing provider id.');
+  }
+  return providerId;
+}
+
+export async function createModel(
+  page: Page,
+  opts: { organizationId: string; providerId: string; name: string; remoteName: string },
+): Promise<string> {
+  const response = await postConnect<CreateModelResponseWire>(page, LLM_GATEWAY_PATH, 'CreateModel', {
+    name: opts.name,
+    llmProviderId: opts.providerId,
+    remoteName: opts.remoteName,
+    organizationId: opts.organizationId,
+  });
+  const modelId = response.model?.meta?.id;
+  if (!modelId) {
+    throw new Error('CreateModel response missing model id.');
+  }
+  return modelId;
 }
 
 export async function createDevice(page: Page, opts: { name: string }): Promise<CreateDeviceResponseWire> {

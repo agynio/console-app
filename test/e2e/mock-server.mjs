@@ -774,7 +774,7 @@ function handleAppsGateway(method, _body, res) {
   return sendText(res, 404, 'Unknown AppsGateway method');
 }
 
-function handleLlmGateway(method, body, res) {
+async function handleLlmGateway(method, body, res) {
   switch (method) {
     case 'ListLLMProviders': {
       const organizationId = body.organizationId ?? '';
@@ -816,6 +816,19 @@ function handleLlmGateway(method, body, res) {
         return true;
       });
       return sendJson(res, 200, { models: result.map(mapModel), nextPageToken: '' });
+    }
+    case 'TestModel': {
+      const modelId = body.modelId ?? '';
+      const model = modelId ? models.get(modelId) : null;
+      if (!model) {
+        return sendText(res, 404, 'Model not found');
+      }
+      if (model.remoteName === 'nonexistent-model') {
+        return sendText(res, 400, 'Model test failed');
+      }
+      const label = model.remoteName || model.name || 'model';
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      return sendJson(res, 200, { outputText: `Test response from ${label}.` });
     }
     default:
       return sendText(res, 404, 'Unknown LLMGateway method');
@@ -920,7 +933,8 @@ const server = http.createServer(async (req, res) => {
       return handleAgentsGateway(method, body, res);
     }
     if (service === 'agynio.api.gateway.v1.LLMGateway') {
-      return handleLlmGateway(method, body, res);
+      await handleLlmGateway(method, body, res);
+      return;
     }
     if (service === 'agynio.api.gateway.v1.AppsGateway') {
       return handleAppsGateway(method, body, res);

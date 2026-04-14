@@ -44,16 +44,26 @@ functions:
         echo "WARNING: ArgoCD Application '$app' not found."
       fi
     done
-  deploy_pr_image: |-
-    echo "Deploying PR image to cluster..."
-    IMAGE="${PR_IMAGE:-}"
-    if [ -z "$IMAGE" ]; then
-      echo "ERROR: PR_IMAGE not set, aborting hot deploy"
-      exit 1
+  ensure_console_app_html_writable: |-
+    deploy=$(kubectl get deployment -n ${APP_NAMESPACE} -l app.kubernetes.io/name=console-app -o jsonpath='{.items[0].metadata.name}')
+    if [ -z "$deploy" ]; then
+      echo "WARNING: console-app deployment not found in ${APP_NAMESPACE} namespace."
+      return 0
     fi
-    kubectl set image deployment/console-app console-app="$IMAGE" -n ${APP_NAMESPACE}
-    kubectl rollout status deployment/console-app -n ${APP_NAMESPACE} --timeout=120s
-    echo "PR image deployed successfully"
+    container=$(kubectl get deployment "$deploy" -n ${APP_NAMESPACE} -o jsonpath='{.spec.template.spec.containers[0].name}')
+    if [ -z "$container" ]; then
+      echo "WARNING: console-app container not found in ${APP_NAMESPACE} namespace."
+      return 0
+    fi
+    image=$(kubectl get deployment "$deploy" -n ${APP_NAMESPACE} -o jsonpath='{.spec.template.spec.containers[0].image}')
+    if [ -z "$image" ]; then
+      echo "WARNING: console-app container image not found in ${APP_NAMESPACE} namespace."
+      return 0
+    fi
+    kubectl patch deployment "$deploy" -n ${APP_NAMESPACE} \
+      --type strategic \
+      -p "{\"spec\":{\"template\":{\"spec\":{\"securityContext\":{\"fsGroup\":101},\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"initContainers\":[{\"name\":\"console-app-html-init\",\"image\":\"${image}\",\"command\":[\"sh\",\"-c\",\"cp -R /usr/share/nginx/html/. /workdir/\"],\"securityContext\":{\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/workdir\"}]}],\"containers\":[{\"name\":\"${container}\",\"securityContext\":{\"readOnlyRootFilesystem\":true,\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
+    kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
     kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
@@ -108,6 +118,7 @@ pipelines:
         description: "Keep DevSpace running and stream logs"
     run: |-
       disable_argocd_sync
+      ensure_console_app_html_writable
       if [ "$(get_flag "watch")" == "true" ]; then
         start_dev --disable-pod-replace console-app
       else
@@ -119,7 +130,6 @@ pipelines:
   test-e2e:
     run: |-
       disable_argocd_sync
-      deploy_pr_image
       create_deployments e2e-runner
       start_dev e2e-runner &
       sleep 5
@@ -130,10 +140,10 @@ pipelines:
         -- bash -c '
           echo "Waiting for file sync..."
           for i in $(seq 1 60); do
-            [ -f /opt/app/data/package.json ] && [ -f /opt/app/data/package-lock.json ] && [ -f /opt/app/data/test/e2e/fixtures.ts ] && [ -f /opt/app/data/test/e2e/console-api.ts ] && [ -f /opt/app/data/test/e2e/sign-in-helper.ts ] && [ -f /opt/app/data/test/e2e/sign-in.spec.ts ] && [ -f /opt/app/data/test/e2e/dashboard.spec.ts ] && [ -f /opt/app/data/test/e2e/organizations.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-members.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] && [ -f /opt/app/data/test/e2e/users.spec.ts ] && [ -f /opt/app/data/test/e2e/runners.spec.ts ] && [ -f /opt/app/data/test/e2e/settings.spec.ts ] && break
+            [ -f /opt/app/data/package.json ] && [ -f /opt/app/data/package-lock.json ] && [ -f /opt/app/data/test/e2e/fixtures.ts ] && [ -f /opt/app/data/test/e2e/console-api.ts ] && [ -f /opt/app/data/test/e2e/sign-in-helper.ts ] && [ -f /opt/app/data/test/e2e/sign-in.spec.ts ] && [ -f /opt/app/data/test/e2e/dashboard.spec.ts ] && [ -f /opt/app/data/test/e2e/organizations.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-members.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] && [ -f /opt/app/data/test/e2e/model-test.spec.ts ] && [ -f /opt/app/data/test/e2e/users.spec.ts ] && [ -f /opt/app/data/test/e2e/runners.spec.ts ] && [ -f /opt/app/data/test/e2e/settings.spec.ts ] && break
             sleep 2
           done
-          if [ ! -f /opt/app/data/package.json ] || [ ! -f /opt/app/data/package-lock.json ] || [ ! -f /opt/app/data/test/e2e/fixtures.ts ] || [ ! -f /opt/app/data/test/e2e/console-api.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in-helper.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in.spec.ts ] || [ ! -f /opt/app/data/test/e2e/dashboard.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organizations.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-members.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] || [ ! -f /opt/app/data/test/e2e/users.spec.ts ] || [ ! -f /opt/app/data/test/e2e/runners.spec.ts ] || [ ! -f /opt/app/data/test/e2e/settings.spec.ts ]; then
+          if [ ! -f /opt/app/data/package.json ] || [ ! -f /opt/app/data/package-lock.json ] || [ ! -f /opt/app/data/test/e2e/fixtures.ts ] || [ ! -f /opt/app/data/test/e2e/console-api.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in-helper.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in.spec.ts ] || [ ! -f /opt/app/data/test/e2e/dashboard.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organizations.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-members.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] || [ ! -f /opt/app/data/test/e2e/model-test.spec.ts ] || [ ! -f /opt/app/data/test/e2e/users.spec.ts ] || [ ! -f /opt/app/data/test/e2e/runners.spec.ts ] || [ ! -f /opt/app/data/test/e2e/settings.spec.ts ]; then
             echo "ERROR: File sync timed out (package.json, package-lock.json, or test/e2e files not found after 120s)"
             exit 1
           fi
