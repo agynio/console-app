@@ -105,6 +105,7 @@ type SecretWire = {
 type AgentWire = {
   meta?: { id?: string };
   name?: string;
+  nickname?: string;
   role?: string;
   model?: string;
   description?: string;
@@ -695,6 +696,7 @@ export async function createAgent(
   opts: {
     organizationId: string;
     name: string;
+    nickname?: string;
     role?: string;
     model?: string;
     description?: string;
@@ -707,7 +709,17 @@ export async function createAgent(
   if (!modelId) {
     modelId = await ensureModelId(page, opts.organizationId);
   }
-  const response = await postConnect<CreateAgentResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateAgent', {
+  const payload: {
+    name: string;
+    nickname?: string;
+    role: string;
+    model: string;
+    description: string;
+    configuration: string;
+    image: string;
+    initImage: string;
+    organizationId: string;
+  } = {
     name: opts.name,
     role: opts.role ?? 'assistant',
     model: modelId,
@@ -716,7 +728,12 @@ export async function createAgent(
     image: opts.image ?? '',
     initImage: opts.initImage ?? '',
     organizationId: opts.organizationId,
-  });
+  };
+  const trimmedNickname = opts.nickname?.trim();
+  if (trimmedNickname) {
+    payload.nickname = trimmedNickname;
+  }
+  const response = await postConnect<CreateAgentResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateAgent', payload);
   const agentId = response.agent?.meta?.id;
   if (!agentId) {
     throw new Error('CreateAgent response missing agent id.');

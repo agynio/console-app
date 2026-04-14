@@ -13,6 +13,7 @@ import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
+import { NICKNAME_MAX_LENGTH, getNicknameValidationError } from '@/lib/nickname';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -25,6 +26,8 @@ export function AgentCreatePage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [nicknameError, setNicknameError] = useState('');
   const [role, setRole] = useState('');
   const [modelId, setModelId] = useState(NO_MODEL);
   const [description, setDescription] = useState('');
@@ -49,6 +52,7 @@ export function AgentCreatePage() {
   const createAgentMutation = useMutation({
     mutationFn: (payload: {
       name: string;
+      nickname: string;
       role: string;
       model: string;
       description: string;
@@ -85,6 +89,14 @@ export function AgentCreatePage() {
       return;
     }
 
+    const trimmedNickname = nickname.trim();
+    const nicknameValidationError = getNicknameValidationError(trimmedNickname);
+    if (nicknameValidationError) {
+      setNicknameError(nicknameValidationError);
+      return;
+    }
+    setNicknameError('');
+
     const trimmedConfig = configuration.trim();
     if (trimmedConfig) {
       try {
@@ -107,6 +119,7 @@ export function AgentCreatePage() {
 
     createAgentMutation.mutate({
       name: trimmedName,
+      nickname: trimmedNickname,
       role: role.trim(),
       model: modelId === NO_MODEL ? '' : modelId,
       description: description.trim(),
@@ -141,6 +154,25 @@ export function AgentCreatePage() {
               data-testid="agent-create-name"
             />
             {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-nickname">Nickname</Label>
+            <Input
+              id="agent-create-nickname"
+              placeholder="support-agent"
+              value={nickname}
+              maxLength={NICKNAME_MAX_LENGTH}
+              onChange={(event) => {
+                setNickname(event.target.value);
+                if (nicknameError) setNicknameError('');
+              }}
+              data-testid="agent-create-nickname"
+            />
+            {nicknameError ? (
+              <p className="text-sm text-destructive" data-testid="agent-create-nickname-error">
+                {nicknameError}
+              </p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="agent-create-role">Role</Label>
