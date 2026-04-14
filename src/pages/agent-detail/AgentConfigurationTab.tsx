@@ -21,6 +21,7 @@ import type { Agent, ComputeResources } from '@/gen/agynio/api/agents/v1/agents_
 import { NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
 import { formatComputeResources } from '@/lib/format';
+import { NICKNAME_MAX_LENGTH, getNicknameValidationError } from '@/lib/nickname';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -40,6 +41,8 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [nicknameError, setNicknameError] = useState('');
   const [role, setRole] = useState('');
   const [modelId, setModelId] = useState(NO_MODEL);
   const [description, setDescription] = useState('');
@@ -90,6 +93,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       configuration?: string;
       image?: string;
       initImage?: string;
+      nickname?: string;
       idleTimeout?: string;
       resources?: ComputeResources;
     }) => agentsClient.updateAgent(payload),
@@ -109,6 +113,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const handleEditOpenChange = (open: boolean) => {
     if (open) {
       setName(agent.name);
+      setNickname(agent.nickname);
       setRole(agent.role);
       setModelId(agent.model || NO_MODEL);
       setDescription(agent.description);
@@ -120,6 +125,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setNameError('');
       setConfigurationError('');
       setIdleTimeoutError('');
+      setNicknameError('');
       setEditOpen(true);
       return;
     }
@@ -132,6 +138,14 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setNameError('Name is required.');
       return;
     }
+
+    const trimmedNickname = nickname.trim();
+    const nicknameValidationError = getNicknameValidationError(trimmedNickname);
+    if (nicknameValidationError) {
+      setNicknameError(nicknameValidationError);
+      return;
+    }
+    setNicknameError('');
 
     const trimmedConfig = configuration.trim();
     if (trimmedConfig) {
@@ -159,6 +173,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
     updateAgentMutation.mutate({
       id: agentId,
       name: trimmedName,
+      nickname: trimmedNickname,
       role: role.trim(),
       model: modelId === NO_MODEL ? '' : modelId,
       description: description.trim(),
@@ -189,14 +204,20 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             </Button>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Name</div>
-              <div className="text-sm text-foreground">{agent.name || '—'}</div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Name</div>
+            <div className="text-sm text-foreground">{agent.name || '—'}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Nickname</div>
+            <div className="text-sm text-foreground">
+              {agent.nickname ? `@${agent.nickname}` : '—'}
             </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Role</div>
-              <div className="text-sm text-foreground">{agent.role || '—'}</div>
-            </div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Role</div>
+            <div className="text-sm text-foreground">{agent.role || '—'}</div>
+          </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Model</div>
               <div className="text-sm text-foreground">
@@ -261,6 +282,25 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                 data-testid="agent-configuration-name"
               />
               {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-nickname">Nickname</Label>
+              <Input
+                id="agent-configuration-nickname"
+                value={nickname}
+                maxLength={NICKNAME_MAX_LENGTH}
+                placeholder="support-agent"
+                onChange={(event) => {
+                  setNickname(event.target.value);
+                  if (nicknameError) setNicknameError('');
+                }}
+                data-testid="agent-configuration-nickname"
+              />
+              {nicknameError ? (
+                <p className="text-sm text-destructive" data-testid="agent-configuration-nickname-error">
+                  {nicknameError}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="agent-configuration-role">Role</Label>
