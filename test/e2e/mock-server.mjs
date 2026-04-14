@@ -239,6 +239,7 @@ function mapAgent(agent) {
   return {
     meta: mapEntityMeta(agent),
     name: agent.name,
+    nickname: agent.nickname,
     role: agent.role,
     model: agent.model,
     description: agent.description,
@@ -611,6 +612,7 @@ function handleAgentsGateway(method, body, res) {
       const agent = {
         id,
         name: body.name ?? `agent-${id}`,
+        nickname: body.nickname ?? '',
         role: body.role ?? '',
         model: body.model ?? '',
         description: body.description ?? '',

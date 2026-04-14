@@ -105,6 +105,7 @@ type SecretWire = {
 type AgentWire = {
   meta?: { id?: string };
   name?: string;
+  nickname?: string;
   role?: string;
   model?: string;
   description?: string;
@@ -695,6 +696,7 @@ export async function createAgent(
   opts: {
     organizationId: string;
     name: string;
+    nickname?: string;
     role?: string;
     model?: string;
     description?: string;
@@ -709,6 +711,7 @@ export async function createAgent(
   }
   const response = await postConnect<CreateAgentResponseWire>(page, AGENTS_GATEWAY_PATH, 'CreateAgent', {
     name: opts.name,
+    nickname: opts.nickname ?? '',
     role: opts.role ?? 'assistant',
     model: modelId,
     description: opts.description ?? '',
