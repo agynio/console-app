@@ -8,6 +8,7 @@ const CONNECT_HEADERS = {
   'Content-Type': 'application/json',
   'Connect-Protocol-Version': '1',
 };
+const FIXED_DAILY_TIMESTAMP = '2026-01-01T00:00:00.000Z';
 
 type UsageQueryRequest = {
   groupBy?: string;
@@ -31,7 +32,7 @@ function buildUsageBuckets(requestBody: UsageQueryRequest | null): UsageBucketWi
   const groupBy = requestBody?.groupBy ?? requestBody?.group_by ?? '';
   const labelFilters = requestBody?.labelFilters ?? requestBody?.label_filters ?? {};
   const isDaily = isDailyGranularity(requestBody?.granularity);
-  const timestamp = new Date().toISOString();
+  const timestamp = FIXED_DAILY_TIMESTAMP;
   const baseValue = 3_000_000;
 
   const buildBuckets = (groups: string[]): UsageBucketWire[] =>

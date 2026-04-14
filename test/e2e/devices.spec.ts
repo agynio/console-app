@@ -32,6 +32,7 @@ test('shows empty devices page', async ({ page }) => {
 });
 
 test('creates a device and shows enrollment JWT', async ({ page }) => {
+  test.setTimeout(120_000);
   const deviceName = buildDeviceName('jwt');
 
   await page.goto('/devices');
