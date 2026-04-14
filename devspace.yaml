@@ -3,9 +3,6 @@ version: v2beta1
 vars:
   APP_NAMESPACE: platform
   E2E_IMAGE: mcr.microsoft.com/playwright:v1.59.1-noble
-  E2E_BASE_URL:
-    source: env
-    default: "http://console-app:3000"
   ARGOS_TOKEN:
     source: env
     default: ""
@@ -67,21 +64,6 @@ functions:
       --type strategic \
       -p "{\"spec\":{\"template\":{\"spec\":{\"securityContext\":{\"fsGroup\":101},\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"initContainers\":[{\"name\":\"console-app-html-init\",\"image\":\"${image}\",\"command\":[\"sh\",\"-c\",\"cp -R /usr/share/nginx/html/. /workdir/\"],\"securityContext\":{\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/workdir\"}]}],\"containers\":[{\"name\":\"${container}\",\"securityContext\":{\"readOnlyRootFilesystem\":true,\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
     kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
-  patch_console_app_nginx: |-
-    if [ ! -f docker/default.conf.template ]; then
-      echo "ERROR: docker/default.conf.template not found."
-      return 1
-    fi
-    kubectl create configmap console-app-nginx -n ${APP_NAMESPACE} \
-      --from-file=default.conf.template=docker/default.conf.template \
-      --dry-run=client -o yaml | kubectl apply -f -
-    deploy=$(kubectl get deployment -n ${APP_NAMESPACE} -l app.kubernetes.io/name=console-app -o jsonpath='{.items[0].metadata.name}')
-    if [ -z "$deploy" ]; then
-      echo "WARNING: console-app deployment not found in ${APP_NAMESPACE} namespace."
-      return 0
-    fi
-    kubectl rollout restart deployment "$deploy" -n ${APP_NAMESPACE}
-    kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
   dump_agent_logs: |-
     echo "=== ORCHESTRATOR LOGS ==="
     kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
@@ -108,7 +90,7 @@ deployments:
           - image: ${E2E_IMAGE}
             env:
               - name: E2E_BASE_URL
-                value: "${E2E_BASE_URL}"
+                value: "https://console.agyn.dev"
               - name: E2E_OIDC_REDIRECT_URI
                 value: "${E2E_OIDC_REDIRECT_URI}"
               - name: ARGOS_TOKEN
@@ -137,7 +119,6 @@ pipelines:
     run: |-
       disable_argocd_sync
       ensure_console_app_html_writable
-      patch_console_app_nginx
       if [ "$(get_flag "watch")" == "true" ]; then
         start_dev --disable-pod-replace console-app
       else
@@ -169,7 +150,7 @@ pipelines:
           sleep 5
           cd /opt/app/data
           npm ci --ignore-scripts
-          E2E_BASE_URL=${E2E_BASE_URL} E2E_OIDC_REDIRECT_URI=${E2E_OIDC_REDIRECT_URI} ARGOS_TOKEN=${ARGOS_TOKEN} ARGOS_BRANCH=${ARGOS_BRANCH} ARGOS_COMMIT=${ARGOS_COMMIT} CI=true npm run test:e2e
+          E2E_BASE_URL=https://console.agyn.dev ARGOS_TOKEN=${ARGOS_TOKEN} ARGOS_BRANCH=${ARGOS_BRANCH} ARGOS_COMMIT=${ARGOS_COMMIT} CI=true npm run test:e2e
         '
       EXIT_CODE=$?
       set -e
