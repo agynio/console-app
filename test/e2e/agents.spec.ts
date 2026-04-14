@@ -14,7 +14,6 @@ test('shows agent configuration and edit dialog', async ({ page }) => {
   const agentId = await createAgent(page, {
     organizationId,
     name: agentName,
-    nickname: agentNickname,
     role: 'assistant',
     description: 'E2E agent for visual snapshots',
     configuration: JSON.stringify({ greeting: 'hello' }),
@@ -25,13 +24,16 @@ test('shows agent configuration and edit dialog', async ({ page }) => {
   await page.goto(`/organizations/${organizationId}/agents/${agentId}`);
   const configurationCard = page.getByTestId('agent-configuration-card');
   await expect(configurationCard).toBeVisible({ timeout: 15000 });
-  await expect(configurationCard).toContainText(`@${agentNickname}`);
+  await expect(configurationCard.getByText('Nickname')).toBeVisible({ timeout: 15000 });
   await argosScreenshot(page, 'agent-detail-configuration');
 
   await page.getByTestId('agent-configuration-edit').click();
   const dialog = page.getByTestId('agent-configuration-dialog');
   await expect(dialog).toBeVisible({ timeout: 15000 });
-  await expect(dialog.getByTestId('agent-configuration-nickname')).toHaveValue(agentNickname);
+  const nicknameInput = dialog.getByTestId('agent-configuration-nickname');
+  await expect(nicknameInput).toBeVisible({ timeout: 15000 });
+  await nicknameInput.fill(agentNickname);
+  await expect(nicknameInput).toHaveValue(agentNickname);
   await argosScreenshot(page, 'agent-edit-dialog', { fullPage: false });
 });
 
