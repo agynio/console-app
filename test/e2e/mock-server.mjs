@@ -20,9 +20,6 @@ const hooks = new Map();
 const llmProviders = new Map();
 const models = new Map();
 const imagePullSecretAttachments = new Map();
-const usageEvents = new Map();
-
-const MICRO_UNITS = 1000000n;
 
 const defaultUser = {
   id: defaultUserId,
@@ -164,264 +161,6 @@ function normalizeClusterRole(value) {
   if (typeof value === 'string') return value;
   if (value === 1) return 'CLUSTER_ROLE_ADMIN';
   return 'CLUSTER_ROLE_UNSPECIFIED';
-}
-
-function normalizeUsageUnit(value) {
-  if (typeof value === 'string') return value;
-  if (value === 1) return 'UNIT_TOKENS';
-  if (value === 2) return 'UNIT_CORE_SECONDS';
-  if (value === 3) return 'UNIT_GB_SECONDS';
-  if (value === 4) return 'UNIT_COUNT';
-  return 'UNIT_UNSPECIFIED';
-}
-
-function normalizeUsageGranularity(value) {
-  if (typeof value === 'string') return value;
-  if (value === 1) return 'GRANULARITY_TOTAL';
-  if (value === 2) return 'GRANULARITY_DAY';
-  return 'GRANULARITY_UNSPECIFIED';
-}
-
-function parseTimestamp(value) {
-  if (!value) return null;
-  if (typeof value === 'string') {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-  if (typeof value === 'object') {
-    const secondsRaw = value.seconds;
-    if (secondsRaw === undefined || secondsRaw === null) return null;
-    const seconds = Number(secondsRaw);
-    if (Number.isNaN(seconds)) return null;
-    const nanos = Number(value.nanos ?? 0);
-    return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000));
-  }
-  return null;
-}
-
-function startOfDayUtc(date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function createUsageEvent({ orgId, timestamp, unit, value, labels }) {
-  return {
-    orgId,
-    timestamp,
-    unit,
-    value,
-    labels,
-  };
-}
-
-function seedUsageEvents(orgId) {
-  if (usageEvents.has(orgId)) return;
-
-  const events = [];
-  const baseDate = new Date();
-  baseDate.setUTCHours(12, 0, 0, 0);
-  const identities = ['user-1', 'user-2'];
-  const modelsList = ['model-1', 'model-2'];
-
-  for (let index = 0; index < 7; index += 1) {
-    const day = new Date(baseDate);
-    day.setUTCDate(baseDate.getUTCDate() - index);
-    const factor = 6 - index;
-    const inputTokens = 1000 + factor * 80;
-    const cachedTokens = 200 + factor * 15;
-    const outputTokens = 800 + factor * 60;
-    const secondaryInput = 550 + factor * 40;
-    const secondaryOutput = 420 + factor * 35;
-
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_TOKENS',
-        value: BigInt(inputTokens) * MICRO_UNITS,
-        labels: { kind: 'input', identity_id: identities[0], resource_id: modelsList[0] },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_TOKENS',
-        value: BigInt(cachedTokens) * MICRO_UNITS,
-        labels: { kind: 'cached', identity_id: identities[0], resource_id: modelsList[0] },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_TOKENS',
-        value: BigInt(outputTokens) * MICRO_UNITS,
-        labels: { kind: 'output', identity_id: identities[0], resource_id: modelsList[0] },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_TOKENS',
-        value: BigInt(secondaryInput) * MICRO_UNITS,
-        labels: { kind: 'input', identity_id: identities[1], resource_id: modelsList[1] },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_TOKENS',
-        value: BigInt(secondaryOutput) * MICRO_UNITS,
-        labels: { kind: 'output', identity_id: identities[1], resource_id: modelsList[1] },
-      }),
-    );
-
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_COUNT',
-        value: BigInt(32 + factor * 2) * MICRO_UNITS,
-        labels: { kind: 'request', status: 'success' },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_COUNT',
-        value: BigInt(3 + factor) * MICRO_UNITS,
-        labels: { kind: 'request', status: 'failed' },
-      }),
-    );
-
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_CORE_SECONDS',
-        value: BigInt(420 + factor * 20) * MICRO_UNITS,
-        labels: { identity_id: identities[0] },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_CORE_SECONDS',
-        value: BigInt(260 + factor * 12) * MICRO_UNITS,
-        labels: { identity_id: identities[1] },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_GB_SECONDS',
-        value: BigInt(240 + factor * 10) * MICRO_UNITS,
-        labels: { kind: 'ram', identity_id: identities[0] },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_GB_SECONDS',
-        value: BigInt(180 + factor * 8) * MICRO_UNITS,
-        labels: { kind: 'ram', identity_id: identities[1] },
-      }),
-    );
-
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_GB_SECONDS',
-        value: BigInt(90 + factor * 4) * MICRO_UNITS,
-        labels: { kind: 'storage', identity_id: identities[0] },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_GB_SECONDS',
-        value: BigInt(60 + factor * 3) * MICRO_UNITS,
-        labels: { kind: 'storage', identity_id: identities[1] },
-      }),
-    );
-
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_COUNT',
-        value: BigInt(12 + factor) * MICRO_UNITS,
-        labels: { kind: 'thread' },
-      }),
-    );
-    events.push(
-      createUsageEvent({
-        orgId,
-        timestamp: day,
-        unit: 'UNIT_COUNT',
-        value: BigInt(64 + factor * 3) * MICRO_UNITS,
-        labels: { kind: 'message' },
-      }),
-    );
-  }
-
-  usageEvents.set(orgId, events);
-}
-
-function queryUsage({ orgId, start, end, unit, labelFilters, groupBy, granularity }) {
-  const events = usageEvents.get(orgId) ?? [];
-  const startTime = start ? start.getTime() : null;
-  const endTime = end ? end.getTime() : null;
-
-  const filtered = events.filter((event) => {
-    if (unit && unit !== 'UNIT_UNSPECIFIED' && event.unit !== unit) return false;
-    if (startTime !== null && event.timestamp.getTime() < startTime) return false;
-    if (endTime !== null && event.timestamp.getTime() > endTime) return false;
-    const filters = labelFilters ?? {};
-    for (const [key, value] of Object.entries(filters)) {
-      if (event.labels?.[key] !== value) return false;
-    }
-    return true;
-  });
-
-  const buckets = new Map();
-  filtered.forEach((event) => {
-    const groupValue = groupBy ? event.labels?.[groupBy] ?? '' : '';
-    if (granularity === 'GRANULARITY_DAY') {
-      const day = startOfDayUtc(event.timestamp).toISOString();
-      const key = `${day}|${groupValue}`;
-      const existing = buckets.get(key) ?? { timestamp: day, groupValue, value: 0n };
-      existing.value += event.value;
-      buckets.set(key, existing);
-      return;
-    }
-    const key = groupValue;
-    const existing = buckets.get(key) ?? { groupValue, value: 0n };
-    existing.value += event.value;
-    buckets.set(key, existing);
-  });
-
-  return Array.from(buckets.values())
-    .sort((a, b) => {
-      if (a.timestamp && b.timestamp && a.timestamp !== b.timestamp) {
-        return a.timestamp.localeCompare(b.timestamp);
-      }
-      return a.groupValue.localeCompare(b.groupValue);
-    })
-    .map((bucket) => {
-      if (bucket.timestamp) {
-        return { timestamp: bucket.timestamp, groupValue: bucket.groupValue, value: bucket.value.toString() };
-      }
-      return { groupValue: bucket.groupValue, value: bucket.value.toString() };
-    });
 }
 
 function mapUser(user) {
@@ -668,7 +407,6 @@ function handleOrganizationsGateway(method, body, res) {
       const name = body.name ?? `org-${id}`;
       const org = { id, name };
       organizations.set(id, org);
-      seedUsageEvents(id);
       const membership = {
         id: randomUUID(),
         organizationId: id,
@@ -1099,26 +837,6 @@ async function handleLlmGateway(method, body, res) {
   }
 }
 
-function handleMeteringGateway(method, body, res) {
-  switch (method) {
-    case 'QueryUsage': {
-      const orgId = body.orgId ?? '';
-      const start = parseTimestamp(body.start);
-      const end = parseTimestamp(body.end);
-      const unit = normalizeUsageUnit(body.unit);
-      const granularity = normalizeUsageGranularity(body.granularity);
-      const labelFilters = body.labelFilters ?? body.label_filters ?? {};
-      const groupBy = body.groupBy ?? body.group_by ?? '';
-      const buckets = orgId
-        ? queryUsage({ orgId, start, end, unit, labelFilters, groupBy, granularity })
-        : [];
-      return sendJson(res, 200, { buckets });
-    }
-    default:
-      return sendText(res, 404, 'Unknown MeteringGateway method');
-  }
-}
-
 const server = http.createServer(async (req, res) => {
   setCors(res);
   if (req.method === 'OPTIONS') {
@@ -1219,9 +937,6 @@ const server = http.createServer(async (req, res) => {
     if (service === 'agynio.api.gateway.v1.LLMGateway') {
       await handleLlmGateway(method, body, res);
       return;
-    }
-    if (service === 'agynio.api.gateway.v1.MeteringGateway') {
-      return handleMeteringGateway(method, body, res);
     }
     if (service === 'agynio.api.gateway.v1.AppsGateway') {
       return handleAppsGateway(method, body, res);
