@@ -1,4 +1,11 @@
+import { createClient } from '@connectrpc/connect';
+import { createGrpcTransport } from '@connectrpc/connect-node';
+import { create } from '@bufbuild/protobuf';
+import { TimestampSchema, type Timestamp } from '@bufbuild/protobuf/wkt';
+import { randomUUID } from 'crypto';
 import type { Page } from '@playwright/test';
+import { MeteringService, UsageRecordSchema } from '../../src/gen/agynio/api/metering/v1/metering_pb';
+import type { Unit } from '../../src/gen/agynio/api/metering/v1/metering_pb';
 import { readOidcSession } from './oidc-helpers';
 
 const USERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.UsersGateway';
@@ -7,11 +14,16 @@ const SECRETS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.SecretsGateway';
 const AGENTS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.AgentsGateway';
 const LLM_GATEWAY_PATH = '/api/agynio.api.gateway.v1.LLMGateway';
 const RUNNERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.RunnersGateway';
+const METERING_GATEWAY_PATH = '/api/agynio.api.gateway.v1.MeteringGateway';
 
 const CONNECT_HEADERS = {
   'Content-Type': 'application/json',
   'Connect-Protocol-Version': '1',
 };
+
+const METERING_GRPC_URL = process.env.METERING_GRPC_URL ?? 'http://metering:50051';
+const meteringTransport = createGrpcTransport({ baseUrl: METERING_GRPC_URL });
+const meteringClient = createClient(MeteringService, meteringTransport);
 
 type OrganizationWire = {
   id: string;
@@ -201,6 +213,23 @@ type GetRunnerResponseWire = {
   runner?: RunnerWire;
 };
 
+type UsageBucketWire = {
+  value?: string | number;
+};
+
+type QueryUsageResponseWire = {
+  buckets?: UsageBucketWire[];
+};
+
+type UsageRecordInput = {
+  labels: Record<string, string>;
+  unit: Unit;
+  value: bigint;
+  timestamp?: Date;
+  producer?: string;
+  idempotencyKey?: string;
+};
+
 type MembershipRoleValue = 'MEMBERSHIP_ROLE_UNSPECIFIED' | 'MEMBERSHIP_ROLE_OWNER' | 'MEMBERSHIP_ROLE_MEMBER';
 type MembershipStatusValue =
   | 'MEMBERSHIP_STATUS_UNSPECIFIED'
@@ -217,6 +246,13 @@ function resolveBaseUrl(): string {
 
 function buildRpcUrl(servicePath: string, method: string): string {
   return new URL(`${servicePath}/${method}`, resolveBaseUrl()).toString();
+}
+
+function toProtoTimestamp(date: Date): Timestamp {
+  return create(TimestampSchema, {
+    seconds: BigInt(Math.floor(date.getTime() / 1000)),
+    nanos: 0,
+  });
 }
 
 function findEntityId(entities: EntityWithId[] | undefined): string {
@@ -375,7 +411,11 @@ async function waitForOrganization(page: Page, organizationId: string): Promise<
 export async function setSelectedOrganization(page: Page, organizationId: string): Promise<void> {
   await waitForOrganization(page, organizationId);
   await page.evaluate((orgId) => {
-    window.localStorage.setItem('console.selectedOrganization', orgId);
+    window.localStorage.setItem(
+      'console.contextMode',
+      JSON.stringify({ mode: 'organization', organizationId: orgId }),
+    );
+    window.localStorage.removeItem('console.selectedOrganization');
   }, organizationId);
 }
 
@@ -860,6 +900,52 @@ export async function createModel(
     throw new Error('CreateModel response missing model id.');
   }
   return modelId;
+}
+
+export async function recordUsage(organizationId: string, records: UsageRecordInput[]): Promise<void> {
+  if (!organizationId) {
+    throw new Error('Organization id is required to record usage events.');
+  }
+  if (records.length === 0) {
+    throw new Error('Usage records are required to record usage events.');
+  }
+  const now = new Date();
+  const payloadRecords = records.map((record) => {
+    const timestamp = record.timestamp ?? now;
+    return create(UsageRecordSchema, {
+      orgId: organizationId,
+      idempotencyKey: record.idempotencyKey ?? randomUUID(),
+      producer: record.producer ?? 'e2e',
+      timestamp: toProtoTimestamp(timestamp),
+      labels: record.labels,
+      unit: record.unit,
+      value: record.value,
+    });
+  });
+  await meteringClient.record({ records: payloadRecords });
+}
+
+export async function queryUsage(
+  page: Page,
+  opts: {
+    organizationId: string;
+    start: string;
+    end: string;
+    unit: string;
+    granularity: string;
+    groupBy?: string;
+    labelFilters?: Record<string, string>;
+  },
+): Promise<QueryUsageResponseWire> {
+  return postConnect<QueryUsageResponseWire>(page, METERING_GATEWAY_PATH, 'QueryUsage', {
+    orgId: opts.organizationId,
+    start: opts.start,
+    end: opts.end,
+    unit: opts.unit,
+    granularity: opts.granularity,
+    groupBy: opts.groupBy ?? '',
+    labelFilters: opts.labelFilters ?? {},
+  });
 }
 
 export async function createDevice(page: Page, opts: { name: string }): Promise<CreateDeviceResponseWire> {

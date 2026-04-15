@@ -10,6 +10,7 @@ import {
   HardDriveIcon,
   HomeIcon,
   KeyIcon,
+  LineChartIcon,
   MonitorSmartphoneIcon,
   SettingsIcon,
   ShieldIcon,
@@ -333,6 +334,14 @@ export function AppLayout() {
               >
                 <ActivityIcon className="h-4 w-4" />
                 Monitoring
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/usage')}
+                className={navLinkClass}
+                data-testid="nav-organization-usage"
+              >
+                <LineChartIcon className="h-4 w-4" />
+                Usage
               </NavLink>
             </nav>
           </div>
