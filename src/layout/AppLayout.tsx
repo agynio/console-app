@@ -63,7 +63,7 @@ function NoAccessScreen({ onSignOut, userMenu, pendingMembershipsCount }: NoAcce
   return (
     <>
       <div className="flex min-h-screen flex-col bg-muted/40">
-        <header className="flex items-center justify-end border-b border-border bg-background px-6 py-4">
+        <header className="sticky top-0 z-10 flex items-center justify-end border-b border-border bg-background px-6 py-4">
           <div className="flex items-center gap-2">
             <ThemeToggle />
             {userMenu}
@@ -218,7 +218,7 @@ export function AppLayout() {
   return (
     <div className="flex min-h-screen bg-muted/40">
       <aside
-        className="flex w-64 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6 text-sidebar-foreground"
+        className="sticky top-0 flex h-screen w-64 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-4 py-6 text-sidebar-foreground"
         data-testid="console-sidebar"
       >
         {isClusterContext ? (
@@ -362,7 +362,7 @@ export function AppLayout() {
         ) : null}
       </aside>
       <main className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border bg-background px-6 py-4">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-6 py-4">
           <h1 className="text-lg font-semibold text-foreground" data-testid="page-title">
             {pageTitle}
           </h1>
