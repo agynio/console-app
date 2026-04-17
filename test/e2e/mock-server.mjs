@@ -1,7 +1,10 @@
 import http from 'node:http';
+import http2 from 'node:http2';
 import { randomUUID } from 'node:crypto';
+import { BinaryReader, WireType } from '@bufbuild/protobuf/wire';
 
 const port = Number(process.env.MOCK_SERVER_PORT ?? 5000);
+const meteringPort = Number(process.env.MOCK_METERING_PORT ?? 50051);
 const proxyTarget = new URL(process.env.MOCK_PROXY_TARGET ?? 'http://127.0.0.1:4173');
 const defaultUserId = 'user-1';
 const defaultEmail = 'e2e-tester@agyn.test';
@@ -20,6 +23,7 @@ const hooks = new Map();
 const llmProviders = new Map();
 const models = new Map();
 const imagePullSecretAttachments = new Map();
+const usageTotals = new Map();
 
 const defaultUser = {
   id: defaultUserId,
@@ -161,6 +165,83 @@ function normalizeClusterRole(value) {
   if (typeof value === 'string') return value;
   if (value === 1) return 'CLUSTER_ROLE_ADMIN';
   return 'CLUSTER_ROLE_UNSPECIFIED';
+}
+
+function normalizeGranularity(value) {
+  if (typeof value === 'string') return value;
+  if (value === 1) return 'GRANULARITY_TOTAL';
+  if (value === 2) return 'GRANULARITY_DAY';
+  return 'GRANULARITY_UNSPECIFIED';
+}
+
+function resolveGroupValue(groupBy) {
+  if (!groupBy) return '';
+  if (groupBy === 'status') return 'success';
+  if (groupBy === 'kind') return 'input';
+  if (groupBy === 'identity_id') return defaultUserId;
+  if (groupBy === 'resource_id') return defaultModel.id;
+  return 'unknown';
+}
+
+function normalizeInt64(value) {
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'number') return BigInt(value);
+  if (typeof value === 'string') return BigInt(value);
+  return 0n;
+}
+
+function recordUsageTotal(orgId, value) {
+  if (!orgId) return;
+  const total = usageTotals.get(orgId) ?? 0n;
+  usageTotals.set(orgId, total + value);
+}
+
+function parseUsageRecord(recordBytes) {
+  const reader = new BinaryReader(recordBytes);
+  let orgId = '';
+  let value = 0n;
+
+  while (reader.pos < reader.len) {
+    const [fieldNo, wireType] = reader.tag();
+    if (fieldNo === 1 && wireType === WireType.LengthDelimited) {
+      orgId = reader.string();
+      continue;
+    }
+    if (fieldNo === 7 && wireType === WireType.Varint) {
+      value = normalizeInt64(reader.int64());
+      continue;
+    }
+    reader.skip(wireType, fieldNo);
+  }
+
+  recordUsageTotal(orgId, value);
+}
+
+function parseRecordRequest(messageBytes) {
+  const reader = new BinaryReader(messageBytes);
+  while (reader.pos < reader.len) {
+    const [fieldNo, wireType] = reader.tag();
+    if (fieldNo === 1 && wireType === WireType.LengthDelimited) {
+      parseUsageRecord(reader.bytes());
+      continue;
+    }
+    reader.skip(wireType, fieldNo);
+  }
+}
+
+function parseGrpcRecordPayload(buffer) {
+  let offset = 0;
+  while (offset + 5 <= buffer.length) {
+    const compressed = buffer[offset];
+    const messageLength = buffer.readUInt32BE(offset + 1);
+    const start = offset + 5;
+    const end = start + messageLength;
+    if (end > buffer.length) return;
+    if (compressed === 0) {
+      parseRecordRequest(buffer.subarray(start, end));
+    }
+    offset = end;
+  }
 }
 
 function mapUser(user) {
@@ -776,6 +857,27 @@ function handleAppsGateway(method, _body, res) {
   return sendText(res, 404, 'Unknown AppsGateway method');
 }
 
+function handleMeteringGateway(method, body, res) {
+  if (method !== 'QueryUsage') {
+    return sendText(res, 404, 'Unknown MeteringGateway method');
+  }
+  const orgId = body.orgId ?? body.org_id ?? '';
+  const total = usageTotals.get(orgId) ?? 0n;
+  if (!orgId || total === 0n) {
+    return sendJson(res, 200, { buckets: [] });
+  }
+  const granularity = normalizeGranularity(body.granularity);
+  const groupValue = resolveGroupValue(body.groupBy ?? '');
+  const bucket = {
+    value: total.toString(),
+    groupValue,
+  };
+  if (granularity === 'GRANULARITY_DAY') {
+    bucket.timestamp = new Date().toISOString();
+  }
+  return sendJson(res, 200, { buckets: [bucket] });
+}
+
 async function handleLlmGateway(method, body, res) {
   switch (method) {
     case 'ListLLMProviders': {
@@ -835,6 +937,19 @@ async function handleLlmGateway(method, body, res) {
     default:
       return sendText(res, 404, 'Unknown LLMGateway method');
   }
+}
+
+const grpcEmptyMessage = Buffer.from([0, 0, 0, 0, 0]);
+
+function respondGrpc(stream, status, message) {
+  const headers = {
+    ':status': 200,
+    'content-type': 'application/grpc+proto',
+    'grpc-status': String(status),
+  };
+  if (message) headers['grpc-message'] = message;
+  stream.respond(headers);
+  stream.end(grpcEmptyMessage);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -934,6 +1049,9 @@ const server = http.createServer(async (req, res) => {
     if (service === 'agynio.api.gateway.v1.AgentsGateway') {
       return handleAgentsGateway(method, body, res);
     }
+    if (service === 'agynio.api.gateway.v1.MeteringGateway') {
+      return handleMeteringGateway(method, body, res);
+    }
     if (service === 'agynio.api.gateway.v1.LLMGateway') {
       await handleLlmGateway(method, body, res);
       return;
@@ -949,4 +1067,32 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, () => {
   console.log(`[mock-server] listening on ${port}`);
+});
+
+const meteringServer = http2.createServer();
+
+meteringServer.on('stream', (stream, headers) => {
+  const path = headers[':path'];
+  if (path === '/agynio.api.metering.v1.MeteringService/Record') {
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('end', () => {
+      try {
+        const payload = Buffer.concat(chunks);
+        if (payload.length > 0) {
+          parseGrpcRecordPayload(payload);
+        }
+      } catch {
+        // ignore malformed payloads in mock
+      }
+      respondGrpc(stream, 0);
+    });
+    return;
+  }
+
+  respondGrpc(stream, 12, 'unimplemented');
+});
+
+meteringServer.listen(meteringPort, () => {
+  console.log(`[mock-metering] listening on ${meteringPort}`);
 });
