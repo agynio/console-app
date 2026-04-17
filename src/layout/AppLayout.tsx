@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   ActivityIcon,
   BotIcon,
@@ -126,6 +126,7 @@ export function AppLayout() {
   } = useOrganizationContext();
   const { currentUser, isClusterAdmin, status: userStatus, error: userError, signOut } = useUserContext();
   const pageTitle = usePageTitle();
+  const navigate = useNavigate();
 
   if (userStatus === 'loading' || orgStatus === 'loading') {
     return (
@@ -177,6 +178,19 @@ export function AppLayout() {
           Cluster role: {isClusterAdmin ? 'admin' : 'none'}
         </DropdownMenuItem>
         <PendingInvitesMenu />
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate('/devices')} data-testid="user-menu-devices">
+          <MonitorSmartphoneIcon className="h-4 w-4" />
+          Devices
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate('/api-tokens')} data-testid="user-menu-api-tokens">
+          <KeyIcon className="h-4 w-4" />
+          API Tokens
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate('/settings')} data-testid="user-menu-settings">
+          <SettingsIcon className="h-4 w-4" />
+          Settings
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => signOut()} data-testid="user-menu-signout">
           Log out
@@ -346,20 +360,6 @@ export function AppLayout() {
             </nav>
           </div>
         ) : null}
-        <div className="mt-auto space-y-4">
-          <NavLink to="/devices" className={navLinkClass} data-testid="nav-devices">
-            <MonitorSmartphoneIcon className="h-4 w-4" />
-            Devices
-          </NavLink>
-          <NavLink to="/api-tokens" className={navLinkClass} data-testid="nav-api-tokens">
-            <KeyIcon className="h-4 w-4" />
-            API Tokens
-          </NavLink>
-          <NavLink to="/settings" className={navLinkClass} data-testid="nav-settings">
-            <SettingsIcon className="h-4 w-4" />
-            Settings
-          </NavLink>
-        </div>
       </aside>
       <main className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border bg-background px-6 py-4">

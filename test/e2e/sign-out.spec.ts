@@ -8,6 +8,9 @@ test('signs out from user menu', async ({ page }) => {
 
   await expect(page.getByTestId('user-menu-trigger')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('user-menu-trigger').click();
+  await expect(page.getByTestId('user-menu-devices')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('user-menu-api-tokens')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('user-menu-settings')).toBeVisible({ timeout: 15000 });
   await page.getByTestId('user-menu-signout').click({ noWaitAfter: true });
 
   await page.waitForFunction(() => {
