@@ -5,6 +5,7 @@ import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { ContainerStatus, RunnerStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
+import { ThreadStatus } from '@/gen/agynio/api/threads/v1/threads_pb';
 import { ClusterRole, DeviceStatus } from '@/gen/agynio/api/users/v1/users_pb';
 
 export const EMPTY_PLACEHOLDER = '—';
@@ -138,5 +139,12 @@ export function formatMembershipStatus(status?: MembershipStatus): string {
   if (status === MembershipStatus.ACTIVE) return 'Active';
   if (status === MembershipStatus.PENDING) return 'Pending';
   if (status === MembershipStatus.UNSPECIFIED) return 'Unspecified';
+  return 'Unspecified';
+}
+
+export function formatThreadStatus(status?: ThreadStatus): string {
+  if (status === ThreadStatus.ACTIVE) return 'Active';
+  if (status === ThreadStatus.ARCHIVED) return 'Archived';
+  if (status === ThreadStatus.UNSPECIFIED) return 'Unspecified';
   return 'Unspecified';
 }

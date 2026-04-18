@@ -11,6 +11,7 @@ import {
   HomeIcon,
   KeyIcon,
   LineChartIcon,
+  MessageSquareIcon,
   MonitorSmartphoneIcon,
   SettingsIcon,
   ShieldIcon,
@@ -332,6 +333,14 @@ export function AppLayout() {
               >
                 <BoxesIcon className="h-4 w-4" />
                 Apps
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/threads')}
+                className={navLinkClass}
+                data-testid="nav-organization-threads"
+              >
+                <MessageSquareIcon className="h-4 w-4" />
+                Threads
               </NavLink>
               <NavLink
                 to={organizationRoute('/members')}

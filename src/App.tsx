@@ -18,6 +18,8 @@ import { OrganizationUsageTab } from '@/pages/OrganizationUsageTab';
 import { OrganizationImagePullSecretsTab } from '@/pages/OrganizationImagePullSecretsTab';
 import { OrganizationSecretProvidersTab } from '@/pages/OrganizationSecretProvidersTab';
 import { OrganizationSecretsTab } from '@/pages/OrganizationSecretsTab';
+import { OrganizationThreadDetailPage } from '@/pages/OrganizationThreadDetailPage';
+import { OrganizationThreadsTab } from '@/pages/OrganizationThreadsTab';
 import { OrganizationVolumesTab } from '@/pages/OrganizationVolumesTab';
 import { UsersListPage } from '@/pages/UsersListPage';
 import { UserDetailPage } from '@/pages/UserDetailPage';
@@ -65,6 +67,8 @@ export default function App() {
           <Route path="runners/:runnerId" element={<RunnerDetailPage />} />
           <Route path="apps" element={<OrganizationAppsTab />} />
           <Route path="apps/:appId" element={<AppDetailPage />} />
+          <Route path="threads" element={<OrganizationThreadsTab />} />
+          <Route path="threads/:threadId" element={<OrganizationThreadDetailPage />} />
           <Route path="monitoring" element={<OrganizationMonitoringTab />} />
           <Route path="usage" element={<OrganizationUsageTab />} />
         </Route>
