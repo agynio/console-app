@@ -62,6 +62,7 @@ export default function App() {
           <Route path="image-pull-secrets" element={<OrganizationImagePullSecretsTab />} />
           <Route path="secret-providers" element={<OrganizationSecretProvidersTab />} />
           <Route path="runners" element={<OrganizationRunnersTab />} />
+          <Route path="runners/:runnerId" element={<RunnerDetailPage />} />
           <Route path="apps" element={<OrganizationAppsTab />} />
           <Route path="apps/:appId" element={<AppDetailPage />} />
           <Route path="monitoring" element={<OrganizationMonitoringTab />} />
@@ -116,7 +117,7 @@ export default function App() {
           }
         />
         <Route
-          path="runners/:id"
+          path="runners/:runnerId"
           element={
             <RequireClusterAdmin>
               <RunnerDetailPage />

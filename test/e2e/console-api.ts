@@ -209,6 +209,11 @@ type ListRunnersResponseWire = {
   runners?: RunnerWire[];
 };
 
+type RegisterRunnerResponseWire = {
+  runner?: RunnerWire;
+  serviceToken?: string;
+};
+
 type GetRunnerResponseWire = {
   runner?: RunnerWire;
 };
@@ -981,6 +986,35 @@ export async function listRunners(page: Page): Promise<RunnerWire[]> {
     pageToken: '',
   });
   return response.runners ?? [];
+}
+
+export async function registerRunner(
+  page: Page,
+  opts: {
+    name: string;
+    labels?: Record<string, string>;
+    organizationId?: string;
+    capabilities?: string[];
+  },
+): Promise<RunnerWire> {
+  const payload: Record<string, unknown> = {
+    name: opts.name,
+    labels: opts.labels ?? {},
+    capabilities: opts.capabilities ?? [],
+  };
+  if (opts.organizationId) {
+    payload.organizationId = opts.organizationId;
+  }
+  const response = await postConnect<RegisterRunnerResponseWire>(
+    page,
+    RUNNERS_GATEWAY_PATH,
+    'RegisterRunner',
+    payload,
+  );
+  if (!response.runner?.meta?.id) {
+    throw new Error('RegisterRunner response missing runner id.');
+  }
+  return response.runner;
 }
 
 export async function getRunner(page: Page, runnerId: string): Promise<RunnerWire> {

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, type ChangeEvent, type ReactNode } from 'react';
+import { NavLink, useParams } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -9,75 +9,82 @@ import { EnrollRunnerDialog } from '@/components/EnrollRunnerDialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useUserContext } from '@/context/UserContext';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { useListControls } from '@/hooks/useListControls';
+import { useListControls, type SortDirection } from '@/hooks/useListControls';
 
-export function OrganizationRunnersTab() {
-  useDocumentTitle('Runners');
+type Runner = Awaited<ReturnType<typeof runnersClient.listRunners>>['runners'][number];
 
-  const { id } = useParams();
-  const organizationId = id ?? '';
-  const [enrollOpen, setEnrollOpen] = useState(false);
+type RunnerSortKey = 'name' | 'status' | 'labels';
 
-  const runnersQuery = useInfiniteQuery({
-    queryKey: ['runners', organizationId, 'list'],
-    queryFn: ({ pageParam }) =>
-      runnersClient.listRunners({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
-    initialPageParam: '',
-    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
-    enabled: Boolean(organizationId),
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
-  const runners = runnersQuery.data?.pages.flatMap((page) => page.runners) ?? [];
-  const listControls = useListControls({
-    items: runners,
-    searchFields: [
-      (runner) => runner.name,
-      (runner) => runner.meta?.id ?? '',
-      (runner) => formatRunnerStatus(runner.status),
-      (runner) => formatLabelPairs(runner.labels),
-    ],
-    sortOptions: {
-      name: (runner) => runner.name,
-      status: (runner) => formatRunnerStatus(runner.status),
-      labels: (runner) => formatLabelPairs(runner.labels),
-    },
-    defaultSortKey: 'name',
-  });
+type RunnerListControls = {
+  sortKey: RunnerSortKey;
+  sortDirection: SortDirection;
+  handleSort: (key: RunnerSortKey) => void;
+  filteredItems: Runner[];
+};
 
+type RunnerTableTestIds = {
+  table: string;
+  header: string;
+  row: string;
+  name: string;
+  id: string;
+  status: string;
+  labels: string;
+  scope: string;
+};
+
+type RunnerTableSectionProps = {
+  title: string;
+  description: string;
+  listControls: RunnerListControls;
+  hasSearch: boolean;
+  emptyMessage: string;
+  scopeLabel: string;
+  headerAction?: ReactNode;
+  renderAction: (runner: Runner) => ReactNode;
+  testIds: RunnerTableTestIds;
+};
+
+function RunnerTableSection({
+  title,
+  description,
+  listControls,
+  hasSearch,
+  emptyMessage,
+  scopeLabel,
+  headerAction,
+  renderAction,
+  testIds,
+}: RunnerTableSectionProps) {
   const visibleRunners = listControls.filteredItems;
-  const hasSearch = listControls.searchTerm.trim().length > 0;
+  const emptyState = hasSearch ? 'No results found.' : emptyMessage;
+  const headerContent = (
+    <div>
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="max-w-sm flex-1">
-          <Input
-            placeholder="Search runners..."
-            value={listControls.searchTerm}
-            onChange={(event) => listControls.setSearchTerm(event.target.value)}
-            data-testid="list-search"
-          />
+    <div className="space-y-3">
+      {headerAction ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {headerContent}
+          {headerAction}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setEnrollOpen(true)}
-          data-testid="organization-runners-enroll"
-        >
-          Enroll runner
-        </Button>
-      </div>
-      {runnersQuery.isPending ? <div className="text-sm text-muted-foreground">Loading runners...</div> : null}
-      {runnersQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load runners.</div> : null}
-      <Card className="border-border" data-testid="organization-runners-table">
+      ) : (
+        headerContent
+      )}
+      <Card className="border-border" data-testid={testIds.table}>
         <CardContent className="px-0">
           <div
-            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_2fr]"
-            data-testid="organization-runners-header"
+            className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_2fr_120px]"
+            data-testid={testIds.header}
           >
             <SortableHeader
               label="Runner"
@@ -100,39 +107,227 @@ export function OrganizationRunnersTab() {
               sortDirection={listControls.sortDirection}
               onSort={listControls.handleSort}
             />
+            <span className="text-right">Action</span>
           </div>
           <div className="divide-y divide-border">
             {visibleRunners.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-muted-foreground">
-                {hasSearch ? 'No results found.' : 'No runners registered.'}
-              </div>
+              <div className="px-6 py-6 text-sm text-muted-foreground">{emptyState}</div>
             ) : (
               visibleRunners.map((runner) => (
                 <div
                   key={runner.meta?.id ?? runner.name}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_2fr]"
-                  data-testid="organization-runner-row"
+                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_2fr_120px]"
+                  data-testid={testIds.row}
                 >
                   <div>
-                    <div className="font-medium" data-testid="organization-runner-name">
-                      {runner.name}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="font-medium" data-testid={testIds.name}>
+                        {runner.name}
+                      </div>
+                      <Badge variant="outline" data-testid={testIds.scope}>
+                        {scopeLabel}
+                      </Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground" data-testid="organization-runner-id">
+                    <div className="text-xs text-muted-foreground" data-testid={testIds.id}>
                       {runner.meta?.id}
                     </div>
                   </div>
-                  <Badge variant="secondary" data-testid="organization-runner-status">
+                  <Badge variant="secondary" data-testid={testIds.status}>
                     {formatRunnerStatus(runner.status)}
                   </Badge>
-                  <span className="text-xs text-muted-foreground" data-testid="organization-runner-labels">
+                  <span className="text-xs text-muted-foreground" data-testid={testIds.labels}>
                     {formatLabelPairs(runner.labels)}
                   </span>
+                  <div className="text-right">{renderAction(runner)}</div>
                 </div>
               ))
             )}
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+export function OrganizationRunnersTab() {
+  useDocumentTitle('Runners');
+
+  const { id } = useParams();
+  const organizationId = id ?? '';
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const { isClusterAdmin } = useUserContext();
+
+  const runnersQuery = useInfiniteQuery({
+    queryKey: ['runners', organizationId, 'list'],
+    queryFn: ({ pageParam }) =>
+      runnersClient.listRunners({ organizationId, pageSize: DEFAULT_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const runners = runnersQuery.data?.pages.flatMap((page) => page.runners) ?? [];
+  const getScopeLabel = (runner: Runner) => (runner.organizationId ? 'Organization' : 'Cluster');
+  const organizationRunners = runners.filter((runner) => runner.organizationId === organizationId);
+  const clusterRunners = runners.filter((runner) => !runner.organizationId);
+  const searchFields = [
+    (runner: Runner) => runner.name,
+    (runner: Runner) => runner.meta?.id ?? '',
+    (runner: Runner) => formatRunnerStatus(runner.status),
+    (runner: Runner) => getScopeLabel(runner),
+    (runner: Runner) => formatLabelPairs(runner.labels),
+  ];
+  const runnerSortOptions = {
+    name: (runner: Runner) => runner.name,
+    status: (runner: Runner) => formatRunnerStatus(runner.status),
+    labels: (runner: Runner) => formatLabelPairs(runner.labels),
+  };
+
+  const organizationListControls = useListControls({
+    items: organizationRunners,
+    searchFields,
+    sortOptions: runnerSortOptions,
+    defaultSortKey: 'name',
+  });
+  const clusterListControls = useListControls({
+    items: clusterRunners,
+    searchFields,
+    sortOptions: runnerSortOptions,
+    defaultSortKey: 'name',
+  });
+
+  const hasSearch = organizationListControls.searchTerm.trim().length > 0;
+
+  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    organizationListControls.setSearchTerm(value);
+    clusterListControls.setSearchTerm(value);
+  };
+
+  const renderOrgRunnerView = (runner: Runner) => {
+    const runnerId = runner.meta?.id;
+    if (!runnerId || !organizationId) {
+      return (
+        <Button variant="outline" size="sm" disabled data-testid="organization-runner-view">
+          View
+        </Button>
+      );
+    }
+
+    return (
+      <Button variant="outline" size="sm" asChild>
+        <NavLink to={`/organizations/${organizationId}/runners/${runnerId}`} data-testid="organization-runner-view">
+          View
+        </NavLink>
+      </Button>
+    );
+  };
+
+  const renderClusterRunnerView = (runner: Runner) => {
+    const runnerId = runner.meta?.id;
+    if (!runnerId) {
+      return (
+        <Button variant="outline" size="sm" disabled data-testid="organization-cluster-runner-view">
+          View
+        </Button>
+      );
+    }
+
+    if (isClusterAdmin) {
+      return (
+        <Button variant="outline" size="sm" asChild>
+          <NavLink to={`/runners/${runnerId}`} data-testid="organization-cluster-runner-view">
+            View
+          </NavLink>
+        </Button>
+      );
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-block">
+            <Button variant="outline" size="sm" disabled data-testid="organization-cluster-runner-view">
+              View
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={6}>
+          Cluster runners are only available to cluster admins.
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
+  const organizationTestIds: RunnerTableTestIds = {
+    table: 'organization-runners-table',
+    header: 'organization-runners-header',
+    row: 'organization-runner-row',
+    name: 'organization-runner-name',
+    id: 'organization-runner-id',
+    status: 'organization-runner-status',
+    labels: 'organization-runner-labels',
+    scope: 'organization-runner-scope',
+  };
+
+  const clusterTestIds: RunnerTableTestIds = {
+    table: 'organization-cluster-runners-table',
+    header: 'organization-cluster-runners-header',
+    row: 'organization-cluster-runner-row',
+    name: 'organization-cluster-runner-name',
+    id: 'organization-cluster-runner-id',
+    status: 'organization-cluster-runner-status',
+    labels: 'organization-cluster-runner-labels',
+    scope: 'organization-cluster-runner-scope',
+  };
+
+  const enrollAction = (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => setEnrollOpen(true)}
+      data-testid="organization-runners-enroll"
+    >
+      Enroll runner
+    </Button>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search runners..."
+          value={organizationListControls.searchTerm}
+          onChange={handleSearchChange}
+          data-testid="list-search"
+        />
+      </div>
+      {runnersQuery.isPending ? <div className="text-sm text-muted-foreground">Loading runners...</div> : null}
+      {runnersQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load runners.</div> : null}
+      <div className="space-y-6">
+        <RunnerTableSection
+          title="Organization Runners"
+          description="Runners scoped to this organization."
+          listControls={organizationListControls}
+          hasSearch={hasSearch}
+          emptyMessage="No organization runners registered."
+          scopeLabel="Organization"
+          headerAction={enrollAction}
+          renderAction={renderOrgRunnerView}
+          testIds={organizationTestIds}
+        />
+        <RunnerTableSection
+          title="Cluster Runners"
+          description="Shared runners available to this organization."
+          listControls={clusterListControls}
+          hasSearch={hasSearch}
+          emptyMessage="No cluster runners available."
+          scopeLabel="Cluster"
+          renderAction={renderClusterRunnerView}
+          testIds={clusterTestIds}
+        />
+      </div>
       <LoadMoreButton
         hasMore={Boolean(runnersQuery.hasNextPage)}
         isLoading={runnersQuery.isFetchingNextPage}

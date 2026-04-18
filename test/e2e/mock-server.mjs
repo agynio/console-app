@@ -655,11 +655,25 @@ function handleSecretsGateway(method, body, res) {
 
 function handleRunnersGateway(method, body, res) {
   switch (method) {
+    case 'RegisterRunner': {
+      const id = randomUUID();
+      const runner = {
+        id,
+        name: body.name ?? `runner-${id}`,
+        labels: body.labels ?? {},
+        status: 'RUNNER_STATUS_ENROLLED',
+        identityId: `runner-identity-${id}`,
+        organizationId: body.organizationId ?? '',
+        openzitiServiceName: `runner-${id}`,
+      };
+      runners.set(id, runner);
+      return sendJson(res, 200, { runner: mapRunner(runner), serviceToken: `token-${id}` });
+    }
     case 'ListRunners': {
       const orgId = body.organizationId ?? '';
       const result = Array.from(runners.values()).filter((runner) => {
         if (!orgId) return !runner.organizationId;
-        return runner.organizationId === orgId;
+        return runner.organizationId === orgId || !runner.organizationId;
       });
       return sendJson(res, 200, { runners: result.map(mapRunner), nextPageToken: '' });
     }

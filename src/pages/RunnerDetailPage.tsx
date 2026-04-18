@@ -17,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatLabelPairs, formatRunnerStatus } from '@/lib/format';
@@ -25,13 +27,17 @@ import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 export function RunnerDetailPage() {
-  const { id } = useParams();
-  const runnerId = id ?? '';
+  const { id: organizationIdParam, runnerId: runnerIdParam } = useParams();
+  const isOrgContext = Boolean(organizationIdParam);
+  const organizationId = isOrgContext ? organizationIdParam ?? '' : '';
+  const runnerId = runnerIdParam ?? '';
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [labelEntries, setLabelEntries] = useState<LabelEntry[]>([]);
+  const [runnerName, setRunnerName] = useState('');
+  const [runnerNameError, setRunnerNameError] = useState('');
 
   useNotifications({
     events: ['workload.status_changed'],
@@ -48,6 +54,8 @@ export function RunnerDetailPage() {
   });
 
   const runner = runnerQuery.data?.runner;
+  const isOrgRunner = Boolean(organizationId) && runner?.organizationId === organizationId;
+  const canManageRunner = !isOrgContext || isOrgRunner;
 
   useDocumentTitle(runner?.name ?? 'Runner');
 
@@ -70,7 +78,8 @@ export function RunnerDetailPage() {
   const workloads = workloadsQuery.data?.pages.flatMap((page) => page.workloads) ?? [];
 
   const updateRunnerMutation = useMutation({
-    mutationFn: (labels: Record<string, string>) => runnersClient.updateRunner({ id: runnerId, labels }),
+    mutationFn: (payload: { name: string; labels: Record<string, string> }) =>
+      runnersClient.updateRunner({ id: runnerId, ...payload }),
     onSuccess: () => {
       toast.success('Runner updated.');
       void queryClient.invalidateQueries({ queryKey: ['runners', runnerId] });
@@ -78,7 +87,7 @@ export function RunnerDetailPage() {
       if (runner?.organizationId) {
         void queryClient.invalidateQueries({ queryKey: ['runners', runner.organizationId, 'list'] });
       }
-      setEditOpen(false);
+      handleEditOpenChange(false);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to update runner.');
@@ -102,25 +111,43 @@ export function RunnerDetailPage() {
     },
   });
 
+  const resetEditState = () => {
+    setLabelEntries([]);
+    setRunnerName('');
+    setRunnerNameError('');
+  };
+
   const handleEditOpenChange = (open: boolean) => {
     if (open) {
       const entries = labelsToEntries(runner?.labels ?? {});
       setLabelEntries(entries.length ? entries : [createLabelEntry()]);
+      setRunnerName(runner?.name ?? '');
+      setRunnerNameError('');
       setEditOpen(true);
       return;
     }
     setEditOpen(false);
-    setLabelEntries([]);
+    resetEditState();
   };
 
-  const handleSaveLabels = () => {
-    updateRunnerMutation.mutate(entriesToLabels(labelEntries));
+  const handleSaveRunner = () => {
+    const trimmedName = runnerName.trim();
+    if (!trimmedName) {
+      setRunnerNameError('Runner name is required.');
+      return;
+    }
+    setRunnerNameError('');
+    updateRunnerMutation.mutate({ name: trimmedName, labels: entriesToLabels(labelEntries) });
   };
+
+  const deleteDescription = runner?.organizationId
+    ? 'This action permanently removes the organization runner. This cannot be undone.'
+    : 'This action permanently removes the cluster runner. This cannot be undone.';
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {runner ? (
+        {runner && canManageRunner ? (
           <div className="flex flex-wrap items-center gap-2" data-testid="runner-actions">
             <Button
               variant="outline"
@@ -128,7 +155,7 @@ export function RunnerDetailPage() {
               onClick={() => handleEditOpenChange(true)}
               data-testid="runner-edit-labels"
             >
-              Edit labels
+              Edit runner
             </Button>
             <Button
               variant="destructive"
@@ -193,12 +220,36 @@ export function RunnerDetailPage() {
       <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
         <DialogContent data-testid="runner-edit-dialog">
           <DialogHeader>
-            <DialogTitle data-testid="runner-edit-title">Edit runner labels</DialogTitle>
+            <DialogTitle data-testid="runner-edit-title">Edit runner</DialogTitle>
             <DialogDescription data-testid="runner-edit-description">
-              Update label key-value pairs for this runner.
+              Update the runner name and labels.
             </DialogDescription>
           </DialogHeader>
-          <LabelsEditor value={labelEntries} onChange={setLabelEntries} testIdPrefix="runner-edit" />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="runner-edit-name">Runner Name</Label>
+              <Input
+                id="runner-edit-name"
+                value={runnerName}
+                onChange={(event) => {
+                  setRunnerName(event.target.value);
+                  if (runnerNameError) setRunnerNameError('');
+                }}
+                disabled={updateRunnerMutation.isPending}
+                data-testid="runner-edit-name"
+              />
+              {runnerNameError ? <p className="text-sm text-destructive">{runnerNameError}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-foreground">Labels</div>
+              <LabelsEditor
+                value={labelEntries}
+                onChange={setLabelEntries}
+                disabled={updateRunnerMutation.isPending}
+                testIdPrefix="runner-edit"
+              />
+            </div>
+          </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" size="sm" data-testid="runner-edit-cancel">
@@ -207,11 +258,11 @@ export function RunnerDetailPage() {
             </DialogClose>
             <Button
               size="sm"
-              onClick={handleSaveLabels}
+              onClick={handleSaveRunner}
               disabled={updateRunnerMutation.isPending}
               data-testid="runner-edit-submit"
             >
-              {updateRunnerMutation.isPending ? 'Saving...' : 'Save labels'}
+              {updateRunnerMutation.isPending ? 'Saving...' : 'Save runner'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -220,7 +271,7 @@ export function RunnerDetailPage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete runner"
-        description="This action permanently removes the runner."
+        description={deleteDescription}
         confirmLabel="Delete runner"
         variant="danger"
         onConfirm={() => deleteRunnerMutation.mutate()}
