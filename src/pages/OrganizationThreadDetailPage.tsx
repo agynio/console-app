@@ -2,15 +2,15 @@ import { useMemo } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { DurationSchema } from '@bufbuild/protobuf/wkt';
-import { Code, ConnectError } from '@connectrpc/connect';
-import { useInfiniteQuery, useQueries, useQuery } from '@tanstack/react-query';
-import { agentsClient, appsClient, filesClient, threadsClient, usersClient } from '@/api/client';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { filesClient, threadsClient } from '@/api/client';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageOrder } from '@/gen/agynio/api/threads/v1/threads_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useIdentityHandles } from '@/hooks/useIdentityHandles';
 import {
   EMPTY_PLACEHOLDER,
   formatDateOnly,
@@ -67,10 +67,6 @@ function AttachmentLink({ fileId }: AttachmentLinkProps) {
   );
 }
 
-function isNotFound(error: unknown): boolean {
-  return error instanceof ConnectError && error.code === Code.NotFound;
-}
-
 export function OrganizationThreadDetailPage() {
   const { id, threadId } = useParams();
   const organizationId = id ?? '';
@@ -117,100 +113,7 @@ export function OrganizationThreadDetailPage() {
     });
     return Array.from(ids);
   }, [messages, participants]);
-
-  const usersQuery = useQuery({
-    queryKey: ['users', 'batch', identityIds.join(',')],
-    queryFn: () => usersClient.batchGetUsers({ identityIds }),
-    enabled: identityIds.length > 0,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  });
-
-  const userMap = useMemo(() => {
-    const users = usersQuery.data?.users ?? [];
-    return new Map(
-      users.flatMap((user) => {
-        const userId = user.meta?.id;
-        return userId ? ([[userId, user]] as const) : [];
-      }),
-    );
-  }, [usersQuery.data?.users]);
-
-  const unresolvedIds = useMemo(
-    () => identityIds.filter((identityId) => !userMap.has(identityId)),
-    [identityIds, userMap],
-  );
-
-  const agentQueries = useQueries({
-    queries: unresolvedIds.map((identityId) => ({
-      queryKey: ['agents', 'identity', identityId],
-      queryFn: async () => {
-        try {
-          return await agentsClient.getAgent({ id: identityId });
-        } catch (error) {
-          if (isNotFound(error)) return null;
-          throw error;
-        }
-      },
-      enabled: Boolean(identityId),
-      retry: false,
-      staleTime: 60_000,
-      refetchOnWindowFocus: false,
-    })),
-  });
-
-  const agentMap = useMemo(
-    () =>
-      new Map(
-        agentQueries.flatMap((query, index) => {
-          const identityId = unresolvedIds[index];
-          const agent = query.data?.agent;
-          return identityId && agent ? ([[identityId, agent]] as const) : [];
-        }),
-      ),
-    [agentQueries, unresolvedIds],
-  );
-
-  const appProfileQueries = useQueries({
-    queries: unresolvedIds.map((identityId) => ({
-      queryKey: ['apps', 'profile', identityId],
-      queryFn: async () => {
-        try {
-          return await appsClient.getAppProfile({ identityId });
-        } catch (error) {
-          if (isNotFound(error)) return null;
-          throw error;
-        }
-      },
-      enabled: Boolean(identityId),
-      retry: false,
-      staleTime: 60_000,
-      refetchOnWindowFocus: false,
-    })),
-  });
-
-  const appProfileMap = useMemo(
-    () =>
-      new Map(
-        appProfileQueries.flatMap((query, index) => {
-          const identityId = unresolvedIds[index];
-          const profile = query.data?.profile;
-          return identityId && profile ? ([[identityId, profile]] as const) : [];
-        }),
-      ),
-    [appProfileQueries, unresolvedIds],
-  );
-
-  const formatHandle = (identityId?: string | null) => {
-    if (!identityId) return EMPTY_PLACEHOLDER;
-    const user = userMap.get(identityId);
-    if (user) return `@${user.nickname || user.name || user.email || identityId}`;
-    const agent = agentMap.get(identityId);
-    if (agent) return `@${agent.nickname || agent.name || identityId}`;
-    const appProfile = appProfileMap.get(identityId);
-    if (appProfile) return `@${appProfile.name || appProfile.slug || identityId}`;
-    return `@${identityId}`;
-  };
+  const { formatHandle } = useIdentityHandles(identityIds);
 
   const threadTitle = thread?.id ? `Thread ${truncate(thread.id, 12)}` : 'Thread';
   useDocumentTitle(threadTitle);
