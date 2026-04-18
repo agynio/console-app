@@ -5,6 +5,7 @@ import { threadsClient } from '@/api/client';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { ThreadStatus } from '@/gen/agynio/api/threads/v1/threads_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useIdentityHandles } from '@/hooks/useIdentityHandles';
 import { EMPTY_PLACEHOLDER, formatDateOnly, formatThreadStatus, truncate } from '@/lib/format';
@@ -19,10 +20,11 @@ export function OrganizationThreadsTab() {
   const threadsQuery = useInfiniteQuery({
     queryKey: ['threads', organizationId, 'list'],
     queryFn: ({ pageParam }) =>
-      threadsClient.listOrganizationThreads({
+      threadsClient.getOrganizationThreads({
         organizationId,
         pageSize: DEFAULT_PAGE_SIZE,
         pageToken: pageParam,
+        status: ThreadStatus.UNSPECIFIED,
       }),
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
