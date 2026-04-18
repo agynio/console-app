@@ -1,6 +1,6 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { OrganizationSummary } from '@/context/OrganizationContext';
 import type { useOrganizationContext } from '@/context/OrganizationContext';
 import type { useUserContext } from '@/context/UserContext';
@@ -21,6 +21,10 @@ vi.mock('@/context/OrganizationContext', () => ({
 }));
 
 describe('route guards', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     userContext = {
       currentUser: null,
@@ -114,5 +118,69 @@ describe('route guards', () => {
     );
 
     expect(screen.getByText('Org list')).toBeTruthy();
+  });
+
+  it('does not override cluster context on organization routes', () => {
+    const orgTwo: OrganizationSummary = {
+      id: 'org-2',
+      name: 'Org Two',
+    };
+
+    orgContext.contextMode = { mode: 'cluster' };
+    orgContext.organizations = [orgTwo];
+
+    render(
+      <MemoryRouter initialEntries={['/organizations/org-2']}>
+        <Routes>
+          <Route
+            path="/organizations/:id"
+            element={
+              <RequireOrganization>
+                <div>Org detail</div>
+              </RequireOrganization>
+            }
+          />
+          <Route path="/organizations" element={<div>Org list</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Org detail')).toBeTruthy();
+    expect(orgContext.setContextMode).not.toHaveBeenCalled();
+  });
+
+  it('syncs context with deep-linked organization routes', async () => {
+    const orgOne: OrganizationSummary = {
+      id: 'org-1',
+      name: 'Org One',
+    };
+    const orgTwo: OrganizationSummary = {
+      id: 'org-2',
+      name: 'Org Two',
+    };
+
+    orgContext.contextMode = { mode: 'organization', organization: orgOne };
+    orgContext.selectedOrganization = orgOne;
+    orgContext.organizations = [orgOne, orgTwo];
+
+    render(
+      <MemoryRouter initialEntries={['/organizations/org-2']}>
+        <Routes>
+          <Route
+            path="/organizations/:id"
+            element={
+              <RequireOrganization>
+                <div>Org detail</div>
+              </RequireOrganization>
+            }
+          />
+          <Route path="/organizations" element={<div>Org list</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(orgContext.setContextMode).toHaveBeenCalledWith({ mode: 'organization', organization: orgTwo });
+    });
   });
 });
