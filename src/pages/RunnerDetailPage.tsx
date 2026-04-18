@@ -27,9 +27,10 @@ import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 export function RunnerDetailPage() {
-  const { id, runnerId: runnerParam } = useParams();
-  const organizationId = runnerParam ? id ?? '' : '';
-  const runnerId = runnerParam ?? id ?? '';
+  const { id: organizationIdParam, runnerId: runnerIdParam } = useParams();
+  const isOrgContext = Boolean(organizationIdParam);
+  const organizationId = isOrgContext ? organizationIdParam ?? '' : '';
+  const runnerId = runnerIdParam ?? '';
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
@@ -53,7 +54,6 @@ export function RunnerDetailPage() {
   });
 
   const runner = runnerQuery.data?.runner;
-  const isOrgContext = Boolean(runnerParam);
   const isOrgRunner = Boolean(organizationId) && runner?.organizationId === organizationId;
   const canManageRunner = !isOrgContext || isOrgRunner;
 
@@ -141,8 +141,8 @@ export function RunnerDetailPage() {
   };
 
   const deleteDescription = runner?.organizationId
-    ? `This action permanently removes the runner from organization ${runner.organizationId}.`
-    : 'This action permanently removes the cluster runner.';
+    ? 'This action permanently removes the organization runner. This cannot be undone.'
+    : 'This action permanently removes the cluster runner. This cannot be undone.';
 
   return (
     <div className="space-y-6">

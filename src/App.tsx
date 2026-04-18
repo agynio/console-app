@@ -117,7 +117,7 @@ export default function App() {
           }
         />
         <Route
-          path="runners/:id"
+          path="runners/:runnerId"
           element={
             <RequireClusterAdmin>
               <RunnerDetailPage />
