@@ -1,6 +1,13 @@
 import { argosScreenshot } from '@argos-ci/playwright';
 import { test, expect } from './fixtures';
-import { createOrganization, createThread, getMe, sendThreadMessage, setSelectedOrganization } from './console-api';
+import {
+  createOrganization,
+  createThread,
+  createUser,
+  getMe,
+  sendThreadMessage,
+  setSelectedOrganization,
+} from './console-api';
 
 test('org threads list and detail pagination', async ({ page }) => {
   const organizationId = await createOrganization(page, `e2e-org-threads-${Date.now()}`);
@@ -11,10 +18,15 @@ test('org threads list and detail pagination', async ({ page }) => {
     throw new Error('GetMe response missing identity id for threads test.');
   }
 
-  const threadOne = await createThread(page, { organizationId, participantIds: [identityId] });
+  const participantId = await createUser(page, {
+    email: `e2e-thread-participant-${Date.now()}@agyn.test`,
+    nickname: 'thread-participant',
+  });
+
+  const threadOne = await createThread(page, { organizationId, participantIds: [participantId] });
   await sendThreadMessage(page, { threadId: threadOne, senderId: identityId, body: 'First thread message.' });
 
-  const threadTwo = await createThread(page, { organizationId, participantIds: [identityId] });
+  const threadTwo = await createThread(page, { organizationId, participantIds: [participantId] });
   const totalMessages = 55;
   for (let index = 0; index < totalMessages; index += 1) {
     await sendThreadMessage(page, {

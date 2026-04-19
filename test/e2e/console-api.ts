@@ -462,13 +462,16 @@ export async function createThread(
   page: Page,
   opts: { organizationId: string; participantIds: string[] },
 ): Promise<string> {
+  const me = await getMe(page);
+  const initiatorId = me.user?.meta?.id ?? '';
+  const participantIds = opts.participantIds.filter((participantId) => participantId !== initiatorId);
   const response = await postConnect<CreateThreadResponseWire>(
     page,
     THREADS_GATEWAY_PATH,
     'CreateThread',
     {
       organizationId: opts.organizationId,
-      participantIds: opts.participantIds,
+      participantIds,
     },
   );
   const threadId = response.thread?.id;
