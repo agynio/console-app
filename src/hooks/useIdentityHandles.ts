@@ -32,10 +32,10 @@ export function useIdentityHandles(identityIds: string[]) {
     );
   }, [usersQuery.data?.users]);
 
-  const unresolvedIds = useMemo(
-    () => uniqueIds.filter((identityId) => !userMap.has(identityId)),
-    [uniqueIds, userMap],
-  );
+  const unresolvedIds = useMemo(() => {
+    if (usersQuery.isPending) return [];
+    return uniqueIds.filter((identityId) => !userMap.has(identityId));
+  }, [uniqueIds, userMap, usersQuery.isPending]);
 
   const agentQueries = useQueries({
     queries: unresolvedIds.map((identityId) => ({
@@ -48,7 +48,7 @@ export function useIdentityHandles(identityIds: string[]) {
           throw error;
         }
       },
-      enabled: Boolean(identityId),
+      enabled: !usersQuery.isPending && Boolean(identityId),
       retry: false,
       staleTime: 60_000,
       refetchOnWindowFocus: false,
@@ -78,7 +78,7 @@ export function useIdentityHandles(identityIds: string[]) {
           throw error;
         }
       },
-      enabled: Boolean(identityId),
+      enabled: !usersQuery.isPending && Boolean(identityId),
       retry: false,
       staleTime: 60_000,
       refetchOnWindowFocus: false,

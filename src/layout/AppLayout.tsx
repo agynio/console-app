@@ -335,20 +335,20 @@ export function AppLayout() {
                 Apps
               </NavLink>
               <NavLink
-                to={organizationRoute('/threads')}
-                className={navLinkClass}
-                data-testid="nav-organization-threads"
-              >
-                <MessageSquareIcon className="h-4 w-4" />
-                Threads
-              </NavLink>
-              <NavLink
                 to={organizationRoute('/members')}
                 className={navLinkClass}
                 data-testid="nav-organization-members"
               >
                 <UsersIcon className="h-4 w-4" />
                 Members
+              </NavLink>
+              <NavLink
+                to={organizationRoute('/threads')}
+                className={navLinkClass}
+                data-testid="nav-organization-threads"
+              >
+                <MessageSquareIcon className="h-4 w-4" />
+                Threads
               </NavLink>
               <NavLink
                 to={organizationRoute('/monitoring')}

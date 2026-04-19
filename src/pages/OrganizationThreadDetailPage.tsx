@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { DurationSchema } from '@bufbuild/protobuf/wkt';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { filesClient, threadsClient } from '@/api/client';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Badge } from '@/components/ui/badge';
@@ -30,40 +30,58 @@ type AttachmentLinkProps = {
 };
 
 function AttachmentLink({ fileId }: AttachmentLinkProps) {
-  const downloadQuery = useQuery({
-    queryKey: ['files', fileId, 'download'],
-    queryFn: async () => {
-      const [metadata, download] = await Promise.all([
-        filesClient.getFileMetadata({ fileId }),
-        filesClient.getDownloadUrl({ fileId, expiry: attachmentExpiry }),
-      ]);
-      return { file: metadata.file, url: download.url };
-    },
+  const [hasRequested, setHasRequested] = useState(false);
+
+  const metadataQuery = useQuery({
+    queryKey: ['files', fileId, 'metadata'],
+    queryFn: () => filesClient.getFileMetadata({ fileId }),
     enabled: Boolean(fileId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  if (downloadQuery.isPending) {
-    return <span className="text-xs text-muted-foreground">Loading attachment...</span>;
-  }
+  const downloadMutation = useMutation({
+    mutationFn: async () => {
+      const download = await filesClient.getDownloadUrl({ fileId, expiry: attachmentExpiry });
+      if (!download.url) {
+        throw new Error('Download URL missing.');
+      }
+      return download.url;
+    },
+  });
 
-  if (downloadQuery.isError || !downloadQuery.data?.url) {
+  const label = metadataQuery.data?.file?.filename || fileId;
+  const showUnavailable = metadataQuery.isError || (hasRequested && downloadMutation.isError);
+
+  if (showUnavailable) {
     return <span className="text-xs text-muted-foreground">Attachment unavailable.</span>;
   }
 
-  const label = downloadQuery.data.file?.filename || fileId;
+  if (downloadMutation.isPending) {
+    return <span className="text-xs text-muted-foreground">Generating download link...</span>;
+  }
+
+  const handleDownload = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (!fileId || downloadMutation.isPending) return;
+    setHasRequested(true);
+    try {
+      const url = await downloadMutation.mutateAsync();
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      // Errors are surfaced via the mutation state.
+    }
+  };
 
   return (
-    <a
-      href={downloadQuery.data.url}
+    <button
+      type="button"
+      onClick={handleDownload}
       className="text-sm text-primary underline underline-offset-4"
-      target="_blank"
-      rel="noreferrer"
       data-testid="thread-attachment-link"
     >
       Download {label}
-    </a>
+    </button>
   );
 }
 
@@ -119,6 +137,8 @@ export function OrganizationThreadDetailPage() {
   useDocumentTitle(threadTitle);
 
   const messageCount = thread?.messageCount ?? 0;
+  const isThreadLoading = threadQuery.isPending;
+  const isThreadError = threadQuery.isError;
 
   return (
     <div className="space-y-6">
@@ -170,34 +190,42 @@ export function OrganizationThreadDetailPage() {
           <CardTitle>Participants</CardTitle>
         </CardHeader>
         <CardContent>
-          {participants.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No participants found.</div>
-          ) : (
-            <div className="divide-y divide-border">
-              {participants.map((participant) => (
-                <div
-                  key={participant.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-3"
-                  data-testid="thread-participant-row"
-                >
-                  <div>
-                    <div className="text-sm font-medium text-foreground">{formatHandle(participant.id)}</div>
-                    <div className="text-xs text-muted-foreground">{participant.id}</div>
+          {isThreadLoading ? (
+            <div className="text-sm text-muted-foreground">Loading participants...</div>
+          ) : null}
+          {isThreadError ? (
+            <div className="text-sm text-muted-foreground">Unable to load participants.</div>
+          ) : null}
+          {!isThreadLoading && !isThreadError ? (
+            participants.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No participants found.</div>
+            ) : (
+              <div className="divide-y divide-border">
+                {participants.map((participant) => (
+                  <div
+                    key={participant.id}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3"
+                    data-testid="thread-participant-row"
+                  >
+                    <div>
+                      <div className="text-sm font-medium text-foreground">{formatHandle(participant.id)}</div>
+                      <div className="text-xs text-muted-foreground">{participant.id}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {participant.passive ? (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          Passive
+                        </Badge>
+                      ) : null}
+                      <span className="text-xs text-muted-foreground">
+                        Joined {formatDateOnly(participant.joinedAt)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {participant.passive ? (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">
-                        Passive
-                      </Badge>
-                    ) : null}
-                    <span className="text-xs text-muted-foreground">
-                      Joined {formatDateOnly(participant.joinedAt)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )
+          ) : null}
         </CardContent>
       </Card>
       <Card className="border-border" data-testid="thread-messages-card">
@@ -205,45 +233,55 @@ export function OrganizationThreadDetailPage() {
           <CardTitle>Messages</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {messagesQuery.isPending ? (
+          {isThreadLoading ? (
             <div className="text-sm text-muted-foreground">Loading messages...</div>
           ) : null}
-          {messagesQuery.isError ? (
-            <div className="text-sm text-muted-foreground">Failed to load messages.</div>
+          {isThreadError ? (
+            <div className="text-sm text-muted-foreground">Unable to load messages.</div>
           ) : null}
-          {messages.length === 0 && !messagesQuery.isPending ? (
-            <div className="text-sm text-muted-foreground">No messages yet.</div>
-          ) : null}
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className="rounded-lg border border-border p-4"
-              data-testid="thread-message-row"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-foreground">{formatHandle(message.senderId)}</div>
-                <div className="text-xs text-muted-foreground">{formatTimestamp(message.createdAt)}</div>
-              </div>
-              <div className="mt-2 text-sm text-foreground whitespace-pre-wrap">
-                {message.body || EMPTY_PLACEHOLDER}
-              </div>
-              {message.fileIds.length > 0 ? (
-                <div className="mt-3 space-y-2">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Attachments</div>
-                  <div className="space-y-1">
-                    {message.fileIds.map((fileId) => (
-                      <AttachmentLink key={fileId} fileId={fileId} />
-                    ))}
-                  </div>
-                </div>
+          {!isThreadLoading && !isThreadError ? (
+            <>
+              {messagesQuery.isPending ? (
+                <div className="text-sm text-muted-foreground">Loading messages...</div>
               ) : null}
-            </div>
-          ))}
-          <LoadMoreButton
-            hasMore={messagesQuery.hasNextPage}
-            isLoading={messagesQuery.isFetchingNextPage}
-            onClick={() => messagesQuery.fetchNextPage()}
-          />
+              {messagesQuery.isError ? (
+                <div className="text-sm text-muted-foreground">Failed to load messages.</div>
+              ) : null}
+              {messages.length === 0 && !messagesQuery.isPending && !messagesQuery.isError ? (
+                <div className="text-sm text-muted-foreground">No messages yet.</div>
+              ) : null}
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className="rounded-lg border border-border p-4"
+                  data-testid="thread-message-row"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-foreground">{formatHandle(message.senderId)}</div>
+                    <div className="text-xs text-muted-foreground">{formatTimestamp(message.createdAt)}</div>
+                  </div>
+                  <div className="mt-2 text-sm text-foreground whitespace-pre-wrap">
+                    {message.body || EMPTY_PLACEHOLDER}
+                  </div>
+                  {message.fileIds.length > 0 ? (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Attachments</div>
+                      <div className="space-y-1">
+                        {message.fileIds.map((fileId) => (
+                          <AttachmentLink key={fileId} fileId={fileId} />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+              <LoadMoreButton
+                hasMore={messagesQuery.hasNextPage}
+                isLoading={messagesQuery.isFetchingNextPage}
+                onClick={() => messagesQuery.fetchNextPage()}
+              />
+            </>
+          ) : null}
         </CardContent>
       </Card>
     </div>

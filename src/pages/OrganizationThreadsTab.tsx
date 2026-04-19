@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { threadsClient } from '@/api/client';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
@@ -39,6 +40,8 @@ export function OrganizationThreadsTab() {
   );
   const isLoading = threadsQuery.isPending;
   const isError = threadsQuery.isError;
+  const isPermissionDenied =
+    threadsQuery.error instanceof ConnectError && threadsQuery.error.code === Code.PermissionDenied;
 
   const identityIds = useMemo(() => {
     const ids = new Set<string>();
@@ -55,8 +58,12 @@ export function OrganizationThreadsTab() {
   return (
     <div className="space-y-4">
       {isLoading ? <div className="text-sm text-muted-foreground">Loading threads...</div> : null}
-      {isError ? <div className="text-sm text-muted-foreground">Failed to load threads.</div> : null}
-      {threads.length === 0 && !isLoading ? (
+      {isError ? (
+        <div className="text-sm text-muted-foreground">
+          {isPermissionDenied ? 'You do not have permission to view threads.' : 'Failed to load threads.'}
+        </div>
+      ) : null}
+      {threads.length === 0 && !isLoading && !isError ? (
         <Card className="border-border" data-testid="organization-threads-empty">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No threads yet.
