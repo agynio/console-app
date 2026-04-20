@@ -1,6 +1,6 @@
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
+import { AppVisibility, InstallationAuditLogLevel } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { ContainerStatus, RunnerStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
@@ -107,9 +107,16 @@ export function summarizeContainers(containers: Array<{ status: ContainerStatus 
 }
 
 export function formatAppVisibility(visibility: AppVisibility): string {
-  if (visibility === AppVisibility.PUBLIC) return 'Public';
-  if (visibility === AppVisibility.INTERNAL) return 'Internal';
-  return 'Unspecified';
+	if (visibility === AppVisibility.PUBLIC) return 'Public';
+	if (visibility === AppVisibility.INTERNAL) return 'Internal';
+	return 'Unspecified';
+}
+
+export function formatInstallationAuditLogLevel(level: InstallationAuditLogLevel): string {
+	if (level === InstallationAuditLogLevel.INFO) return 'Info';
+	if (level === InstallationAuditLogLevel.WARNING) return 'Warning';
+	if (level === InstallationAuditLogLevel.ERROR) return 'Error';
+	return 'Unspecified';
 }
 
 export function formatClusterRole(role?: ClusterRole): string {

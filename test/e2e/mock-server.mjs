@@ -1063,6 +1063,32 @@ function handleAppsGateway(method, _body, res) {
   if (method === 'ListInstallations') {
     return sendJson(res, 200, { installations: [], nextPageToken: '' });
   }
+  if (method === 'ListInstallationAuditLogEntries') {
+    return sendJson(res, 200, { entries: [], nextPageToken: '' });
+  }
+  if (method === 'ReportInstallationStatus') {
+    return sendJson(res, 200, {
+      installation: {
+        meta: { id: randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        appId: '',
+        organizationId: '',
+        slug: '',
+        configuration: {},
+        status: '',
+      },
+    });
+  }
+  if (method === 'AppendInstallationAuditLogEntry') {
+    return sendJson(res, 200, {
+      entry: {
+        id: randomUUID(),
+        installationId: '',
+        message: '',
+        level: 'INSTALLATION_AUDIT_LOG_LEVEL_INFO',
+        createdAt: new Date().toISOString(),
+      },
+    });
+  }
   return sendText(res, 404, 'Unknown AppsGateway method');
 }
 
