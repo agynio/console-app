@@ -145,6 +145,7 @@ export function formatMembershipStatus(status?: MembershipStatus): string {
 export function formatThreadStatus(status?: ThreadStatus): string {
   if (status === ThreadStatus.ACTIVE) return 'Active';
   if (status === ThreadStatus.ARCHIVED) return 'Archived';
+  if (status === ThreadStatus.DEGRADED) return 'Degraded';
   if (status === ThreadStatus.UNSPECIFIED) return 'Unspecified';
   return 'Unspecified';
 }
