@@ -50,8 +50,11 @@ test('org threads list and detail pagination', async ({ page }) => {
   await expect(page.getByTestId('thread-messages-card')).toBeVisible();
 
   await expect(page.getByTestId('thread-message-row')).toHaveCount(50);
+  await expect(page.getByTestId('thread-message-row').first()).toContainText('Thread message 55');
   const loadMoreButton = page.getByTestId('thread-messages-card').getByTestId('load-more');
   await expect(loadMoreButton).toBeVisible();
+  await expect(loadMoreButton).toHaveText('Load more');
+  await argosScreenshot(page, 'organization-thread-detail');
   await loadMoreButton.click();
   await expect(page.getByTestId('thread-message-row')).toHaveCount(totalMessages);
   await expect(page.getByTestId('thread-messages-card').getByTestId('load-more')).toHaveCount(0);
