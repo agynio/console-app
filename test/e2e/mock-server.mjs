@@ -24,6 +24,11 @@ const llmProviders = new Map();
 const models = new Map();
 const imagePullSecretAttachments = new Map();
 const usageTotals = new Map();
+const threads = new Map();
+const threadMessages = new Map();
+
+let threadSequence = 0;
+let messageSequence = 0;
 
 const defaultUser = {
   id: defaultUserId,
@@ -167,6 +172,20 @@ function normalizeClusterRole(value) {
   return 'CLUSTER_ROLE_UNSPECIFIED';
 }
 
+function normalizeThreadStatus(value) {
+  if (typeof value === 'string') return value;
+  if (value === 1) return 'THREAD_STATUS_ACTIVE';
+  if (value === 2) return 'THREAD_STATUS_ARCHIVED';
+  return 'THREAD_STATUS_UNSPECIFIED';
+}
+
+function normalizeMessageOrder(value) {
+  if (typeof value === 'string') return value;
+  if (value === 1) return 'MESSAGE_ORDER_OLDEST_FIRST';
+  if (value === 2) return 'MESSAGE_ORDER_NEWEST_FIRST';
+  return 'MESSAGE_ORDER_UNSPECIFIED';
+}
+
 function normalizeGranularity(value) {
   if (typeof value === 'string') return value;
   if (value === 1) return 'GRANULARITY_TOTAL';
@@ -188,6 +207,22 @@ function normalizeInt64(value) {
   if (typeof value === 'number') return BigInt(value);
   if (typeof value === 'string') return BigInt(value);
   return 0n;
+}
+
+function parsePageToken(token) {
+  if (!token) return 0;
+  const parsed = Number.parseInt(token, 10);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function paginate(items, pageSize, pageToken) {
+  const size = Number(pageSize) > 0 ? Number(pageSize) : items.length;
+  const start = parsePageToken(pageToken);
+  const end = start + size;
+  return {
+    items: items.slice(start, end),
+    nextPageToken: end < items.length ? String(end) : '',
+  };
 }
 
 function recordUsageTotal(orgId, value) {
@@ -389,6 +424,37 @@ function mapImagePullSecretAttachment(attachment) {
     meta: mapEntityMeta(attachment),
     imagePullSecretId: attachment.imagePullSecretId,
     target: attachment.target,
+  };
+}
+
+function mapThreadParticipant(participant) {
+  return {
+    id: participant.id,
+    joinedAt: participant.joinedAt,
+    passive: Boolean(participant.passive),
+  };
+}
+
+function mapThread(thread) {
+  return {
+    id: thread.id,
+    participants: thread.participants.map(mapThreadParticipant),
+    status: thread.status,
+    createdAt: thread.createdAt,
+    updatedAt: thread.updatedAt,
+    organizationId: thread.organizationId,
+    messageCount: thread.messageCount,
+  };
+}
+
+function mapThreadMessage(message) {
+  return {
+    id: message.id,
+    threadId: message.threadId,
+    senderId: message.senderId,
+    body: message.body,
+    fileIds: message.fileIds ?? [],
+    createdAt: message.createdAt,
   };
 }
 
@@ -864,6 +930,135 @@ function handleAgentsGateway(method, body, res) {
   }
 }
 
+function handleThreadsGateway(method, body, res) {
+  switch (method) {
+    case 'CreateThread': {
+      const id = randomUUID();
+      const createdAt = new Date(Date.now() + threadSequence).toISOString();
+      threadSequence += 1000;
+      const participantIds = Array.isArray(body.participantIds) ? body.participantIds : [];
+      const participantIdentifiers = Array.isArray(body.participants) ? body.participants : [];
+      const resolvedIds = participantIdentifiers
+        .map((participant) => participant.participantId || participant.participantNickname)
+        .filter(Boolean);
+      const uniqueIds = Array.from(new Set([...participantIds, ...resolvedIds].filter(Boolean)));
+      const participants = uniqueIds.map((participantId) => ({
+        id: participantId,
+        joinedAt: createdAt,
+        passive: false,
+      }));
+      const thread = {
+        id,
+        participants,
+        status: 'THREAD_STATUS_ACTIVE',
+        createdAt,
+        updatedAt: createdAt,
+        organizationId: body.organizationId ?? '',
+        messageCount: 0,
+      };
+      threads.set(id, thread);
+      threadMessages.set(id, []);
+      return sendJson(res, 200, { thread: mapThread(thread) });
+    }
+    case 'ArchiveThread': {
+      const thread = threads.get(body.threadId);
+      if (!thread) return sendText(res, 404, 'Thread not found');
+      thread.status = 'THREAD_STATUS_ARCHIVED';
+      thread.updatedAt = new Date(Date.now() + threadSequence).toISOString();
+      threadSequence += 1000;
+      return sendJson(res, 200, { thread: mapThread(thread) });
+    }
+    case 'AddParticipant': {
+      const thread = threads.get(body.threadId);
+      if (!thread) return sendText(res, 404, 'Thread not found');
+      const participantId =
+        body.participantId ?? body.participant?.participantId ?? body.participant?.participantNickname ?? '';
+      if (!participantId) return sendText(res, 400, 'Missing participant id');
+      if (!thread.participants.some((participant) => participant.id === participantId)) {
+        thread.participants.push({
+          id: participantId,
+          joinedAt: new Date(Date.now() + threadSequence).toISOString(),
+          passive: Boolean(body.passive),
+        });
+        threadSequence += 1000;
+      }
+      return sendJson(res, 200, { thread: mapThread(thread) });
+    }
+    case 'SendMessage': {
+      const threadId = body.threadId ?? '';
+      const thread = threads.get(threadId);
+      if (!thread) return sendText(res, 404, 'Thread not found');
+      const createdAt = new Date(Date.now() + messageSequence).toISOString();
+      messageSequence += 1;
+      const message = {
+        id: randomUUID(),
+        threadId,
+        senderId: body.senderId ?? '',
+        body: body.body ?? '',
+        fileIds: Array.isArray(body.fileIds) ? body.fileIds : [],
+        createdAt,
+      };
+      const messages = threadMessages.get(threadId) ?? [];
+      messages.push(message);
+      threadMessages.set(threadId, messages);
+      thread.messageCount = messages.length;
+      thread.updatedAt = createdAt;
+      if (message.senderId && !thread.participants.some((participant) => participant.id === message.senderId)) {
+        thread.participants.push({
+          id: message.senderId,
+          joinedAt: createdAt,
+          passive: false,
+        });
+      }
+      return sendJson(res, 200, { message: mapThreadMessage(message) });
+    }
+    case 'GetThreads': {
+      const participantId = body.participantId ?? '';
+      let result = Array.from(threads.values());
+      if (participantId) {
+        result = result.filter((thread) =>
+          thread.participants.some((participant) => participant.id === participantId),
+        );
+      }
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const { items, nextPageToken } = paginate(result, body.pageSize, body.pageToken);
+      return sendJson(res, 200, { threads: items.map(mapThread), nextPageToken });
+    }
+    case 'GetOrganizationThreads': {
+      const orgId = body.organizationId ?? '';
+      const statusFilter = normalizeThreadStatus(body.status);
+      let result = Array.from(threads.values()).filter((thread) => thread.organizationId === orgId);
+      if (statusFilter !== 'THREAD_STATUS_UNSPECIFIED') {
+        result = result.filter((thread) => thread.status === statusFilter);
+      }
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const { items, nextPageToken } = paginate(result, body.pageSize, body.pageToken);
+      return sendJson(res, 200, { threads: items.map(mapThread), nextPageToken });
+    }
+    case 'GetThread': {
+      const thread = threads.get(body.threadId);
+      if (!thread) return sendText(res, 404, 'Thread not found');
+      return sendJson(res, 200, { thread: mapThread(thread) });
+    }
+    case 'GetMessages': {
+      const threadId = body.threadId ?? '';
+      const messages = threadMessages.get(threadId);
+      if (!messages) return sendText(res, 404, 'Thread not found');
+      const order = normalizeMessageOrder(body.order);
+      const ordered = [...messages].sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        if (order === 'MESSAGE_ORDER_NEWEST_FIRST') return bTime - aTime;
+        return aTime - bTime;
+      });
+      const { items, nextPageToken } = paginate(ordered, body.pageSize, body.pageToken);
+      return sendJson(res, 200, { messages: items.map(mapThreadMessage), nextPageToken });
+    }
+    default:
+      return sendText(res, 404, 'Unknown ThreadsGateway method');
+  }
+}
+
 function handleAppsGateway(method, _body, res) {
   if (method === 'ListInstallations') {
     return sendJson(res, 200, { installations: [], nextPageToken: '' });
@@ -1062,6 +1257,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (service === 'agynio.api.gateway.v1.AgentsGateway') {
       return handleAgentsGateway(method, body, res);
+    }
+    if (service === 'agynio.api.gateway.v1.ThreadsGateway') {
+      return handleThreadsGateway(method, body, res);
     }
     if (service === 'agynio.api.gateway.v1.MeteringGateway') {
       return handleMeteringGateway(method, body, res);

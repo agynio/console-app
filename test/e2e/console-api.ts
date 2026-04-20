@@ -14,6 +14,7 @@ const SECRETS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.SecretsGateway';
 const AGENTS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.AgentsGateway';
 const LLM_GATEWAY_PATH = '/api/agynio.api.gateway.v1.LLMGateway';
 const RUNNERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.RunnersGateway';
+const THREADS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.ThreadsGateway';
 const METERING_GATEWAY_PATH = '/api/agynio.api.gateway.v1.MeteringGateway';
 
 const CONNECT_HEADERS = {
@@ -58,8 +59,41 @@ type DeviceWire = {
   enrollmentJwt?: string;
 };
 
+type ThreadParticipantWire = {
+  id?: string;
+  joinedAt?: string;
+  passive?: boolean;
+};
+
+type ThreadWire = {
+  id?: string;
+  participants?: ThreadParticipantWire[];
+  status?: string | number;
+  createdAt?: string;
+  updatedAt?: string;
+  organizationId?: string;
+  messageCount?: number;
+};
+
+type MessageWire = {
+  id?: string;
+  threadId?: string;
+  senderId?: string;
+  body?: string;
+  fileIds?: string[];
+  createdAt?: string;
+};
+
 type CreateOrganizationResponseWire = {
   organization?: { id?: string };
+};
+
+type CreateThreadResponseWire = {
+  thread?: ThreadWire;
+};
+
+type SendMessageResponseWire = {
+  message?: MessageWire;
 };
 
 type ListAccessibleOrganizationsResponseWire = {
@@ -422,6 +456,51 @@ export async function setSelectedOrganization(page: Page, organizationId: string
     );
     window.localStorage.removeItem('console.selectedOrganization');
   }, organizationId);
+}
+
+export async function createThread(
+  page: Page,
+  opts: { organizationId: string; participantIds: string[] },
+): Promise<string> {
+  const me = await getMe(page);
+  const initiatorId = me.user?.meta?.id ?? '';
+  const participantIds = opts.participantIds.filter((participantId) => participantId !== initiatorId);
+  const response = await postConnect<CreateThreadResponseWire>(
+    page,
+    THREADS_GATEWAY_PATH,
+    'CreateThread',
+    {
+      organizationId: opts.organizationId,
+      participantIds,
+    },
+  );
+  const threadId = response.thread?.id;
+  if (!threadId) {
+    throw new Error('CreateThread response missing thread id.');
+  }
+  return threadId;
+}
+
+export async function sendThreadMessage(
+  page: Page,
+  opts: { threadId: string; senderId: string; body: string; fileIds?: string[] },
+): Promise<string> {
+  const response = await postConnect<SendMessageResponseWire>(
+    page,
+    THREADS_GATEWAY_PATH,
+    'SendMessage',
+    {
+      threadId: opts.threadId,
+      senderId: opts.senderId,
+      body: opts.body,
+      fileIds: opts.fileIds ?? [],
+    },
+  );
+  const messageId = response.message?.id;
+  if (!messageId) {
+    throw new Error('SendMessage response missing message id.');
+  }
+  return messageId;
 }
 
 export async function createUser(

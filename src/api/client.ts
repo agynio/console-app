@@ -4,12 +4,14 @@ import { authInterceptor } from '@/auth';
 import { config } from '@/config';
 import { AgentsGateway } from '@/gen/agynio/api/gateway/v1/agents_pb';
 import { AppsGateway } from '@/gen/agynio/api/gateway/v1/apps_pb';
+import { FilesGateway } from '@/gen/agynio/api/gateway/v1/files_pb';
 import { LLMGateway } from '@/gen/agynio/api/gateway/v1/llm_pb';
 import { MeteringGateway } from '@/gen/agynio/api/gateway/v1/metering_pb';
 import { NotificationsGateway } from '@/gen/agynio/api/gateway/v1/notifications_pb';
 import { OrganizationsGateway } from '@/gen/agynio/api/gateway/v1/organizations_pb';
 import { RunnersGateway } from '@/gen/agynio/api/gateway/v1/runners_pb';
 import { SecretsGateway } from '@/gen/agynio/api/gateway/v1/secrets_pb';
+import { ThreadsGateway } from '@/gen/agynio/api/gateway/v1/threads_pb';
 import { UsersGateway } from '@/gen/agynio/api/gateway/v1/users_pb';
 
 const transport = createConnectTransport({
@@ -26,3 +28,5 @@ export const organizationsClient = createClient(OrganizationsGateway, transport)
 export const runnersClient = createClient(RunnersGateway, transport);
 export const secretsClient = createClient(SecretsGateway, transport);
 export const notificationsClient = createClient(NotificationsGateway, transport);
+export const threadsClient = createClient(ThreadsGateway, transport);
+export const filesClient = createClient(FilesGateway, transport);
