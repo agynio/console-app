@@ -26,6 +26,8 @@ const imagePullSecretAttachments = new Map();
 const usageTotals = new Map();
 const threads = new Map();
 const threadMessages = new Map();
+const installations = new Map();
+const installationAuditLogs = new Map();
 
 let threadSequence = 0;
 let messageSequence = 0;
@@ -75,6 +77,30 @@ const defaultModel = {
 };
 
 models.set(defaultModel.id, defaultModel);
+
+const defaultInstallation = {
+  id: 'installation-1',
+  appId: 'app-1',
+  organizationId: '',
+  slug: 'default-installation',
+  configuration: {},
+  status: 'Installation ready.',
+  createdAt: new Date().toISOString(),
+};
+
+installations.set(defaultInstallation.id, defaultInstallation);
+
+const defaultInstallationAuditLogs = [
+  {
+    id: 'installation-log-1',
+    installationId: defaultInstallation.id,
+    message: 'Installation created.',
+    level: 'INSTALLATION_AUDIT_LOG_LEVEL_INFO',
+    createdAt: new Date().toISOString(),
+  },
+];
+
+installationAuditLogs.set(defaultInstallation.id, defaultInstallationAuditLogs);
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -455,6 +481,27 @@ function mapThreadMessage(message) {
     body: message.body,
     fileIds: message.fileIds ?? [],
     createdAt: message.createdAt,
+  };
+}
+
+function mapInstallation(installation) {
+  return {
+    meta: mapEntityMeta(installation),
+    appId: installation.appId,
+    organizationId: installation.organizationId,
+    slug: installation.slug,
+    configuration: installation.configuration,
+    status: installation.status ?? '',
+  };
+}
+
+function mapInstallationAuditLogEntry(entry) {
+  return {
+    id: entry.id,
+    installationId: entry.installationId,
+    message: entry.message,
+    level: entry.level,
+    createdAt: entry.createdAt,
   };
 }
 
@@ -1059,9 +1106,57 @@ function handleThreadsGateway(method, body, res) {
   }
 }
 
-function handleAppsGateway(method, _body, res) {
+function handleAppsGateway(method, body, res) {
   if (method === 'ListInstallations') {
-    return sendJson(res, 200, { installations: [], nextPageToken: '' });
+    return sendJson(res, 200, {
+      installations: Array.from(installations.values()).map(mapInstallation),
+      nextPageToken: '',
+    });
+  }
+  if (method === 'ListInstallationAuditLogEntries') {
+    const installationId = body.installationId ?? body.installation_id ?? '';
+    const entries = installationAuditLogs.get(installationId) ?? [];
+    const { items, nextPageToken } = paginate(entries, body.pageSize, body.pageToken);
+    return sendJson(res, 200, {
+      entries: items.map(mapInstallationAuditLogEntry),
+      nextPageToken,
+    });
+  }
+  if (method === 'ReportInstallationStatus') {
+    const installationId = body.installationId ?? body.installation_id ?? '';
+    const status = body.status ?? '';
+    const existing = installations.get(installationId);
+    if (installationId) {
+      if (existing) {
+        existing.status = status;
+      } else {
+        installations.set(installationId, {
+          ...defaultInstallation,
+          id: installationId,
+          status,
+        });
+      }
+    }
+    const installation = installations.get(installationId) ?? defaultInstallation;
+    return sendJson(res, 200, {
+      installation: mapInstallation(installation),
+    });
+  }
+  if (method === 'AppendInstallationAuditLogEntry') {
+    const installationId = body.installationId ?? body.installation_id ?? defaultInstallation.id;
+    const entry = {
+      id: randomUUID(),
+      installationId,
+      message: body.message ?? '',
+      level: body.level ?? 'INSTALLATION_AUDIT_LOG_LEVEL_INFO',
+      createdAt: new Date().toISOString(),
+    };
+    const entries = installationAuditLogs.get(installationId) ?? [];
+    entries.unshift(entry);
+    installationAuditLogs.set(installationId, entries);
+    return sendJson(res, 200, {
+      entry: mapInstallationAuditLogEntry(entry),
+    });
   }
   return sendText(res, 404, 'Unknown AppsGateway method');
 }
