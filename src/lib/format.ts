@@ -107,16 +107,16 @@ export function summarizeContainers(containers: Array<{ status: ContainerStatus 
 }
 
 export function formatAppVisibility(visibility: AppVisibility): string {
-	if (visibility === AppVisibility.PUBLIC) return 'Public';
-	if (visibility === AppVisibility.INTERNAL) return 'Internal';
-	return 'Unspecified';
+  if (visibility === AppVisibility.PUBLIC) return 'Public';
+  if (visibility === AppVisibility.INTERNAL) return 'Internal';
+  return 'Unspecified';
 }
 
 export function formatInstallationAuditLogLevel(level: InstallationAuditLogLevel): string {
-	if (level === InstallationAuditLogLevel.INFO) return 'Info';
-	if (level === InstallationAuditLogLevel.WARNING) return 'Warning';
-	if (level === InstallationAuditLogLevel.ERROR) return 'Error';
-	return 'Unspecified';
+  if (level === InstallationAuditLogLevel.INFO) return 'Info';
+  if (level === InstallationAuditLogLevel.WARNING) return 'Warning';
+  if (level === InstallationAuditLogLevel.ERROR) return 'Error';
+  return 'Unspecified';
 }
 
 export function formatClusterRole(role?: ClusterRole): string {

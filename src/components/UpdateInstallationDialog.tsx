@@ -40,12 +40,12 @@ export function UpdateInstallationDialog({
   organizationId,
 }: UpdateInstallationDialogProps) {
   const queryClient = useQueryClient();
-	const [slug, setSlug] = useState('');
-	const [configuration, setConfiguration] = useState('');
-	const [slugError, setSlugError] = useState('');
-	const [configurationError, setConfigurationError] = useState('');
-	const installationId = installation?.meta?.id ?? '';
-	const statusContent = useMemo(() => installation?.status?.trim() ?? '', [installation?.status]);
+  const [slug, setSlug] = useState('');
+  const [configuration, setConfiguration] = useState('');
+  const [slugError, setSlugError] = useState('');
+  const [configurationError, setConfigurationError] = useState('');
+  const installationId = installation?.meta?.id ?? '';
+  const statusContent = useMemo(() => installation?.status?.trim() ?? '', [installation?.status]);
 
   useEffect(() => {
     if (open && installation) {
@@ -62,42 +62,42 @@ export function UpdateInstallationDialog({
     }
   }, [open, installation]);
 
-	const updateMutation = useMutation({
-		mutationFn: (payload: { id: string; slug: string; configuration?: JsonObject }) =>
-			appsClient.updateInstallation(payload),
-		onSuccess: () => {
-			toast.success('Installation updated.');
+  const updateMutation = useMutation({
+    mutationFn: (payload: { id: string; slug: string; configuration?: JsonObject }) =>
+      appsClient.updateInstallation(payload),
+    onSuccess: () => {
+      toast.success('Installation updated.');
       void queryClient.invalidateQueries({ queryKey: ['installations', organizationId] });
       onOpenChange(false);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to update installation.');
-		},
-	});
+    },
+  });
 
-	const auditLogQuery = useInfiniteQuery({
-		queryKey: ['installation-audit-log', installationId],
-		queryFn: ({ pageParam }) =>
-			appsClient.listInstallationAuditLogEntries({
-				installationId,
-				pageSize: DEFAULT_PAGE_SIZE,
-				pageToken: pageParam,
-			}),
-		initialPageParam: '',
-		getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
-		enabled: open && Boolean(installationId),
-		staleTime: 30_000,
-		refetchOnWindowFocus: false,
-	});
+  const auditLogQuery = useInfiniteQuery({
+    queryKey: ['installation-audit-log', installationId],
+    queryFn: ({ pageParam }) =>
+      appsClient.listInstallationAuditLogEntries({
+        installationId,
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
+      }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: open && Boolean(installationId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
 
-	const auditLogEntries = auditLogQuery.data?.pages.flatMap((page) => page.entries) ?? [];
-	const showAuditLog = auditLogEntries.length > 0 || auditLogQuery.isPending || auditLogQuery.isError;
-	const hasAuditLogEntries = auditLogEntries.length > 0;
-	const resolveAuditLogVariant = (level: InstallationAuditLogLevel) => {
-		if (level === InstallationAuditLogLevel.ERROR) return 'destructive';
-		if (level === InstallationAuditLogLevel.WARNING) return 'outline';
-		return 'secondary';
-	};
+  const auditLogEntries = auditLogQuery.data?.pages.flatMap((page) => page.entries) ?? [];
+  const showAuditLog = auditLogEntries.length > 0 || auditLogQuery.isPending || auditLogQuery.isError;
+  const hasAuditLogEntries = auditLogEntries.length > 0;
+  const resolveAuditLogVariant = (level: InstallationAuditLogLevel) => {
+    if (level === InstallationAuditLogLevel.ERROR) return 'destructive';
+    if (level === InstallationAuditLogLevel.WARNING) return 'outline';
+    return 'secondary';
+  };
 
   const handleSave = () => {
     if (!installation?.meta?.id) return;
@@ -135,71 +135,71 @@ export function UpdateInstallationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-		<DialogContent data-testid="update-installation-dialog">
-			<DialogHeader>
-				<DialogTitle data-testid="update-installation-title">Configure installation</DialogTitle>
-				<DialogDescription data-testid="update-installation-description">
-					Update installation slug and configuration.
-				</DialogDescription>
-			</DialogHeader>
-			<div className="space-y-4">
-				{statusContent ? (
-					<div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3" data-testid="installation-status">
-						<div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</div>
-						<Markdown content={statusContent} />
-					</div>
-				) : null}
-				{showAuditLog ? (
-					<div className="space-y-2" data-testid="installation-audit-log">
-						<div>
-							<div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Audit log</div>
-							<p className="text-xs text-muted-foreground">Recent installation activity.</p>
-						</div>
-						{auditLogQuery.isPending ? (
-							<div className="text-sm text-muted-foreground">Loading audit log...</div>
-						) : null}
-						{auditLogQuery.isError ? (
-							<div className="text-sm text-muted-foreground">Failed to load audit log.</div>
-						) : null}
-						{hasAuditLogEntries ? (
-							<div className="rounded-lg border border-border">
-								<div className="grid gap-2 border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[160px_120px_1fr]">
-									<span>Time</span>
-									<span>Level</span>
-									<span>Message</span>
-								</div>
-								<div className="divide-y divide-border">
-									{auditLogEntries.map((entry) => (
-										<div
-											key={entry.id}
-											className="grid gap-2 px-4 py-3 text-sm text-foreground md:grid-cols-[160px_120px_1fr]"
-										>
-											<span className="text-xs text-muted-foreground">{formatTimestamp(entry.createdAt)}</span>
-											<Badge variant={resolveAuditLogVariant(entry.level)}>
-												{formatInstallationAuditLogLevel(entry.level)}
-											</Badge>
-											<span className="text-sm text-foreground whitespace-pre-wrap">{entry.message}</span>
-										</div>
-									))}
-								</div>
-							</div>
-						) : null}
-						{hasAuditLogEntries ? (
-							<LoadMoreButton
-								hasMore={Boolean(auditLogQuery.hasNextPage)}
-								isLoading={auditLogQuery.isFetchingNextPage}
-								onClick={() => {
-									void auditLogQuery.fetchNextPage();
-								}}
-							/>
-						) : null}
-					</div>
-				) : null}
-				<div className="space-y-2">
-					<Label htmlFor="update-installation-slug">Slug</Label>
-					<Input
-						id="update-installation-slug"
-						value={slug}
+      <DialogContent data-testid="update-installation-dialog">
+        <DialogHeader>
+          <DialogTitle data-testid="update-installation-title">Configure installation</DialogTitle>
+          <DialogDescription data-testid="update-installation-description">
+            Update installation slug and configuration.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {statusContent ? (
+            <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3" data-testid="installation-status">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</div>
+              <Markdown content={statusContent} />
+            </div>
+          ) : null}
+          {showAuditLog ? (
+            <div className="space-y-2" data-testid="installation-audit-log">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Audit log</div>
+                <p className="text-xs text-muted-foreground">Recent installation activity.</p>
+              </div>
+              {auditLogQuery.isPending ? (
+                <div className="text-sm text-muted-foreground">Loading audit log...</div>
+              ) : null}
+              {auditLogQuery.isError ? (
+                <div className="text-sm text-muted-foreground">Failed to load audit log.</div>
+              ) : null}
+              {hasAuditLogEntries ? (
+                <div className="rounded-lg border border-border">
+                  <div className="grid gap-2 border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[160px_120px_1fr]">
+                    <span>Time</span>
+                    <span>Level</span>
+                    <span>Message</span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {auditLogEntries.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="grid gap-2 px-4 py-3 text-sm text-foreground md:grid-cols-[160px_120px_1fr]"
+                      >
+                        <span className="text-xs text-muted-foreground">{formatTimestamp(entry.createdAt)}</span>
+                        <Badge variant={resolveAuditLogVariant(entry.level)}>
+                          {formatInstallationAuditLogLevel(entry.level)}
+                        </Badge>
+                        <span className="text-sm text-foreground whitespace-pre-wrap">{entry.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {hasAuditLogEntries ? (
+                <LoadMoreButton
+                  hasMore={Boolean(auditLogQuery.hasNextPage)}
+                  isLoading={auditLogQuery.isFetchingNextPage}
+                  onClick={() => {
+                    void auditLogQuery.fetchNextPage();
+                  }}
+                />
+              ) : null}
+            </div>
+          ) : null}
+          <div className="space-y-2">
+            <Label htmlFor="update-installation-slug">Slug</Label>
+            <Input
+              id="update-installation-slug"
+              value={slug}
               onChange={(event) => {
                 setSlug(event.target.value);
                 if (slugError) setSlugError('');
