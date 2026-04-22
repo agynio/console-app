@@ -1107,6 +1107,16 @@ function handleThreadsGateway(method, body, res) {
 }
 
 function handleAppsGateway(method, body, res) {
+  if (method === 'GetInstallation') {
+    const installationId = body.id ?? body.installationId ?? body.installation_id ?? '';
+    const installation = installations.get(installationId);
+    if (!installation) {
+      return sendText(res, 404, 'Installation not found');
+    }
+    return sendJson(res, 200, {
+      installation: mapInstallation(installation),
+    });
+  }
   if (method === 'ListInstallations') {
     return sendJson(res, 200, {
       installations: Array.from(installations.values()).map(mapInstallation),

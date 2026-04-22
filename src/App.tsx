@@ -30,6 +30,7 @@ import { AppsPage } from '@/pages/AppsPage';
 import { ApiTokensPage } from '@/pages/ApiTokensPage';
 import { AppDetailPage } from '@/pages/AppDetailPage';
 import { DevicesPage } from '@/pages/DevicesPage';
+import { InstallationDetailPage } from '@/pages/InstallationDetailPage';
 
 export default function App() {
   return (
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="runners" element={<OrganizationRunnersTab />} />
           <Route path="runners/:runnerId" element={<RunnerDetailPage />} />
           <Route path="apps" element={<OrganizationAppsTab />} />
+          <Route path="apps/installations/:installationId" element={<InstallationDetailPage />} />
           <Route path="apps/:appId" element={<AppDetailPage />} />
           <Route path="threads" element={<OrganizationThreadsTab />} />
           <Route path="threads/:threadId" element={<OrganizationThreadDetailPage />} />
