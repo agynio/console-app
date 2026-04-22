@@ -29,15 +29,12 @@ import { toast } from 'sonner';
 type StorageMode = 'local' | 'remote';
 type SecretStorageState = StorageMode | 'invalid';
 
-const STORAGE_MODE_OPTIONS: Array<{ value: StorageMode; label: string }> = [
-  { value: 'local', label: 'Local (built-in)' },
-  { value: 'remote', label: 'Remote provider' },
-];
+const BUILT_IN_PROVIDER_ID = '__built-in__';
+const BUILT_IN_PROVIDER_LABEL = 'Built-in';
 
 type SecretFormValues = {
   title: string;
   description: string;
-  storageMode: StorageMode;
   value: string;
   providerId: string;
   remoteName: string;
@@ -68,9 +65,8 @@ type CreateSecretPayload =
 const DEFAULT_FORM_VALUES: SecretFormValues = {
   title: '',
   description: '',
-  storageMode: 'remote',
   value: '',
-  providerId: '',
+  providerId: BUILT_IN_PROVIDER_ID,
   remoteName: '',
 };
 
@@ -93,6 +89,8 @@ const resolveSecretStorageState = (secret: Secret): SecretStorageState => {
   return 'invalid';
 };
 
+const isBuiltInProviderSelection = (providerId: string) => providerId === BUILT_IN_PROVIDER_ID;
+
 const resolveSecretInvalidReason = (secret: Secret): string => {
   const hasProvider = Boolean(secret.secretProviderId.trim());
   const hasRemote = Boolean(secret.remoteName.trim());
@@ -102,23 +100,18 @@ const resolveSecretInvalidReason = (secret: Secret): string => {
   return 'Invalid configuration.';
 };
 
-const resolveFormStorageMode = (secret: Secret): StorageMode => {
-  const state = resolveSecretStorageState(secret);
-  return state === 'remote' || state === 'invalid' ? 'remote' : 'local';
-};
-
 const buildFormValuesFromSecret = (secret: Secret | null): SecretFormValues => {
   if (!secret) return { ...DEFAULT_FORM_VALUES };
 
-  const storageMode = resolveFormStorageMode(secret);
+  const storageMode = resolveSecretStorageState(secret);
+  const isBuiltIn = storageMode === 'local';
 
   return {
     title: secret.title,
     description: secret.description,
-    storageMode,
     value: '',
-    providerId: storageMode === 'remote' ? secret.secretProviderId : '',
-    remoteName: storageMode === 'remote' ? secret.remoteName : '',
+    providerId: isBuiltIn ? BUILT_IN_PROVIDER_ID : secret.secretProviderId,
+    remoteName: isBuiltIn ? '' : secret.remoteName,
   };
 };
 
@@ -129,7 +122,7 @@ function validateSecretForm(values: SecretFormValues, mode: 'create' | 'edit'): 
     errors.title = 'Title is required.';
   }
 
-  if (values.storageMode === 'local') {
+  if (isBuiltInProviderSelection(values.providerId)) {
     if (mode === 'create' && !values.value.trim()) {
       errors.value = 'Secret value is required.';
     }
@@ -196,18 +189,19 @@ function SecretFormDialog({
   const pendingLabel = mode === 'create' ? 'Adding...' : 'Saving...';
   const valueLabel = mode === 'create' ? 'Secret Value' : 'New Secret Value';
   const valuePlaceholder = mode === 'create' ? 'Secret value' : 'Enter a new value';
+  const isBuiltInSelection = isBuiltInProviderSelection(values.providerId);
 
   const clearError = (field: keyof SecretFormErrors) => {
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
 
-  const handleStorageModeChange = (nextMode: StorageMode) => {
+  const handleProviderChange = (nextProviderId: string) => {
+    const isBuiltIn = isBuiltInProviderSelection(nextProviderId);
     setValues((prev) => ({
       ...prev,
-      storageMode: nextMode,
-      value: nextMode === 'local' ? prev.value : '',
-      providerId: nextMode === 'remote' ? prev.providerId : '',
-      remoteName: nextMode === 'remote' ? prev.remoteName : '',
+      providerId: nextProviderId,
+      value: isBuiltIn ? prev.value : '',
+      remoteName: isBuiltIn ? '' : prev.remoteName,
     }));
     setErrors((prev) => ({
       ...prev,
@@ -256,29 +250,44 @@ function SecretFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`${testIdPrefix}-storage-mode`}>Storage Mode</Label>
-            <Select
-              value={values.storageMode}
-              onValueChange={(value) => handleStorageModeChange(value as StorageMode)}
-              disabled={storageModeLocked}
-            >
-              <SelectTrigger id={`${testIdPrefix}-storage-mode`} data-testid={`${testIdPrefix}-storage-mode`}>
-                <SelectValue placeholder="Select mode" />
+            <Label htmlFor={`${testIdPrefix}-provider`}>Secret provider</Label>
+            <Select value={values.providerId} onValueChange={handleProviderChange}>
+              <SelectTrigger id={`${testIdPrefix}-provider`} data-testid={`${testIdPrefix}-provider`}>
+                <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
-                {STORAGE_MODE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectItem
+                  value={BUILT_IN_PROVIDER_ID}
+                  disabled={storageModeLocked && !isBuiltInSelection}
+                >
+                  {BUILT_IN_PROVIDER_LABEL}
+                </SelectItem>
+                {providers.map((provider) => {
+                  const providerId = provider.meta?.id;
+                  if (!providerId) return null;
+                  return (
+                    <SelectItem
+                      key={providerId}
+                      value={providerId}
+                      disabled={storageModeLocked && isBuiltInSelection}
+                    >
+                      {provider.title}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
-          {storageModeLocked ? (
-            <p className="text-xs text-muted-foreground">Storage mode cannot be changed after creation.</p>
-          ) : null}
-          {storageModeNotice ? <p className="text-xs text-destructive">{storageModeNotice}</p> : null}
-        </div>
-          {values.storageMode === 'local' ? (
+            {errors.providerId ? (
+              <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-provider-error`}>
+                {errors.providerId}
+              </p>
+            ) : null}
+            {storageModeLocked ? (
+              <p className="text-xs text-muted-foreground">Storage mode cannot be changed after creation.</p>
+            ) : null}
+            {storageModeNotice ? <p className="text-xs text-destructive">{storageModeNotice}</p> : null}
+          </div>
+          {isBuiltInSelection ? (
             <div className="space-y-2">
               <Label htmlFor={`${testIdPrefix}-value`}>{valueLabel}</Label>
               <Input
@@ -302,56 +311,24 @@ function SecretFormDialog({
               ) : null}
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor={`${testIdPrefix}-provider`}>Secret Provider</Label>
-                <Select
-                  value={values.providerId}
-                  onValueChange={(value) => {
-                    setValues((prev) => ({ ...prev, providerId: value }));
-                    clearError('providerId');
-                  }}
-                >
-                  <SelectTrigger id={`${testIdPrefix}-provider`} data-testid={`${testIdPrefix}-provider`}>
-                    <SelectValue placeholder="Select provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {providers.map((provider) => {
-                      const providerId = provider.meta?.id;
-                      if (!providerId) return null;
-                      return (
-                        <SelectItem key={providerId} value={providerId}>
-                          {provider.title}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                {errors.providerId ? (
-                  <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-provider-error`}>
-                    {errors.providerId}
-                  </p>
-                ) : null}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={`${testIdPrefix}-remote`}>Remote Name</Label>
-                <Input
-                  id={`${testIdPrefix}-remote`}
-                  placeholder="<mount>/<path>/<key>"
-                  value={values.remoteName}
-                  onChange={(event) => {
-                    setValues((prev) => ({ ...prev, remoteName: event.target.value }));
-                    clearError('remoteName');
-                  }}
-                  data-testid={`${testIdPrefix}-remote`}
-                />
-                {errors.remoteName ? (
-                  <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-remote-error`}>
-                    {errors.remoteName}
-                  </p>
-                ) : null}
-                <p className="text-xs text-muted-foreground">Format: &lt;mount&gt;/&lt;path&gt;/&lt;key&gt;.</p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor={`${testIdPrefix}-remote`}>Remote Name</Label>
+              <Input
+                id={`${testIdPrefix}-remote`}
+                placeholder="<mount>/<path>/<key>"
+                value={values.remoteName}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, remoteName: event.target.value }));
+                  clearError('remoteName');
+                }}
+                data-testid={`${testIdPrefix}-remote`}
+              />
+              {errors.remoteName ? (
+                <p className="text-sm text-destructive" data-testid={`${testIdPrefix}-remote-error`}>
+                  {errors.remoteName}
+                </p>
+              ) : null}
+              <p className="text-xs text-muted-foreground">Format: &lt;mount&gt;/&lt;path&gt;/&lt;key&gt;.</p>
             </div>
           )}
         </div>
@@ -450,7 +427,7 @@ export function OrganizationSecretsTab() {
   });
 
   const handleCreate = (values: SecretFormValues) => {
-    if (values.storageMode === 'local') {
+    if (isBuiltInProviderSelection(values.providerId)) {
       createSecretMutation.mutate({
         title: values.title,
         description: values.description,
@@ -503,11 +480,13 @@ export function OrganizationSecretsTab() {
       description: values.description,
     };
 
-    if (values.storageMode === 'remote') {
+    if (isBuiltInProviderSelection(values.providerId)) {
+      if (values.value) {
+        payload.value = values.value;
+      }
+    } else {
       payload.secretProviderId = values.providerId;
       payload.remoteName = values.remoteName;
-    } else if (values.value) {
-      payload.value = values.value;
     }
 
     updateSecretMutation.mutate(payload);
@@ -545,7 +524,7 @@ export function OrganizationSecretsTab() {
   const getSourceLabel = (secret: Secret) => {
     const storageState = resolveSecretStorageState(secret);
     if (storageState === 'remote') return getProviderLabel(secret.secretProviderId);
-    if (storageState === 'local') return 'Built-in';
+    if (storageState === 'local') return BUILT_IN_PROVIDER_LABEL;
     return 'Invalid configuration';
   };
   const getSourceDetail = (secret: Secret) => {

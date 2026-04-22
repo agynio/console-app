@@ -69,22 +69,29 @@ test('shows local secrets without plaintext', async ({ page }) => {
   await argosScreenshot(page, 'organization-secrets-local-edit', { fullPage: false });
 });
 
-test('shows secret create dialog storage modes', async ({ page }) => {
+test('shows secret create dialog provider selections', async ({ page }) => {
   const organizationId = await createOrganization(page, `e2e-org-secrets-create-${Date.now()}`);
   await setSelectedOrganization(page, organizationId);
   await clearOrganizationSecrets(page, organizationId);
+
+  const providerName = `e2e-provider-${Date.now()}`;
+  await createSecretProvider(page, {
+    organizationId,
+    name: providerName,
+    url: 'https://vault.example.com',
+  });
 
   await page.goto(`/organizations/${organizationId}/secrets`);
   await page.getByTestId('organization-secrets-create').click();
   const createDialog = page.getByTestId('secrets-create-dialog');
   await expect(createDialog).toBeVisible({ timeout: 15000 });
   await expect(createDialog.getByTestId('secrets-create-provider')).toBeVisible({ timeout: 15000 });
-  await expect(createDialog.getByTestId('secrets-create-remote')).toBeVisible({ timeout: 15000 });
-  await argosScreenshot(page, 'organization-secrets-create-remote', { fullPage: false });
-
-  await createDialog.getByTestId('secrets-create-storage-mode').click();
-  await page.getByRole('option', { name: 'Local (built-in)' }).click();
   await expect(createDialog.getByTestId('secrets-create-value')).toBeVisible({ timeout: 15000 });
   await expect(createDialog.getByTestId('secrets-create-value')).toHaveValue('');
-  await argosScreenshot(page, 'organization-secrets-create-local', { fullPage: false });
+  await argosScreenshot(page, 'organization-secrets-create-built-in', { fullPage: false });
+
+  await createDialog.getByTestId('secrets-create-provider').click();
+  await page.getByRole('option', { name: providerName }).click();
+  await expect(createDialog.getByTestId('secrets-create-remote')).toBeVisible({ timeout: 15000 });
+  await argosScreenshot(page, 'organization-secrets-create-remote', { fullPage: false });
 });
