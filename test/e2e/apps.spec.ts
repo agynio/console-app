@@ -12,6 +12,7 @@ test('shows installation detail page', async ({ page }) => {
     slug: `e2e-app-${now}`,
     name: `E2E App ${now}`,
     description: 'E2E app for installation detail snapshot',
+    permissions: ['thread:create'],
   });
 
   const installationSlug = `e2e-installation-${now}`;
