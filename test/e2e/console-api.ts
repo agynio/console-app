@@ -868,6 +868,23 @@ export async function createSecret(
   return secretId;
 }
 
+export async function createLocalSecret(
+  page: Page,
+  opts: { name: string; value: string; organizationId: string },
+): Promise<string> {
+  const response = await postConnect<CreateSecretResponseWire>(page, SECRETS_GATEWAY_PATH, 'CreateSecret', {
+    title: opts.name,
+    description: `E2E local secret for ${opts.name}`,
+    value: opts.value,
+    organizationId: opts.organizationId,
+  });
+  const secretId = response.secret?.meta?.id;
+  if (!secretId) {
+    throw new Error('CreateSecret response missing secret id.');
+  }
+  return secretId;
+}
+
 export async function createImagePullSecret(
   page: Page,
   opts: { organizationId: string; registry: string; username: string; value: string; description?: string },
