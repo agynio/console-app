@@ -144,7 +144,7 @@ export function OrganizationThreadDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <Button variant="link" asChild data-testid="thread-detail-back">
-          <NavLink to={`/organizations/${organizationId}/threads`}>← Back to Threads</NavLink>
+        <NavLink to={`/organizations/${organizationId}/activity/threads`}>← Back to Threads</NavLink>
         </Button>
       </div>
       {threadQuery.isPending ? <div className="text-sm text-muted-foreground">Loading thread...</div> : null}
