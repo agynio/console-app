@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -153,69 +154,79 @@ export function InstalledAppsPanel({ organizationId }: InstalledAppsPanelProps) 
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-            {visibleInstallations.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-muted-foreground">
-                {hasSearch ? 'No results found.' : 'No apps installed.'}
-              </div>
-            ) : (
-              visibleInstallations.map((installation) => {
-                const installationId = installation.meta?.id;
-                const configCount = installation.configuration
-                  ? Object.keys(installation.configuration).length
-                  : null;
-                const configLabel =
-                  configCount === null ? '—' : `${configCount} ${configCount === 1 ? 'key' : 'keys'}`;
-                return (
-                  <div
-                    key={installationId ?? installation.slug}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
-                    data-testid="organization-app-row"
-                  >
-                    <div>
-                      <div className="font-medium" data-testid="organization-installation-slug">
-                        {installation.slug}
-                      </div>
-                      <div className="text-xs text-muted-foreground" data-testid="organization-installation-id">
-                        {installationId ?? '—'}
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground" data-testid="organization-installation-app">
-                      {installation.appId || '—'}
-                    </span>
-                    <div className="text-xs text-muted-foreground" data-testid="organization-installation-config">
-                      {configCount === null ? '—' : <Badge variant="secondary">{configLabel}</Badge>}
-                    </div>
-                    <span
-                      className="text-xs text-muted-foreground"
-                      data-testid="organization-installation-created"
+              {visibleInstallations.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No apps installed.'}
+                </div>
+              ) : (
+                visibleInstallations.map((installation) => {
+                  const installationId = installation.meta?.id;
+                  const configCount = installation.configuration
+                    ? Object.keys(installation.configuration).length
+                    : null;
+                  const configLabel =
+                    configCount === null ? '—' : `${configCount} ${configCount === 1 ? 'key' : 'keys'}`;
+                  return (
+                    <div
+                      key={installationId ?? installation.slug}
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_160px]"
+                      data-testid="organization-app-row"
                     >
-                      {formatDateOnly(installation.meta?.createdAt)}
-                    </span>
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setConfigureInstallation(installation)}
-                        disabled={!installationId}
-                        data-testid="organization-installation-configure"
+                      <div>
+                        {installationId ? (
+                          <NavLink
+                            to={`/organizations/${organizationId}/apps/installations/${installationId}`}
+                            className="font-medium text-foreground hover:underline"
+                            data-testid="organization-installation-slug"
+                          >
+                            {installation.slug}
+                          </NavLink>
+                        ) : (
+                          <div className="font-medium" data-testid="organization-installation-slug">
+                            {installation.slug}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground" data-testid="organization-installation-id">
+                          {installationId ?? '—'}
+                        </div>
+                      </div>
+                      <span className="text-xs text-muted-foreground" data-testid="organization-installation-app">
+                        {installation.appId || '—'}
+                      </span>
+                      <div className="text-xs text-muted-foreground" data-testid="organization-installation-config">
+                        {configCount === null ? '—' : <Badge variant="secondary">{configLabel}</Badge>}
+                      </div>
+                      <span
+                        className="text-xs text-muted-foreground"
+                        data-testid="organization-installation-created"
                       >
-                        Configure
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setUninstallInstallation(installation)}
-                        disabled={!installationId}
-                        data-testid="organization-installation-uninstall"
-                      >
-                        Uninstall
-                      </Button>
+                        {formatDateOnly(installation.meta?.createdAt)}
+                      </span>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConfigureInstallation(installation)}
+                          disabled={!installationId}
+                          data-testid="organization-installation-configure"
+                        >
+                          Configure
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setUninstallInstallation(installation)}
+                          disabled={!installationId}
+                          data-testid="organization-installation-uninstall"
+                        >
+                          Uninstall
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  );
+                })
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : null}
