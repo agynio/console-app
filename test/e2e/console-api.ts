@@ -12,6 +12,7 @@ const USERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.UsersGateway';
 const ORGS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.OrganizationsGateway';
 const SECRETS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.SecretsGateway';
 const AGENTS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.AgentsGateway';
+const APPS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.AppsGateway';
 const LLM_GATEWAY_PATH = '/api/agynio.api.gateway.v1.LLMGateway';
 const RUNNERS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.RunnersGateway';
 const THREADS_GATEWAY_PATH = '/api/agynio.api.gateway.v1.ThreadsGateway';
@@ -52,6 +53,22 @@ type RunnerWire = {
   status?: string | number;
 };
 
+type AppWire = {
+  meta?: { id?: string };
+  id?: string;
+  slug?: string;
+  name?: string;
+  organizationId?: string;
+};
+
+type InstallationWire = {
+  meta?: { id?: string };
+  id?: string;
+  slug?: string;
+  appId?: string;
+  organizationId?: string;
+};
+
 type DeviceWire = {
   meta?: { id?: string; createdAt?: string };
   name?: string;
@@ -86,6 +103,15 @@ type MessageWire = {
 
 type CreateOrganizationResponseWire = {
   organization?: { id?: string };
+};
+
+type CreateAppResponseWire = {
+  app?: AppWire;
+  serviceToken?: string;
+};
+
+type InstallAppResponseWire = {
+  installation?: InstallationWire;
 };
 
 type CreateThreadResponseWire = {
@@ -456,6 +482,56 @@ export async function setSelectedOrganization(page: Page, organizationId: string
     );
     window.localStorage.removeItem('console.selectedOrganization');
   }, organizationId);
+}
+
+export async function createApp(
+  page: Page,
+  opts: {
+    organizationId: string;
+    slug: string;
+    name: string;
+    description?: string;
+    icon?: string;
+    visibility?: string;
+    permissions?: string[];
+  },
+): Promise<string> {
+  const response = await postConnect<CreateAppResponseWire>(page, APPS_GATEWAY_PATH, 'CreateApp', {
+    organizationId: opts.organizationId,
+    slug: opts.slug,
+    name: opts.name,
+    description: opts.description ?? '',
+    icon: opts.icon ?? '',
+    visibility: opts.visibility ?? 'APP_VISIBILITY_INTERNAL',
+    permissions: opts.permissions ?? [],
+  });
+  const appId = response.app?.meta?.id ?? response.app?.id ?? '';
+  if (!appId) {
+    throw new Error('CreateApp response missing app id.');
+  }
+  return appId;
+}
+
+export async function installApp(
+  page: Page,
+  opts: {
+    appId: string;
+    organizationId: string;
+    slug: string;
+    configuration?: Record<string, unknown>;
+  },
+): Promise<string> {
+  const response = await postConnect<InstallAppResponseWire>(page, APPS_GATEWAY_PATH, 'InstallApp', {
+    appId: opts.appId,
+    organizationId: opts.organizationId,
+    slug: opts.slug,
+    configuration: opts.configuration ?? {},
+  });
+  const installationId = response.installation?.meta?.id ?? response.installation?.id ?? '';
+  if (!installationId) {
+    throw new Error('InstallApp response missing installation id.');
+  }
+  return installationId;
 }
 
 export async function createThread(
