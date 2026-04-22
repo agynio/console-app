@@ -60,9 +60,31 @@ test('shows local secrets without plaintext', async ({ page }) => {
   await expect(row.getByTestId('secret-source')).toHaveText('Built-in');
   await expect(row.getByTestId('secret-reference')).toHaveText('Stored in console');
   await expect(row).not.toContainText(secretValue);
+  await argosScreenshot(page, 'organization-secrets-local-list');
 
   await row.getByTestId('secret-edit').click();
   const editDialog = page.getByTestId('secrets-edit-dialog');
   await expect(editDialog).toBeVisible({ timeout: 15000 });
   await expect(editDialog.getByTestId('secrets-edit-value')).toHaveValue('');
+  await argosScreenshot(page, 'organization-secrets-local-edit', { fullPage: false });
+});
+
+test('shows secret create dialog storage modes', async ({ page }) => {
+  const organizationId = await createOrganization(page, `e2e-org-secrets-create-${Date.now()}`);
+  await setSelectedOrganization(page, organizationId);
+  await clearOrganizationSecrets(page, organizationId);
+
+  await page.goto(`/organizations/${organizationId}/secrets`);
+  await page.getByTestId('organization-secrets-create').click();
+  const createDialog = page.getByTestId('secrets-create-dialog');
+  await expect(createDialog).toBeVisible({ timeout: 15000 });
+  await expect(createDialog.getByTestId('secrets-create-provider')).toBeVisible({ timeout: 15000 });
+  await expect(createDialog.getByTestId('secrets-create-remote')).toBeVisible({ timeout: 15000 });
+  await argosScreenshot(page, 'organization-secrets-create-remote', { fullPage: false });
+
+  await createDialog.getByTestId('secrets-create-storage-mode').click();
+  await page.getByRole('option', { name: 'Local (built-in)' }).click();
+  await expect(createDialog.getByTestId('secrets-create-value')).toBeVisible({ timeout: 15000 });
+  await expect(createDialog.getByTestId('secrets-create-value')).toHaveValue('');
+  await argosScreenshot(page, 'organization-secrets-create-local', { fullPage: false });
 });
