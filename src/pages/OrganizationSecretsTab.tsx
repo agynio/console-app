@@ -27,6 +27,7 @@ import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 type StorageMode = 'local' | 'remote';
+type SecretStorageState = StorageMode | 'invalid';
 
 const STORAGE_MODE_OPTIONS: Array<{ value: StorageMode; label: string }> = [
   { value: 'local', label: 'Local (built-in)' },
@@ -49,6 +50,21 @@ type SecretFormErrors = {
   remoteName?: string;
 };
 
+type CreateSecretPayload =
+  | {
+      title: string;
+      description: string;
+      organizationId: string;
+      value: string;
+    }
+  | {
+      title: string;
+      description: string;
+      organizationId: string;
+      secretProviderId: string;
+      remoteName: string;
+    };
+
 const DEFAULT_FORM_VALUES: SecretFormValues = {
   title: '',
   description: '',
@@ -66,12 +82,35 @@ const normalizeSecretFormValues = (values: SecretFormValues): SecretFormValues =
   remoteName: values.remoteName.trim(),
 });
 
-const isRemoteSecret = (secret: Secret) => Boolean(secret.secretProviderId || secret.remoteName);
+const resolveSecretStorageState = (secret: Secret): SecretStorageState => {
+  const providerId = secret.secretProviderId.trim();
+  const remoteName = secret.remoteName.trim();
+  const hasProvider = Boolean(providerId);
+  const hasRemote = Boolean(remoteName);
+
+  if (hasProvider && hasRemote) return 'remote';
+  if (!hasProvider && !hasRemote) return 'local';
+  return 'invalid';
+};
+
+const resolveSecretInvalidReason = (secret: Secret): string => {
+  const hasProvider = Boolean(secret.secretProviderId.trim());
+  const hasRemote = Boolean(secret.remoteName.trim());
+
+  if (hasProvider && !hasRemote) return 'Missing remote name.';
+  if (!hasProvider && hasRemote) return 'Missing provider.';
+  return 'Invalid configuration.';
+};
+
+const resolveFormStorageMode = (secret: Secret): StorageMode => {
+  const state = resolveSecretStorageState(secret);
+  return state === 'remote' || state === 'invalid' ? 'remote' : 'local';
+};
 
 const buildFormValuesFromSecret = (secret: Secret | null): SecretFormValues => {
   if (!secret) return { ...DEFAULT_FORM_VALUES };
 
-  const storageMode: StorageMode = isRemoteSecret(secret) ? 'remote' : 'local';
+  const storageMode = resolveFormStorageMode(secret);
 
   return {
     title: secret.title,
@@ -115,6 +154,7 @@ type SecretFormDialogProps = {
   onSubmit: (values: SecretFormValues) => void;
   isSubmitting: boolean;
   storageModeLocked?: boolean;
+  storageModeNotice?: string;
 };
 
 function SecretFormDialog({
@@ -126,6 +166,7 @@ function SecretFormDialog({
   onSubmit,
   isSubmitting,
   storageModeLocked = false,
+  storageModeNotice,
 }: SecretFormDialogProps) {
   const [values, setValues] = useState<SecretFormValues>(initialValues);
   const [errors, setErrors] = useState<SecretFormErrors>({});
@@ -232,10 +273,11 @@ function SecretFormDialog({
                 ))}
               </SelectContent>
             </Select>
-            {storageModeLocked ? (
-              <p className="text-xs text-muted-foreground">Storage mode cannot be changed after creation.</p>
-            ) : null}
-          </div>
+          {storageModeLocked ? (
+            <p className="text-xs text-muted-foreground">Storage mode cannot be changed after creation.</p>
+          ) : null}
+          {storageModeNotice ? <p className="text-xs text-destructive">{storageModeNotice}</p> : null}
+        </div>
           {values.storageMode === 'local' ? (
             <div className="space-y-2">
               <Label htmlFor={`${testIdPrefix}-value`}>{valueLabel}</Label>
@@ -295,7 +337,7 @@ function SecretFormDialog({
                 <Label htmlFor={`${testIdPrefix}-remote`}>Remote Name</Label>
                 <Input
                   id={`${testIdPrefix}-remote`}
-                  placeholder="secret/data/my-secret"
+                  placeholder="<mount>/<path>/<key>"
                   value={values.remoteName}
                   onChange={(event) => {
                     setValues((prev) => ({ ...prev, remoteName: event.target.value }));
@@ -308,6 +350,7 @@ function SecretFormDialog({
                     {errors.remoteName}
                   </p>
                 ) : null}
+                <p className="text-xs text-muted-foreground">Format: &lt;mount&gt;/&lt;path&gt;/&lt;key&gt;.</p>
               </div>
             </div>
           )}
@@ -363,14 +406,7 @@ export function OrganizationSecretsTab() {
   });
 
   const createSecretMutation = useMutation({
-    mutationFn: (payload: {
-      title: string;
-      description: string;
-      secretProviderId: string;
-      remoteName: string;
-      organizationId: string;
-      value: string;
-    }) => secretsClient.createSecret(payload),
+    mutationFn: (payload: CreateSecretPayload) => secretsClient.createSecret(payload),
     onSuccess: () => {
       toast.success('Secret created.');
       void queryClient.invalidateQueries({ queryKey: ['secrets', organizationId, 'list'] });
@@ -414,26 +450,23 @@ export function OrganizationSecretsTab() {
   });
 
   const handleCreate = (values: SecretFormValues) => {
-    const payload =
-      values.storageMode === 'local'
-        ? {
-            title: values.title,
-            description: values.description,
-            secretProviderId: '',
-            remoteName: '',
-            value: values.value,
-            organizationId,
-          }
-        : {
-            title: values.title,
-            description: values.description,
-            secretProviderId: values.providerId,
-            remoteName: values.remoteName,
-            value: '',
-            organizationId,
-          };
+    if (values.storageMode === 'local') {
+      createSecretMutation.mutate({
+        title: values.title,
+        description: values.description,
+        organizationId,
+        value: values.value,
+      });
+      return;
+    }
 
-    createSecretMutation.mutate(payload);
+    createSecretMutation.mutate({
+      title: values.title,
+      description: values.description,
+      organizationId,
+      secretProviderId: values.providerId,
+      remoteName: values.remoteName,
+    });
   };
 
   const handleCreateOpenChange = (open: boolean) => {
@@ -507,10 +540,20 @@ export function OrganizationSecretsTab() {
   }, [providers]);
 
   const secrets = secretsQuery.data?.pages.flatMap((page) => page.secrets) ?? [];
-  const getProviderLabel = (providerId: string) => providerMap.get(providerId)?.title ?? (providerId || 'Remote provider');
-  const getSourceLabel = (secret: Secret) => (isRemoteSecret(secret) ? getProviderLabel(secret.secretProviderId) : 'Built-in');
-  const getSourceDetail = (secret: Secret) =>
-    isRemoteSecret(secret) ? secret.remoteName || '—' : 'Stored in console';
+  const getProviderLabel = (providerId: string) =>
+    providerId ? providerMap.get(providerId)?.title ?? providerId : '—';
+  const getSourceLabel = (secret: Secret) => {
+    const storageState = resolveSecretStorageState(secret);
+    if (storageState === 'remote') return getProviderLabel(secret.secretProviderId);
+    if (storageState === 'local') return 'Built-in';
+    return 'Invalid configuration';
+  };
+  const getSourceDetail = (secret: Secret) => {
+    const storageState = resolveSecretStorageState(secret);
+    if (storageState === 'remote') return secret.remoteName;
+    if (storageState === 'local') return 'Stored in console';
+    return resolveSecretInvalidReason(secret);
+  };
 
   const listControls = useListControls({
     items: secrets,
@@ -536,6 +579,12 @@ export function OrganizationSecretsTab() {
   const isLoading = providersQuery.isPending || secretsQuery.isPending;
   const isError = providersQuery.isError || secretsQuery.isError;
   const editInitialValues = useMemo(() => buildFormValuesFromSecret(editSecret), [editSecret]);
+  const editStorageNotice = useMemo(() => {
+    if (!editSecret) return undefined;
+    return resolveSecretStorageState(editSecret) === 'invalid'
+      ? `Invalid configuration: ${resolveSecretInvalidReason(editSecret)}`
+      : undefined;
+  }, [editSecret]);
 
   return (
     <div className="space-y-6">
@@ -680,6 +729,7 @@ export function OrganizationSecretsTab() {
         onSubmit={handleEditSave}
         isSubmitting={updateSecretMutation.isPending}
         storageModeLocked
+        storageModeNotice={editStorageNotice}
       />
       <ConfirmDialog
         open={Boolean(deleteTargetId)}

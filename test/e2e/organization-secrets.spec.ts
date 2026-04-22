@@ -2,6 +2,7 @@ import { argosScreenshot } from '@argos-ci/playwright';
 import { test, expect } from './fixtures';
 import {
   clearOrganizationSecrets,
+  createLocalSecret,
   createOrganization,
   createSecret,
   createSecretProvider,
@@ -42,4 +43,26 @@ test('shows secret providers and secrets', async ({ page }) => {
   await page.goto(`/organizations/${organizationId}/secrets`);
   await expect(page.getByTestId('secret-row').filter({ hasText: secretName })).toBeVisible({ timeout: 15000 });
   await argosScreenshot(page, 'organization-secrets-list');
+});
+
+test('shows local secrets without plaintext', async ({ page }) => {
+  const organizationId = await createOrganization(page, `e2e-org-secrets-local-${Date.now()}`);
+  await setSelectedOrganization(page, organizationId);
+  await clearOrganizationSecrets(page, organizationId);
+
+  const secretName = `e2e-local-secret-${Date.now()}`;
+  const secretValue = `e2e-local-value-${Date.now()}`;
+  await createLocalSecret(page, { name: secretName, value: secretValue, organizationId });
+
+  await page.goto(`/organizations/${organizationId}/secrets`);
+  const row = page.getByTestId('secret-row').filter({ hasText: secretName });
+  await expect(row).toBeVisible({ timeout: 15000 });
+  await expect(row.getByTestId('secret-source')).toHaveText('Built-in');
+  await expect(row.getByTestId('secret-reference')).toHaveText('Stored in console');
+  await expect(row).not.toContainText(secretValue);
+
+  await row.getByTestId('secret-edit').click();
+  const editDialog = page.getByTestId('secrets-edit-dialog');
+  await expect(editDialog).toBeVisible({ timeout: 15000 });
+  await expect(editDialog.getByTestId('secrets-edit-value')).toHaveValue('');
 });
