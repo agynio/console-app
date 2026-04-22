@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { appsClient } from '@/api/client';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
@@ -24,7 +25,7 @@ export function InstallationDetailPage() {
   const [uninstallOpen, setUninstallOpen] = useState(false);
 
   const installationQuery = useQuery({
-    queryKey: ['installations', installationId],
+    queryKey: ['installations', organizationId, 'detail', installationId],
     queryFn: () => appsClient.getInstallation({ id: installationId }),
     enabled: Boolean(installationId),
     staleTime: 60_000,
@@ -32,9 +33,12 @@ export function InstallationDetailPage() {
   });
 
   const installation = installationQuery.data?.installation ?? null;
+  const isNotFoundError =
+    installationQuery.error instanceof ConnectError && installationQuery.error.code === Code.NotFound;
   const isOrgMismatch = Boolean(installation && organizationId && installation.organizationId !== organizationId);
   const isMissing = !installation && !installationQuery.isPending && !installationQuery.isError;
-  const showNotFound = isOrgMismatch || isMissing;
+  const showNotFound = isOrgMismatch || isMissing || isNotFoundError;
+  const showError = installationQuery.isError && !isNotFoundError;
 
   useDocumentTitle(installation?.slug ?? 'Installation');
 
@@ -121,7 +125,7 @@ export function InstallationDetailPage() {
       {installationQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading installation...</div>
       ) : null}
-      {installationQuery.isError ? (
+      {showError ? (
         <div className="text-sm text-muted-foreground">Failed to load installation.</div>
       ) : null}
       {showNotFound ? <div className="text-sm text-muted-foreground">Installation not found.</div> : null}

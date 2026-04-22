@@ -1,6 +1,7 @@
 import { create } from '@bufbuild/protobuf';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -164,6 +165,16 @@ describe('InstallationDetailPage', () => {
       expect(screen.queryByTestId('installation-status')).toBeNull();
       expect(screen.queryByTestId('installation-audit-log')).toBeNull();
     });
+  });
+
+  it('shows not found when installation is missing', async () => {
+    getInstallation.mockRejectedValueOnce(new ConnectError('not found', Code.NotFound));
+
+    renderPage('/organizations/org-1/apps/installations/installation-1');
+
+    expect(await screen.findByText('Installation not found.')).toBeTruthy();
+    expect(screen.queryByText('Failed to load installation.')).toBeNull();
+    expect(listInstallationAuditLogEntries).not.toHaveBeenCalled();
   });
 
   it('shows not found when installation does not belong to org', async () => {
