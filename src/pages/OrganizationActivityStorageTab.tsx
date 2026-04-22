@@ -17,6 +17,10 @@ import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 const UNATTACHED_LABEL = 'Unattached';
 
 const getVolumeName = (volume: Volume) => volume.meta?.id || volume.instanceId || volume.volumeId || '';
+const getVolumeSize = (volume: Volume) => {
+  const parsed = Number(volume.sizeGb);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const formatAttachmentTarget = (attachment: VolumeAttachment) => {
   const targetId = attachment.target.value;
@@ -101,7 +105,7 @@ export function OrganizationActivityStorageTab() {
     ],
     sortOptions: {
       name: (volume) => getVolumeName(volume),
-      size: (volume) => volume.sizeGb,
+      size: (volume) => getVolumeSize(volume),
       used: () => '',
       attached: (volume) => getAttachedLabel(volume),
       status: (volume) => formatVolumeStatus(volume.status),

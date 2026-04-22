@@ -88,7 +88,7 @@ export function formatVolumeStatus(status: VolumeStatus): string {
   if (status === VolumeStatus.DEPROVISIONING) return 'Released';
   if (status === VolumeStatus.DELETED) return 'Released';
   if (status === VolumeStatus.FAILED) return 'Failed';
-  throw new Error(`Unhandled volume status: ${status}`);
+  return 'Unknown';
 }
 
 export function formatContainerStatus(status: ContainerStatus): string {
