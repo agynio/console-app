@@ -54,13 +54,13 @@ function readJson(req) {
     });
     req.on('end', () => {
       if (!data) {
-        resolve({});
+        resolve({ ok: true, value: {} });
         return;
       }
       try {
-        resolve(JSON.parse(data));
-      } catch {
-        resolve({});
+        resolve({ ok: true, value: JSON.parse(data) });
+      } catch (error) {
+        resolve({ ok: false, error });
       }
     });
   });
@@ -249,7 +249,12 @@ const server = http.createServer(async (req, res) => {
     sendText(res, 404, 'Not found');
     return;
   }
-  const body = await readJson(req);
+  const parsedBody = await readJson(req);
+  if (!parsedBody.ok) {
+    sendText(res, 400, 'Invalid JSON');
+    return;
+  }
+  const body = parsedBody.value;
 
   if (route.service === 'agynio.api.gateway.v1.UsersGateway') {
     return handleUsersGateway(route.method, body, res);

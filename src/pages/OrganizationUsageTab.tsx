@@ -216,11 +216,6 @@ const llmKindLabels: Record<string, string> = {
   output: 'Output',
 };
 
-const statusLabels: Record<string, string> = {
-  success: 'Success',
-  failed: 'Failed',
-};
-
 function toTimestamp(date: Date): Timestamp {
   return create(TimestampSchema, {
     seconds: BigInt(Math.floor(date.getTime() / 1000)),
@@ -915,14 +910,14 @@ export function OrganizationUsageTab() {
                 testId="organization-usage-llm-output"
               />
               <UsageMetricCard
-                label={`Requests (${statusLabels.success})`}
+                label="Successful requests"
                 value={formatUsageValue(llmRequestSuccess)}
                 isLoading={llmRequestsQuery.isPending}
                 isError={llmRequestsQuery.isError}
                 testId="organization-usage-llm-requests-success"
               />
               <UsageMetricCard
-                label={`Requests (${statusLabels.failed})`}
+                label="Failed requests"
                 value={formatUsageValue(llmRequestFailed)}
                 isLoading={llmRequestsQuery.isPending}
                 isError={llmRequestsQuery.isError}
@@ -980,7 +975,7 @@ export function OrganizationUsageTab() {
               </UsageChartCard>
             </div>
             <UsageChartCard
-              title="Top models"
+              title="By model"
               isLoading={llmModelsInputQuery.isPending || llmModelsOutputQuery.isPending || modelsQuery.isPending}
               isError={llmModelsInputQuery.isError || llmModelsOutputQuery.isError}
               isEmpty={llmModelSeries.length === 0}
@@ -1029,7 +1024,7 @@ export function OrganizationUsageTab() {
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <UsageChartCard
-                title="CPU & RAM over time"
+                title="Usage over time"
                 isLoading={computeCpuDailyQuery.isPending || computeRamDailyQuery.isPending}
                 isError={computeCpuDailyQuery.isError || computeRamDailyQuery.isError}
                 isEmpty={computeDailySeries.length === 0}
@@ -1084,7 +1079,7 @@ export function OrganizationUsageTab() {
             </div>
             <div className="grid gap-4 md:grid-cols-2" data-testid="organization-usage-storage-metrics">
               <UsageMetricCard
-                label="Storage GB-hours"
+                label="Storage-GB-hours"
                 value={formatUsageHours(storageTotal)}
                 isLoading={storageTotalQuery.isPending}
                 isError={storageTotalQuery.isError}
@@ -1093,7 +1088,7 @@ export function OrganizationUsageTab() {
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <UsageChartCard
-                title="Storage over time"
+                title="Usage over time"
                 isLoading={storageDailyQuery.isPending}
                 isError={storageDailyQuery.isError}
                 isEmpty={storageDailySeries.length === 0}
@@ -1105,7 +1100,7 @@ export function OrganizationUsageTab() {
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(value) => formatUsageHoursNumber(value)} />
                     <Tooltip formatter={(value) => formatUsageHoursNumber(Number(value))} />
-                    <Bar dataKey="storage" name="GB-hours" fill="var(--color-chart-3)" />
+                    <Bar dataKey="storage" name="GB-hours" fill="var(--color-chart-5)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
@@ -1130,7 +1125,7 @@ export function OrganizationUsageTab() {
                       formatter={(value) => formatUsageHoursNumber(Number(value))}
                       labelFormatter={formatTopGroupTooltipLabel}
                     />
-                    <Bar dataKey="value" fill="var(--color-chart-3)" />
+                    <Bar dataKey="value" fill="var(--color-chart-5)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
@@ -1159,7 +1154,7 @@ export function OrganizationUsageTab() {
               />
             </div>
             <UsageChartCard
-              title="Threads & messages over time"
+              title="Activity over time"
               isLoading={platformThreadsDailyQuery.isPending || platformMessagesDailyQuery.isPending}
               isError={platformThreadsDailyQuery.isError || platformMessagesDailyQuery.isError}
               isEmpty={platformDailySeries.length === 0}
@@ -1176,7 +1171,7 @@ export function OrganizationUsageTab() {
                   />
                   <Legend />
                   <Bar dataKey="threads" name="Threads" fill="var(--color-chart-1)" />
-                  <Bar dataKey="messages" name="Messages" fill="var(--color-chart-2)" />
+                  <Bar dataKey="messages" name="Messages" fill="var(--color-chart-3)" />
                 </BarChart>
               </ResponsiveContainer>
             </UsageChartCard>

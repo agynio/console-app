@@ -98,8 +98,15 @@ export function useIdentityHandles(identityIds: string[]) {
   );
 
   const resolveIdentityInfo = useMemo(() => {
-    const buildLabel = (name?: string | null) => (name ? `@${name}` : 'Unknown');
     const buildHandle = (name: string | undefined | null, fallbackId: string) => `@${name || fallbackId}`;
+    const buildUserLabel = (user: { nickname?: string | null; name?: string | null; email?: string | null }) => {
+      if (user.nickname) return `@${user.nickname}`;
+      return user.name || user.email || 'Unknown';
+    };
+    const buildAgentLabel = (agent: { nickname?: string | null; name?: string | null }) =>
+      agent.nickname || agent.name || 'Unknown';
+    const buildAppLabel = (appProfile: { name?: string | null; slug?: string | null }) =>
+      appProfile.name || appProfile.slug || 'Unknown';
     return (identityId?: string | null) => {
       if (!identityId) {
         return { label: EMPTY_PLACEHOLDER, handle: EMPTY_PLACEHOLDER, type: 'Identity' };
@@ -108,7 +115,7 @@ export function useIdentityHandles(identityIds: string[]) {
       if (user) {
         const name = user.nickname || user.name || user.email || null;
         return {
-          label: buildLabel(name),
+          label: buildUserLabel(user),
           handle: buildHandle(name, identityId),
           type: 'User',
         };
@@ -117,7 +124,7 @@ export function useIdentityHandles(identityIds: string[]) {
       if (agent) {
         const name = agent.nickname || agent.name || null;
         return {
-          label: buildLabel(name),
+          label: buildAgentLabel(agent),
           handle: buildHandle(name, identityId),
           type: 'Agent',
         };
@@ -126,7 +133,7 @@ export function useIdentityHandles(identityIds: string[]) {
       if (appProfile) {
         const name = appProfile.name || appProfile.slug || null;
         return {
-          label: buildLabel(name),
+          label: buildAppLabel(appProfile),
           handle: buildHandle(name, identityId),
           type: 'App',
         };
