@@ -102,7 +102,7 @@ export function OrganizationOverviewTab() {
     { label: 'Secret providers', value: providersQuery.data?.secretProviders.length ?? 0, to: `${base}/secret-providers` },
     { label: 'Secrets', value: secretsQuery.data?.secrets.length ?? 0, to: `${base}/secrets` },
     { label: 'Runners', value: runnersQuery.data?.runners.length ?? 0, to: `${base}/runners` },
-    { label: 'Active workloads', value: workloadsQuery.data?.workloads.length ?? 0, to: `${base}/monitoring` },
+    { label: 'Active workloads', value: workloadsQuery.data?.workloads.length ?? 0, to: `${base}/activity/workloads` },
     { label: 'App installations', value: installationsQuery.data?.installations.length ?? 0, to: `${base}/apps` },
   ];
 

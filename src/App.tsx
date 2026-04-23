@@ -11,7 +11,8 @@ import { AgentDetailPage } from '@/pages/AgentDetailPage';
 import { OrganizationAppsTab } from '@/pages/OrganizationAppsTab';
 import { OrganizationLlmProvidersTab } from '@/pages/OrganizationLlmProvidersTab';
 import { OrganizationModelsTab } from '@/pages/OrganizationModelsTab';
-import { OrganizationMonitoringTab } from '@/pages/OrganizationMonitoringTab';
+import { OrganizationActivityStorageTab } from '@/pages/OrganizationActivityStorageTab';
+import { OrganizationActivityWorkloadsTab } from '@/pages/OrganizationActivityWorkloadsTab';
 import { OrganizationOverviewTab } from '@/pages/OrganizationOverviewTab';
 import { OrganizationRunnersTab } from '@/pages/OrganizationRunnersTab';
 import { OrganizationUsageTab } from '@/pages/OrganizationUsageTab';
@@ -70,10 +71,16 @@ export default function App() {
           <Route path="apps" element={<OrganizationAppsTab />} />
           <Route path="apps/installations/:installationId" element={<InstallationDetailPage />} />
           <Route path="apps/:appId" element={<AppDetailPage />} />
+          <Route path="activity" element={<Navigate to="workloads" replace />} />
+          <Route path="activity/workloads" element={<OrganizationActivityWorkloadsTab />} />
+          <Route path="activity/storage" element={<OrganizationActivityStorageTab />} />
+          <Route path="activity/threads" element={<OrganizationThreadsTab />} />
+          <Route path="activity/threads/:threadId" element={<OrganizationThreadDetailPage />} />
+          <Route path="activity/usage" element={<OrganizationUsageTab />} />
           <Route path="threads" element={<OrganizationThreadsTab />} />
           <Route path="threads/:threadId" element={<OrganizationThreadDetailPage />} />
           <Route path="workloads/:workloadId" element={<WorkloadDetailPage />} />
-          <Route path="monitoring" element={<OrganizationMonitoringTab />} />
+          <Route path="monitoring" element={<Navigate to="activity/workloads" replace />} />
           <Route path="usage" element={<OrganizationUsageTab />} />
         </Route>
         <Route

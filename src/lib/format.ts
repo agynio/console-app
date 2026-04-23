@@ -3,7 +3,7 @@ import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AppVisibility, InstallationAuditLogLevel } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
-import { ContainerStatus, RunnerStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
+import { ContainerStatus, RunnerStatus, VolumeStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { ThreadStatus } from '@/gen/agynio/api/threads/v1/threads_pb';
 import { ClusterRole, DeviceStatus } from '@/gen/agynio/api/users/v1/users_pb';
@@ -79,6 +79,16 @@ export function formatWorkloadStatus(status: WorkloadStatus): string {
   if (status === WorkloadStatus.STOPPED) return 'Stopped';
   if (status === WorkloadStatus.FAILED) return 'Failed';
   return 'Unspecified';
+}
+
+export function formatVolumeStatus(status: VolumeStatus): string {
+  if (status === VolumeStatus.UNSPECIFIED) return 'Unspecified';
+  if (status === VolumeStatus.PROVISIONING) return 'Pending';
+  if (status === VolumeStatus.ACTIVE) return 'Bound';
+  if (status === VolumeStatus.DEPROVISIONING) return 'Released';
+  if (status === VolumeStatus.DELETED) return 'Released';
+  if (status === VolumeStatus.FAILED) return 'Failed';
+  return 'Unknown';
 }
 
 export function formatContainerStatus(status: ContainerStatus): string {
