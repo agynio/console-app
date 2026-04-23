@@ -2,10 +2,17 @@ import { Unit } from '@/gen/agynio/api/metering/v1/metering_pb';
 import { EMPTY_PLACEHOLDER } from '@/lib/format';
 
 const MICRO_UNITS = 1_000_000;
+const SECONDS_PER_HOUR = 3600;
 const usageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+const hoursFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+const hoursSmallFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export function microsToNumber(value: bigint): number {
   return Number(value) / MICRO_UNITS;
+}
+
+export function microsToHours(value: bigint): number {
+  return microsToNumber(value) / SECONDS_PER_HOUR;
 }
 
 export function formatUsageNumber(value?: number | null): string {
@@ -13,9 +20,22 @@ export function formatUsageNumber(value?: number | null): string {
   return usageFormatter.format(value);
 }
 
+export function formatUsageHoursNumber(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return EMPTY_PLACEHOLDER;
+  if (value > 0 && value < 1) {
+    return hoursSmallFormatter.format(value);
+  }
+  return hoursFormatter.format(value);
+}
+
 export function formatUsageValue(value?: bigint | null): string {
   if (value === null || value === undefined) return EMPTY_PLACEHOLDER;
   return formatUsageNumber(microsToNumber(value));
+}
+
+export function formatUsageHours(value?: bigint | null): string {
+  if (value === null || value === undefined) return EMPTY_PLACEHOLDER;
+  return formatUsageHoursNumber(microsToHours(value));
 }
 
 export function formatUsageUnit(unit: Unit): string {
