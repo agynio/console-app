@@ -6,6 +6,7 @@ import { runnersClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Container } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { ContainerRole, ContainerStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -26,6 +27,16 @@ const formatContainerRole = (role: ContainerRole) => {
   if (role === ContainerRole.INIT) return 'Init';
   return 'Unspecified';
 };
+
+const resolveContainerOrder = (role: ContainerRole) => {
+  if (role === ContainerRole.INIT) return 0;
+  if (role === ContainerRole.MAIN) return 1;
+  if (role === ContainerRole.SIDECAR) return 2;
+  return 3;
+};
+
+const resolveContainerDisplayName = (container: Container, index: number) =>
+  container.name?.trim() || `container-${index + 1}`;
 
 const resolveWorkloadVariant = (status: WorkloadStatus) => {
   if (status === WorkloadStatus.RUNNING) return 'default';
@@ -67,6 +78,9 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
     setLogText('');
     setErrorMessage('');
     setStreamState('loading');
+    const loadingTimeout = setTimeout(() => {
+      if (active) setStreamState('streaming');
+    }, 750);
 
     const appendText = (text: string) => {
       if (!active || !text) return;
@@ -91,6 +105,7 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
             if (chunkText) appendText(chunkText);
             if (!hasChunk) {
               hasChunk = true;
+              clearTimeout(loadingTimeout);
               setStreamState('streaming');
             }
             continue;
@@ -106,9 +121,11 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
         if (!active) return;
         const flushText = decoder.decode();
         if (flushText) appendText(flushText);
+        clearTimeout(loadingTimeout);
         setStreamState('ended');
       } catch (error) {
         if (!active) return;
+        clearTimeout(loadingTimeout);
         if (error instanceof DOMException && error.name === 'AbortError') return;
         if (error instanceof Error && error.name === 'AbortError') return;
         if (error instanceof ConnectError) {
@@ -127,6 +144,7 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
 
     return () => {
       active = false;
+      clearTimeout(loadingTimeout);
       controller.abort();
     };
   }, [containerName, workloadId]);
@@ -168,17 +186,15 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
 
 type ContainerPanelProps = {
   container: Container;
-  workloadId: string;
   index: number;
 };
 
-function ContainerPanel({ container, workloadId, index }: ContainerPanelProps) {
+function ContainerPanel({ container, index }: ContainerPanelProps) {
   const statusLabel = formatContainerStatus(container.status);
   const roleLabel = formatContainerRole(container.role);
   const reasonLabel = container.reason?.trim();
   const messageLabel = container.message?.trim();
-  const containerName = container.name?.trim() ?? '';
-  const displayName = containerName || `container-${index + 1}`;
+  const displayName = resolveContainerDisplayName(container, index);
   const exitCodeLabel = container.exitCode === undefined ? EMPTY_PLACEHOLDER : `${container.exitCode}`;
 
   return (
@@ -227,7 +243,6 @@ function ContainerPanel({ container, workloadId, index }: ContainerPanelProps) {
             </div>
           ) : null}
         </div>
-        <WorkloadLogViewer workloadId={workloadId} containerName={containerName} />
       </CardContent>
     </Card>
   );
@@ -264,6 +279,38 @@ export function WorkloadDetailPage() {
   useDocumentTitle(workloadTitle);
 
   const containers = workload?.containers ?? [];
+  const sortedContainers = [...containers].sort((left, right) => {
+    const orderDelta = resolveContainerOrder(left.role) - resolveContainerOrder(right.role);
+    if (orderDelta !== 0) return orderDelta;
+    const leftName = left.name?.trim() || left.containerId || '';
+    const rightName = right.name?.trim() || right.containerId || '';
+    return leftName.localeCompare(rightName);
+  });
+  const containerEntries = sortedContainers.map((container, index) => ({
+    container,
+    displayName: resolveContainerDisplayName(container, index),
+    name: container.name?.trim() ?? '',
+    roleLabel: formatContainerRole(container.role),
+  }));
+  const logContainers = containerEntries.filter((entry) => entry.name.length > 0);
+  const defaultLogContainerName =
+    logContainers.find((entry) => entry.container.role === ContainerRole.MAIN)?.name ??
+    logContainers[0]?.name ??
+    '';
+  const [selectedContainerName, setSelectedContainerName] = useState('');
+  useEffect(() => {
+    if (!defaultLogContainerName) {
+      if (selectedContainerName) setSelectedContainerName('');
+      return;
+    }
+    const hasSelection = logContainers.some((entry) => entry.name === selectedContainerName);
+    if (!hasSelection) setSelectedContainerName(defaultLogContainerName);
+  }, [defaultLogContainerName, logContainers, selectedContainerName]);
+  const selectedLogContainer = logContainers.find((entry) => entry.name === selectedContainerName);
+  const selectedLogLabel = selectedLogContainer
+    ? `${selectedLogContainer.displayName} (${selectedLogContainer.roleLabel})`
+    : undefined;
+  const hasLogContainers = logContainers.length > 0;
   const fromState =
     typeof location.state === 'object' &&
     location.state !== null &&
@@ -364,20 +411,62 @@ export function WorkloadDetailPage() {
           <div className="space-y-3" data-testid="workload-container-section">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Containers</h3>
-              <p className="text-sm text-muted-foreground">Runtime status and log streaming per container.</p>
+              <p className="text-sm text-muted-foreground">Runtime status per container.</p>
             </div>
-            {containers.length === 0 ? (
+            {containerEntries.length === 0 ? (
               <div className="text-sm text-muted-foreground">No containers reported.</div>
             ) : (
               <div className="space-y-4">
-                {containers.map((container, index) => (
+                {containerEntries.map((entry, index) => (
                   <ContainerPanel
-                    key={container.containerId || container.name || `${index}`}
-                    container={container}
-                    workloadId={workloadId}
+                    key={entry.container.containerId || entry.container.name || `${index}`}
+                    container={entry.container}
                     index={index}
                   />
                 ))}
+                <Card className="border-border" data-testid="workload-log-viewer">
+                  <CardHeader className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-base text-foreground">Logs</CardTitle>
+                        <p className="text-sm text-muted-foreground">Streaming the last 1000 lines.</p>
+                      </div>
+                      <div className="min-w-[220px] space-y-1">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Container
+                        </span>
+                        <Select
+                          value={selectedContainerName}
+                          onValueChange={(value) => setSelectedContainerName(value)}
+                          disabled={!hasLogContainers}
+                        >
+                          <SelectTrigger data-testid="workload-log-container-select">
+                            <SelectValue
+                              placeholder={hasLogContainers ? 'Select container' : 'No containers available'}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {logContainers.map((entry) => (
+                              <SelectItem key={entry.name} value={entry.name}>
+                                {entry.displayName} ({entry.roleLabel})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {selectedLogLabel ? (
+                      <p className="text-sm text-muted-foreground">Viewing {selectedLogLabel}.</p>
+                    ) : null}
+                  </CardHeader>
+                  <CardContent>
+                    {hasLogContainers && selectedContainerName ? (
+                      <WorkloadLogViewer workloadId={workloadId} containerName={selectedContainerName} />
+                    ) : (
+                      <div className="text-sm text-muted-foreground">No containers available for log streaming.</div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>
