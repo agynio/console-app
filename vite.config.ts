@@ -17,7 +17,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    exclude: [...configDefaults.exclude, 'test/e2e/**'],
+    exclude: configDefaults.exclude,
   },
   resolve: {
     alias: {
