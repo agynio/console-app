@@ -2,22 +2,6 @@ version: v2beta1
 
 vars:
   APP_NAMESPACE: platform
-  E2E_IMAGE: mcr.microsoft.com/playwright:v1.59.1-noble
-  ARGOS_TOKEN:
-    source: env
-    default: ""
-  ARGOS_BRANCH:
-    source: env
-    default: ""
-  ARGOS_COMMIT:
-    source: env
-    default: ""
-  CLUSTER_ADMIN_TOKEN:
-    source: env
-    default: ""
-  E2E_OIDC_REDIRECT_URI:
-    source: env
-    default: ""
 
 functions:
   disable_argocd_sync: |-
@@ -64,52 +48,6 @@ functions:
       --type strategic \
       -p "{\"spec\":{\"template\":{\"spec\":{\"securityContext\":{\"fsGroup\":101},\"volumes\":[{\"name\":\"console-app-html\",\"emptyDir\":{}}],\"initContainers\":[{\"name\":\"console-app-html-init\",\"image\":\"${image}\",\"command\":[\"sh\",\"-c\",\"cp -R /usr/share/nginx/html/. /workdir/\"],\"securityContext\":{\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/workdir\"}]}],\"containers\":[{\"name\":\"${container}\",\"securityContext\":{\"readOnlyRootFilesystem\":true,\"runAsUser\":101,\"runAsGroup\":101,\"runAsNonRoot\":true},\"volumeMounts\":[{\"name\":\"console-app-html\",\"mountPath\":\"/usr/share/nginx/html\"}]}]}}}}"
     kubectl rollout status deployment "$deploy" -n ${APP_NAMESPACE} --timeout=600s
-  dump_agent_logs: |-
-    echo "=== ORCHESTRATOR LOGS ==="
-    kubectl logs deploy/agents-orchestrator -n platform --tail=100 || true
-    echo "=== AGENT WORKLOAD PODS (agyn-workloads) ==="
-    kubectl get pods -n agyn-workloads -o wide 2>/dev/null || true
-    echo "=== AGENT WORKLOAD LOGS ==="
-    for pod in $(kubectl get pods -n agyn-workloads -o name 2>/dev/null); do
-      echo "--- $pod ---"
-      kubectl logs "$pod" -n agyn-workloads --all-containers --tail=50 2>/dev/null || true
-    done
-    echo "=== K8S-RUNNER LOGS ==="
-    kubectl logs deploy/k8s-runner -n platform --tail=50 || true
-    echo "=== END DIAGNOSTIC LOGS ==="
-
-deployments:
-  e2e-runner:
-    namespace: ${APP_NAMESPACE}
-    helm:
-      chart:
-        name: component-chart
-        repo: https://charts.devspace.sh
-      values:
-        containers:
-          - image: ${E2E_IMAGE}
-            env:
-              - name: E2E_BASE_URL
-                value: "https://console.agyn.dev"
-              - name: E2E_OIDC_REDIRECT_URI
-                value: "${E2E_OIDC_REDIRECT_URI}"
-              - name: ARGOS_TOKEN
-                value: "${ARGOS_TOKEN}"
-              - name: ARGOS_BRANCH
-                value: "${ARGOS_BRANCH}"
-              - name: ARGOS_COMMIT
-                value: "${ARGOS_COMMIT}"
-              - name: CLUSTER_ADMIN_TOKEN
-                value: "${CLUSTER_ADMIN_TOKEN}"
-              - name: CI
-                value: "${CI}"
-        labels:
-          app.kubernetes.io/name: console-app-e2e
-
-commands:
-  test-e2e: |-
-    devspace run-pipeline test-e2e $@
-
 pipelines:
   dev:
     flags:
@@ -127,39 +65,6 @@ pipelines:
         stop_dev console-app
       fi
 
-  test-e2e:
-    run: |-
-      disable_argocd_sync
-      create_deployments e2e-runner
-      start_dev e2e-runner &
-      sleep 5
-      set +e
-      exec_container \
-        --label-selector "app.kubernetes.io/name=console-app-e2e" \
-        -n ${APP_NAMESPACE} \
-        -- bash -c '
-          echo "Waiting for file sync..."
-          for i in $(seq 1 60); do
-            [ -f /opt/app/data/package.json ] && [ -f /opt/app/data/package-lock.json ] && [ -f /opt/app/data/test/e2e/fixtures.ts ] && [ -f /opt/app/data/test/e2e/console-api.ts ] && [ -f /opt/app/data/test/e2e/sign-in-helper.ts ] && [ -f /opt/app/data/test/e2e/sign-in.spec.ts ] && [ -f /opt/app/data/test/e2e/dashboard.spec.ts ] && [ -f /opt/app/data/test/e2e/organizations.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-members.spec.ts ] && [ -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] && [ -f /opt/app/data/test/e2e/model-test.spec.ts ] && [ -f /opt/app/data/test/e2e/users.spec.ts ] && [ -f /opt/app/data/test/e2e/runners.spec.ts ] && [ -f /opt/app/data/test/e2e/settings.spec.ts ] && break
-            sleep 2
-          done
-          if [ ! -f /opt/app/data/package.json ] || [ ! -f /opt/app/data/package-lock.json ] || [ ! -f /opt/app/data/test/e2e/fixtures.ts ] || [ ! -f /opt/app/data/test/e2e/console-api.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in-helper.ts ] || [ ! -f /opt/app/data/test/e2e/sign-in.spec.ts ] || [ ! -f /opt/app/data/test/e2e/dashboard.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organizations.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-members.spec.ts ] || [ ! -f /opt/app/data/test/e2e/organization-secrets.spec.ts ] || [ ! -f /opt/app/data/test/e2e/model-test.spec.ts ] || [ ! -f /opt/app/data/test/e2e/users.spec.ts ] || [ ! -f /opt/app/data/test/e2e/runners.spec.ts ] || [ ! -f /opt/app/data/test/e2e/settings.spec.ts ]; then
-            echo "ERROR: File sync timed out (package.json, package-lock.json, or test/e2e files not found after 120s)"
-            exit 1
-          fi
-          sleep 5
-          cd /opt/app/data
-          npm ci --ignore-scripts
-          E2E_BASE_URL=https://console.agyn.dev ARGOS_TOKEN=${ARGOS_TOKEN} ARGOS_BRANCH=${ARGOS_BRANCH} ARGOS_COMMIT=${ARGOS_COMMIT} CI=true npm run test:e2e
-        '
-      EXIT_CODE=$?
-      set -e
-      dump_agent_logs || true
-      stop_dev e2e-runner
-      purge_deployments e2e-runner
-      restore_argocd_sync
-      exit ${EXIT_CODE}
-
 hooks:
   - name: restore-argocd-auto-sync
     events:
@@ -170,19 +75,6 @@ hooks:
       - *restore_argocd_sync
 
 dev:
-  e2e-runner:
-    namespace: ${APP_NAMESPACE}
-    labelSelector:
-      app.kubernetes.io/name: console-app-e2e
-    command: ["sleep", "infinity"]
-    workingDir: /opt/app/data
-    sync:
-      - path: ./:/opt/app/data
-        excludePaths:
-          - .git/
-          - .devspace/
-          - node_modules/
-          - dist/
   console-app:
     namespace: ${APP_NAMESPACE}
     labelSelector:
