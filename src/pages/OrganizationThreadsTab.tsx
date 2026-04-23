@@ -95,7 +95,7 @@ export function OrganizationThreadsTab() {
                 return (
                   <NavLink
                     key={threadId}
-                    to={`/organizations/${organizationId}/activity/threads/${threadId}`}
+                    to={`/organizations/${organizationId}/threads/${threadId}`}
                     className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_2fr_1fr_1fr_1fr] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     data-testid="organization-thread-row"
                   >

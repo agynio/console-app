@@ -380,7 +380,7 @@ export function AppLayout() {
                   Storage
                 </NavLink>
                 <NavLink
-                  to={organizationRoute('/activity/threads')}
+                  to={organizationRoute('/threads')}
                   className={navLinkClass}
                   data-testid="nav-organization-threads"
                 >
@@ -388,7 +388,7 @@ export function AppLayout() {
                   Threads
                 </NavLink>
                 <NavLink
-                  to={organizationRoute('/activity/usage')}
+                  to={organizationRoute('/usage')}
                   className={navLinkClass}
                   data-testid="nav-organization-usage"
                 >

@@ -77,11 +77,11 @@ export default function App() {
           <Route path="activity/threads" element={<OrganizationThreadsTab />} />
           <Route path="activity/threads/:threadId" element={<OrganizationThreadDetailPage />} />
           <Route path="activity/usage" element={<OrganizationUsageTab />} />
-          <Route path="threads" element={<Navigate to="activity/threads" replace />} />
+          <Route path="threads" element={<OrganizationThreadsTab />} />
           <Route path="threads/:threadId" element={<OrganizationThreadDetailPage />} />
           <Route path="workloads/:workloadId" element={<WorkloadDetailPage />} />
           <Route path="monitoring" element={<Navigate to="activity/workloads" replace />} />
-          <Route path="usage" element={<Navigate to="activity/usage" replace />} />
+          <Route path="usage" element={<OrganizationUsageTab />} />
         </Route>
         <Route
           path="users"
