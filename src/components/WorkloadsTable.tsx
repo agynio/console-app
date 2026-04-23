@@ -1,7 +1,9 @@
 import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
+import { NavLink, useLocation } from 'react-router-dom';
 import { SortableHeader } from '@/components/SortableHeader';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { ListWorkloadsResponse, Workload } from '@/gen/agynio/api/runners/v1/runners_pb';
@@ -13,6 +15,7 @@ type WorkloadsTableProps = {
   workloads: Workload[];
   query: UseInfiniteQueryResult<InfiniteData<ListWorkloadsResponse, unknown>, Error>;
   showRunnerColumn?: boolean;
+  getWorkloadLink?: (workload: Workload) => string | null;
   testIdPrefix: string;
 };
 
@@ -20,8 +23,10 @@ export function WorkloadsTable({
   workloads,
   query,
   showRunnerColumn = false,
+  getWorkloadLink,
   testIdPrefix,
 }: WorkloadsTableProps) {
+  const location = useLocation();
   const searchFields = [
     (workload: Workload) => workload.agentId,
     ...(showRunnerColumn ? [(workload: Workload) => workload.runnerId] : []),
@@ -50,6 +55,7 @@ export function WorkloadsTable({
 
   const visibleWorkloads = listControls.filteredItems;
   const hasSearch = listControls.searchTerm.trim().length > 0;
+  const hasAction = Boolean(getWorkloadLink);
 
   const getStatusVariant = (status: WorkloadStatus) => {
     if (status === WorkloadStatus.RUNNING) return 'default';
@@ -60,8 +66,12 @@ export function WorkloadsTable({
   };
 
   const gridClass = showRunnerColumn
-    ? 'md:grid-cols-[1.4fr_1.4fr_1.4fr_140px_200px_170px]'
-    : 'md:grid-cols-[1.6fr_1.6fr_140px_200px_170px]';
+    ? hasAction
+      ? 'md:grid-cols-[1.4fr_1.4fr_1.4fr_140px_200px_170px_120px]'
+      : 'md:grid-cols-[1.4fr_1.4fr_1.4fr_140px_200px_170px]'
+    : hasAction
+      ? 'md:grid-cols-[1.6fr_1.6fr_140px_200px_170px_120px]'
+      : 'md:grid-cols-[1.6fr_1.6fr_140px_200px_170px]';
 
   const emptyMessage = showRunnerColumn ? 'No workloads found.' : 'No workloads on this runner.';
 
@@ -121,6 +131,7 @@ export function WorkloadsTable({
               sortDirection={listControls.sortDirection}
               onSort={listControls.handleSort}
             />
+            {hasAction ? <span className="text-right">Action</span> : null}
           </div>
           <div className="divide-y divide-border">
             {visibleWorkloads.length === 0 ? (
@@ -134,6 +145,7 @@ export function WorkloadsTable({
                   (showRunnerColumn
                     ? `${workload.runnerId}:${workload.threadId}:${workload.agentId}`
                     : `${workload.threadId}:${workload.agentId}`);
+                const workloadLink = getWorkloadLink ? getWorkloadLink(workload) : null;
                 return (
                   <div
                     key={rowKey}
@@ -160,6 +172,25 @@ export function WorkloadsTable({
                     <span className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-started`}>
                       {formatTimestamp(workload.meta?.createdAt)}
                     </span>
+                    {hasAction ? (
+                      <div className="text-right">
+                        {workloadLink ? (
+                          <Button variant="outline" size="sm" asChild>
+                            <NavLink
+                              to={workloadLink}
+                              state={{ from: location.pathname }}
+                              data-testid={`${testIdPrefix}-view`}
+                            >
+                              View
+                            </NavLink>
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" disabled data-testid={`${testIdPrefix}-view`}>
+                            View
+                          </Button>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })

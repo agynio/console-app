@@ -14,7 +14,7 @@ export function OrganizationMonitoringTab() {
   const organizationId = id ?? '';
 
   useNotifications({
-    events: ['workload.status_changed'],
+    events: ['workload.status_changed', 'workload.updated'],
     invalidateKeys: [['workloads', organizationId, 'list']],
     enabled: Boolean(organizationId),
   });
@@ -63,6 +63,11 @@ export function OrganizationMonitoringTab() {
           workloads={workloads}
           query={workloadsQuery}
           showRunnerColumn
+          getWorkloadLink={(workload) => {
+            const workloadId = workload.meta?.id;
+            if (!organizationId || !workloadId) return null;
+            return `/organizations/${organizationId}/workloads/${workloadId}`;
+          }}
           testIdPrefix="organization-workloads"
         />
       </div>

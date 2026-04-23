@@ -15,7 +15,7 @@ export function OrganizationOverviewTab() {
   const organizationId = id ?? '';
 
   useNotifications({
-    events: ['workload.status_changed'],
+    events: ['workload.status_changed', 'workload.updated'],
     invalidateKeys: [['workloads', organizationId, 'overview']],
     enabled: Boolean(organizationId),
   });

@@ -40,7 +40,7 @@ export function RunnerDetailPage() {
   const [runnerNameError, setRunnerNameError] = useState('');
 
   useNotifications({
-    events: ['workload.status_changed'],
+    events: ['workload.status_changed', 'workload.updated'],
     invalidateKeys: [['workloads', 'runner', runnerId]],
     enabled: Boolean(runnerId),
   });
@@ -215,7 +215,19 @@ export function RunnerDetailPage() {
           <h3 className="text-lg font-semibold text-foreground">Workloads</h3>
           <p className="text-sm text-muted-foreground">Active workloads on this runner.</p>
         </div>
-        <WorkloadsTable workloads={workloads} query={workloadsQuery} testIdPrefix="runner-workloads" />
+        <WorkloadsTable
+          workloads={workloads}
+          query={workloadsQuery}
+          getWorkloadLink={(workload) => {
+            const workloadId = workload.meta?.id;
+            if (!workloadId) return null;
+            if (organizationId) {
+              return `/organizations/${organizationId}/workloads/${workloadId}`;
+            }
+            return `/workloads/${workloadId}`;
+          }}
+          testIdPrefix="runner-workloads"
+        />
       </div>
       <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
         <DialogContent data-testid="runner-edit-dialog">
