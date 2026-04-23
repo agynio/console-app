@@ -88,21 +88,38 @@ export function formatContainerStatus(status: ContainerStatus): string {
   return 'Unspecified';
 }
 
-export function summarizeContainers(containers: Array<{ status: ContainerStatus }>): string {
+export function summarizeContainers(containers: Array<{ status: ContainerStatus; reason?: string | null }>): string {
   if (containers.length === 0) return EMPTY_PLACEHOLDER;
-  const counts: Record<string, number> = {};
+
+  const counts = new Map<string, { statusLabel: string; reasonLabel: string; count: number }>();
   containers.forEach((container) => {
-    const label = formatContainerStatus(container.status);
-    counts[label] = (counts[label] ?? 0) + 1;
+    const statusLabel = formatContainerStatus(container.status);
+    const reasonLabel = container.reason?.trim() ?? '';
+    const key = `${statusLabel}::${reasonLabel}`;
+    const entry = counts.get(key) ?? { statusLabel, reasonLabel, count: 0 };
+    entry.count += 1;
+    counts.set(key, entry);
   });
+
   const order = ['Running', 'Terminated', 'Waiting', 'Unspecified'];
-  const parts: string[] = [];
-  order.forEach((label) => {
-    const count = counts[label];
-    if (count) {
-      parts.push(`${label} (${count})`);
-    }
-  });
+  const parts = Array.from(counts.values())
+    .sort((left, right) => {
+      const leftIndex = order.indexOf(left.statusLabel);
+      const rightIndex = order.indexOf(right.statusLabel);
+      const normalizedLeftIndex = leftIndex === -1 ? order.length : leftIndex;
+      const normalizedRightIndex = rightIndex === -1 ? order.length : rightIndex;
+      if (normalizedLeftIndex !== normalizedRightIndex) {
+        return normalizedLeftIndex - normalizedRightIndex;
+      }
+      return left.reasonLabel.localeCompare(right.reasonLabel);
+    })
+    .map((entry) => {
+      if (entry.reasonLabel) {
+        return `${entry.statusLabel} (${entry.reasonLabel}) (${entry.count})`;
+      }
+      return `${entry.statusLabel} (${entry.count})`;
+    });
+
   return parts.length > 0 ? parts.join(', ') : EMPTY_PLACEHOLDER;
 }
 

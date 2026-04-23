@@ -25,6 +25,7 @@ import { UsersListPage } from '@/pages/UsersListPage';
 import { UserDetailPage } from '@/pages/UserDetailPage';
 import { RunnersListPage } from '@/pages/RunnersListPage';
 import { RunnerDetailPage } from '@/pages/RunnerDetailPage';
+import { WorkloadDetailPage } from '@/pages/WorkloadDetailPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AppsPage } from '@/pages/AppsPage';
 import { ApiTokensPage } from '@/pages/ApiTokensPage';
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="apps/:appId" element={<AppDetailPage />} />
           <Route path="threads" element={<OrganizationThreadsTab />} />
           <Route path="threads/:threadId" element={<OrganizationThreadDetailPage />} />
+          <Route path="workloads/:workloadId" element={<WorkloadDetailPage />} />
           <Route path="monitoring" element={<OrganizationMonitoringTab />} />
           <Route path="usage" element={<OrganizationUsageTab />} />
         </Route>
@@ -127,6 +129,14 @@ export default function App() {
           element={
             <RequireClusterAdmin>
               <RunnerDetailPage />
+            </RequireClusterAdmin>
+          }
+        />
+        <Route
+          path="workloads/:workloadId"
+          element={
+            <RequireClusterAdmin>
+              <WorkloadDetailPage />
             </RequireClusterAdmin>
           }
         />
