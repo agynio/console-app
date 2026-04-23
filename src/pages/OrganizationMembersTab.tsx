@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatMembershipRole, formatMembershipStatus } from '@/lib/format';
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { toast } from 'sonner';
@@ -36,10 +36,13 @@ export function OrganizationMembersTab() {
   const organizationId = id ?? '';
   const queryClient = useQueryClient();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState<MembershipRole>(MembershipRole.MEMBER);
   const [inviteError, setInviteError] = useState('');
   const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
+
+  const trimmedInviteSearch = inviteSearch.trim();
 
   const activeQuery = useInfiniteQuery({
     queryKey: ['organizations', organizationId, 'members', 'active'],
@@ -92,13 +95,21 @@ export function OrganizationMembersTab() {
     refetchOnWindowFocus: false,
   });
 
-  const allUsersQuery = useQuery({
-    queryKey: ['users', 'list', 'members', organizationId],
-    queryFn: () => usersClient.listUsers({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    enabled: Boolean(organizationId),
-    staleTime: 60_000,
+  const searchUsersQuery = useQuery({
+    queryKey: ['users', 'search', trimmedInviteSearch],
+    queryFn: () => usersClient.searchUsers({ prefix: trimmedInviteSearch, limit: 10 }),
+    enabled: trimmedInviteSearch.length > 0,
+    staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
+
+  const inviteCandidates = useMemo(() => {
+    if (trimmedInviteSearch.length === 0) return [];
+    const users = searchUsersQuery.data?.users ?? [];
+    if (identityIds.length === 0) return users;
+    const existingIds = new Set(identityIds);
+    return users.filter((user) => user.identityId && !existingIds.has(user.identityId));
+  }, [identityIds, searchUsersQuery.data?.users, trimmedInviteSearch]);
 
   const userMap = useMemo(() => {
     const users = usersQuery.data?.users ?? [];
@@ -192,6 +203,7 @@ export function OrganizationMembersTab() {
   const handleInviteOpenChange = (open: boolean) => {
     setInviteOpen(open);
     if (!open) {
+      setInviteSearch('');
       setSelectedUserId('');
       setSelectedRole(MembershipRole.MEMBER);
       setInviteError('');
@@ -360,6 +372,28 @@ export function OrganizationMembersTab() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="organization-members-invite-search">Search by username</Label>
+              <Input
+                id="organization-members-invite-search"
+                placeholder="Start typing a username"
+                value={inviteSearch}
+                onChange={(event) => {
+                  setInviteSearch(event.target.value);
+                  setSelectedUserId('');
+                  if (inviteError) setInviteError('');
+                }}
+                data-testid="organization-members-invite-search"
+              />
+              {searchUsersQuery.isPending ? (
+                <p className="text-sm text-muted-foreground">Searching users...</p>
+              ) : null}
+              {searchUsersQuery.isError ? (
+                <p className="text-sm text-destructive" data-testid="organization-members-invite-search-error">
+                  Failed to load users.
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="organization-members-invite-user">User</Label>
               <Select
                 value={selectedUserId}
@@ -367,20 +401,26 @@ export function OrganizationMembersTab() {
                   setSelectedUserId(value);
                   if (inviteError) setInviteError('');
                 }}
+                disabled={trimmedInviteSearch.length === 0 || searchUsersQuery.isPending || searchUsersQuery.isError}
               >
                 <SelectTrigger id="organization-members-invite-user" data-testid="organization-members-invite-user">
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(allUsersQuery.data?.users ?? []).map((user) => {
-                    const userId = user.meta?.id;
-                    if (!userId) return null;
-                    return (
-                      <SelectItem key={userId} value={userId}>
-                        {user.name || 'Unnamed user'} ({user.email || 'No email'})
+                  {inviteCandidates.length === 0 ? (
+                    <div className="px-2 py-2 text-sm text-muted-foreground">
+                      {trimmedInviteSearch.length === 0
+                        ? 'Search for a username to see results.'
+                        : 'No users found.'}
+                    </div>
+                  ) : (
+                    inviteCandidates.map((user) => (
+                      <SelectItem key={user.identityId} value={user.identityId}>
+                        {user.username ? `@${user.username}` : user.identityId}
+                        {user.name ? ` - ${user.name}` : ''}
                       </SelectItem>
-                    );
-                  })}
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {inviteError ? (
