@@ -97,18 +97,69 @@ export function useIdentityHandles(identityIds: string[]) {
     [appProfileQueries, unresolvedIds],
   );
 
-  const formatHandle = useMemo(() => {
+  const resolveIdentityInfo = useMemo(() => {
+    const buildHandle = (name: string | undefined | null, fallbackId: string) => `@${name || fallbackId}`;
+    const buildUserLabel = (user: { nickname?: string | null; name?: string | null; email?: string | null }) => {
+      if (user.nickname) return `@${user.nickname}`;
+      return user.name || user.email || 'Unknown';
+    };
+    const buildAgentLabel = (agent: { nickname?: string | null; name?: string | null }) =>
+      agent.nickname || agent.name || 'Unknown';
+    const buildAppLabel = (appProfile: { name?: string | null; slug?: string | null }) =>
+      appProfile.name || appProfile.slug || 'Unknown';
     return (identityId?: string | null) => {
-      if (!identityId) return EMPTY_PLACEHOLDER;
+      if (!identityId) {
+        return { label: EMPTY_PLACEHOLDER, handle: EMPTY_PLACEHOLDER, type: 'Identity' };
+      }
       const user = userMap.get(identityId);
-      if (user) return `@${user.nickname || user.name || user.email || identityId}`;
+      if (user) {
+        const name = user.nickname || user.name || user.email || null;
+        return {
+          label: buildUserLabel(user),
+          handle: buildHandle(name, identityId),
+          type: 'User',
+        };
+      }
       const agent = agentMap.get(identityId);
-      if (agent) return `@${agent.nickname || agent.name || identityId}`;
+      if (agent) {
+        const name = agent.nickname || agent.name || null;
+        return {
+          label: buildAgentLabel(agent),
+          handle: buildHandle(name, identityId),
+          type: 'Agent',
+        };
+      }
       const appProfile = appProfileMap.get(identityId);
-      if (appProfile) return `@${appProfile.name || appProfile.slug || identityId}`;
-      return `@${identityId}`;
+      if (appProfile) {
+        const name = appProfile.name || appProfile.slug || null;
+        return {
+          label: buildAppLabel(appProfile),
+          handle: buildHandle(name, identityId),
+          type: 'App',
+        };
+      }
+      return { label: 'Unknown', handle: `@${identityId}`, type: 'Identity' };
     };
   }, [agentMap, appProfileMap, userMap]);
 
-  return { formatHandle };
+  const formatHandle = useMemo(
+    () => (identityId?: string | null) => resolveIdentityInfo(identityId).handle,
+    [resolveIdentityInfo],
+  );
+
+  const formatHandleLabel = useMemo(
+    () => (identityId?: string | null) => resolveIdentityInfo(identityId).label,
+    [resolveIdentityInfo],
+  );
+
+  const formatHandleTooltip = useMemo(
+    () => (identityId?: string | null) => {
+      if (!identityId) return EMPTY_PLACEHOLDER;
+      const identityType = resolveIdentityInfo(identityId).type;
+      return `${identityType}: ${identityId}`;
+    },
+    [resolveIdentityInfo],
+  );
+
+  return { formatHandle, formatHandleLabel, formatHandleTooltip };
 }

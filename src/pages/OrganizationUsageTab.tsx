@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { create } from '@bufbuild/protobuf';
 import { TimestampSchema, type Timestamp } from '@bufbuild/protobuf/wkt';
 import {
@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { meteringClient } from '@/api/client';
+import { llmClient, meteringClient } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,8 +28,17 @@ import {
   type UsageBucket,
 } from '@/gen/agynio/api/metering/v1/metering_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
-import { formatUsageNumber, formatUsageValue, microsToNumber } from '@/lib/usage';
+import { useIdentityHandles } from '@/hooks/useIdentityHandles';
+import { formatDateOnly, formatTimestamp, timestampToMillis, truncate } from '@/lib/format';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import {
+  formatUsageHours,
+  formatUsageHoursNumber,
+  formatUsageNumber,
+  formatUsageValue,
+  microsToHours,
+  microsToNumber,
+} from '@/lib/usage';
 
 type RangeOption = '24h' | '7d' | '30d' | 'custom';
 
@@ -42,6 +51,7 @@ type UsageQueryConfig = {
   key: string;
   unit: Unit;
   granularity: Granularity;
+  useRangeGranularity?: boolean;
   labelFilters?: Record<string, string>;
   groupBy?: string;
 };
@@ -49,6 +59,21 @@ type UsageQueryConfig = {
 type ChartSeries = {
   date: string;
   [key: string]: number | string;
+};
+
+type TopGroupBase = {
+  id: string;
+  label: string;
+  detail?: string;
+};
+
+type TopGroup = TopGroupBase & {
+  value: number;
+};
+
+type TopGroupSeries = TopGroupBase & {
+  cpu: number;
+  ram: number;
 };
 
 const rangeOptions: Array<{ value: RangeOption; label: string }> = [
@@ -73,18 +98,35 @@ const usageQueryConfigs: UsageQueryConfig[] = [
     key: 'llm-daily-tokens',
     unit: Unit.TOKENS,
     granularity: Granularity.DAY,
+    useRangeGranularity: true,
     groupBy: 'kind',
   },
   {
-    key: 'llm-consumers-total',
+    key: 'llm-consumers-input-total',
     unit: Unit.TOKENS,
     granularity: Granularity.TOTAL,
+    labelFilters: { kind: 'input' },
     groupBy: 'identity_id',
   },
   {
-    key: 'llm-models-total',
+    key: 'llm-consumers-output-total',
     unit: Unit.TOKENS,
     granularity: Granularity.TOTAL,
+    labelFilters: { kind: 'output' },
+    groupBy: 'identity_id',
+  },
+  {
+    key: 'llm-models-input-total',
+    unit: Unit.TOKENS,
+    granularity: Granularity.TOTAL,
+    labelFilters: { kind: 'input' },
+    groupBy: 'resource_id',
+  },
+  {
+    key: 'llm-models-output-total',
+    unit: Unit.TOKENS,
+    granularity: Granularity.TOTAL,
+    labelFilters: { kind: 'output' },
     groupBy: 'resource_id',
   },
   { key: 'compute-cpu-total', unit: Unit.CORE_SECONDS, granularity: Granularity.TOTAL },
@@ -94,17 +136,30 @@ const usageQueryConfigs: UsageQueryConfig[] = [
     granularity: Granularity.TOTAL,
     labelFilters: { kind: 'ram' },
   },
-  { key: 'compute-cpu-daily', unit: Unit.CORE_SECONDS, granularity: Granularity.DAY },
+  {
+    key: 'compute-cpu-daily',
+    unit: Unit.CORE_SECONDS,
+    granularity: Granularity.DAY,
+    useRangeGranularity: true,
+  },
   {
     key: 'compute-ram-daily',
     unit: Unit.GB_SECONDS,
     granularity: Granularity.DAY,
+    useRangeGranularity: true,
     labelFilters: { kind: 'ram' },
   },
   {
-    key: 'compute-consumers-total',
+    key: 'compute-consumers-cpu-total',
     unit: Unit.CORE_SECONDS,
     granularity: Granularity.TOTAL,
+    groupBy: 'identity_id',
+  },
+  {
+    key: 'compute-consumers-ram-total',
+    unit: Unit.GB_SECONDS,
+    granularity: Granularity.TOTAL,
+    labelFilters: { kind: 'ram' },
     groupBy: 'identity_id',
   },
   {
@@ -117,6 +172,7 @@ const usageQueryConfigs: UsageQueryConfig[] = [
     key: 'storage-daily',
     unit: Unit.GB_SECONDS,
     granularity: Granularity.DAY,
+    useRangeGranularity: true,
     labelFilters: { kind: 'storage' },
   },
   {
@@ -142,12 +198,14 @@ const usageQueryConfigs: UsageQueryConfig[] = [
     key: 'platform-threads-daily',
     unit: Unit.COUNT,
     granularity: Granularity.DAY,
+    useRangeGranularity: true,
     labelFilters: { kind: 'thread' },
   },
   {
     key: 'platform-messages-daily',
     unit: Unit.COUNT,
     granularity: Granularity.DAY,
+    useRangeGranularity: true,
     labelFilters: { kind: 'message' },
   },
 ];
@@ -156,11 +214,6 @@ const llmKindLabels: Record<string, string> = {
   input: 'Input',
   cached: 'Cached',
   output: 'Output',
-};
-
-const statusLabels: Record<string, string> = {
-  success: 'Success',
-  failed: 'Failed',
 };
 
 function toTimestamp(date: Date): Timestamp {
@@ -179,12 +232,17 @@ async function queryUsageSafely({
   start,
   end,
   config,
+  rangeGranularity,
+  timeZone,
 }: {
   organizationId: string;
   start: Timestamp;
   end: Timestamp;
   config: UsageQueryConfig;
+  rangeGranularity: Granularity;
+  timeZone: string;
 }): Promise<QueryUsageResponse> {
+  const granularity = config.useRangeGranularity ? rangeGranularity : config.granularity;
   try {
     return await meteringClient.queryUsage({
       orgId: organizationId,
@@ -193,7 +251,8 @@ async function queryUsageSafely({
       unit: config.unit,
       labelFilters: config.labelFilters ?? {},
       groupBy: config.groupBy ?? '',
-      granularity: config.granularity,
+      granularity,
+      timeZone,
     });
   } catch (error) {
     if (isUsageUnavailable(error)) {
@@ -230,9 +289,7 @@ function buildRange(option: RangeOption, customStart: string, customEnd: string)
   }
   if (option === '7d' || option === '30d') {
     const days = option === '7d' ? 7 : 30;
-    const start = new Date(now);
-    start.setDate(start.getDate() - days);
-    start.setHours(0, 0, 0, 0);
+    const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     return { range: { start, end: now }, error: '' };
   }
 
@@ -249,6 +306,20 @@ function buildRange(option: RangeOption, customStart: string, customEnd: string)
   return { range: { start: startDate, end: endDate }, error: '' };
 }
 
+function resolveRangeGranularity(option: RangeOption, range: RangeSelection): Granularity {
+  if (option === '24h') return Granularity.FIVE_MINUTES;
+  if (option === '7d') return Granularity.HOUR;
+  if (option === '30d') return Granularity.SIX_HOURS;
+
+  const rangeMs = range.end.getTime() - range.start.getTime();
+  const hourMs = 60 * 60 * 1000;
+  const dayMs = 24 * hourMs;
+  if (rangeMs <= dayMs) return Granularity.FIVE_MINUTES;
+  if (rangeMs <= 7 * dayMs) return Granularity.HOUR;
+  if (rangeMs <= 30 * dayMs) return Granularity.SIX_HOURS;
+  return Granularity.DAY;
+}
+
 function sumUsageBuckets(buckets: UsageBucket[]): bigint {
   return buckets.reduce((total, bucket) => total + bucket.value, 0n);
 }
@@ -261,75 +332,184 @@ function groupTotalsByValue(buckets: UsageBucket[]): Map<string, bigint> {
   }, new Map<string, bigint>());
 }
 
-function buildDailySeries(buckets: UsageBucket[], groups: string[]): ChartSeries[] {
-  const seriesMap = new Map<string, { timestamp: number; values: Record<string, number> }>();
+function mergeTotalsMaps(...maps: Array<Map<string, bigint>>): Map<string, bigint> {
+  return maps.reduce((merged, map) => {
+    map.forEach((value, key) => {
+      merged.set(key, (merged.get(key) ?? 0n) + value);
+    });
+    return merged;
+  }, new Map<string, bigint>());
+}
+
+function mapTotalsToNumbers(
+  totals: Map<string, bigint>,
+  valueTransform: (value: bigint) => number,
+): Map<string, number> {
+  const mapped = new Map<string, number>();
+  totals.forEach((value, key) => {
+    mapped.set(key, valueTransform(value));
+  });
+  return mapped;
+}
+
+function buildTopGroupIds(totals: Map<string, number>, limit = 5): string[] {
+  return Array.from(totals.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id);
+}
+
+function buildTopGroups(
+  totals: Map<string, number>,
+  options: {
+    limit?: number;
+    labelResolver?: (id: string) => string;
+    detailResolver?: (id: string) => string;
+  } = {},
+): TopGroup[] {
+  const { limit = 5, labelResolver = (id: string) => id, detailResolver } = options;
+  return Array.from(totals.entries())
+    .map(([id, value]) => ({
+      id,
+      label: labelResolver(id),
+      detail: detailResolver?.(id),
+      value,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit);
+}
+
+function buildTopGroupSeries(
+  ids: string[],
+  totals: { cpu: Map<string, number>; ram: Map<string, number> },
+  options: { labelResolver?: (id: string) => string; detailResolver?: (id: string) => string } = {},
+): TopGroupSeries[] {
+  const { labelResolver = (id: string) => id, detailResolver } = options;
+  return ids.map((id) => ({
+    id,
+    label: labelResolver(id),
+    detail: detailResolver?.(id),
+    cpu: totals.cpu.get(id) ?? 0,
+    ram: totals.ram.get(id) ?? 0,
+  }));
+}
+
+function formatBucketLabel(timestamp: Timestamp, granularity: Granularity): string {
+  if (granularity === Granularity.DAY) {
+    return formatDateOnly(timestamp);
+  }
+  return formatTimestamp(timestamp);
+}
+
+function buildLlmTokenSeries(buckets: UsageBucket[], granularity: Granularity): ChartSeries[] {
+  const seriesMap = new Map<
+    string,
+    {
+      timestamp: number;
+      label: string;
+      input: number;
+      cached: number;
+      output: number;
+    }
+  >();
 
   buckets.forEach((bucket) => {
     if (!bucket.timestamp) return;
-    const dateLabel = formatDateOnly(bucket.timestamp);
-    const current = seriesMap.get(dateLabel) ?? {
-      timestamp: timestampToMillis(bucket.timestamp),
-      values: {},
+    const timestamp = timestampToMillis(bucket.timestamp);
+    const key = String(timestamp);
+    const current = seriesMap.get(key) ?? {
+      timestamp,
+      label: formatBucketLabel(bucket.timestamp, granularity),
+      input: 0,
+      cached: 0,
+      output: 0,
     };
     const groupKey = bucket.groupValue || 'unknown';
-    current.values[groupKey] = (current.values[groupKey] ?? 0) + microsToNumber(bucket.value);
-    seriesMap.set(dateLabel, current);
+    const value = microsToNumber(bucket.value);
+    if (groupKey === 'input') {
+      current.input += value;
+    }
+    if (groupKey === 'cached') {
+      current.cached += value;
+    }
+    if (groupKey === 'output') {
+      current.output += value;
+    }
+    seriesMap.set(key, current);
   });
 
-  return Array.from(seriesMap.entries())
-    .sort((a, b) => a[1].timestamp - b[1].timestamp)
-    .map(([date, entry]) => {
-      const values = groups.reduce<Record<string, number>>((acc, group) => {
-        acc[group] = entry.values[group] ?? 0;
-        return acc;
-      }, {});
-      return { date, ...values };
-    });
+  return Array.from(seriesMap.values())
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .map((entry) => ({
+      date: entry.label,
+      input: entry.input - entry.cached,
+      cached: entry.cached,
+      output: entry.output,
+    }));
 }
 
-function buildDailySeriesMap(buckets: UsageBucket[]): Map<string, { timestamp: number; value: number }> {
+function buildTimeSeriesMap(
+  buckets: UsageBucket[],
+  granularity: Granularity,
+  valueTransform: (value: bigint) => number = microsToNumber,
+): Map<string, { timestamp: number; label: string; value: number }> {
   return buckets.reduce((map, bucket) => {
     if (!bucket.timestamp) return map;
-    const label = formatDateOnly(bucket.timestamp);
-    const entry = map.get(label) ?? { timestamp: timestampToMillis(bucket.timestamp), value: 0 };
-    entry.value += microsToNumber(bucket.value);
-    map.set(label, entry);
+    const timestamp = timestampToMillis(bucket.timestamp);
+    const key = String(timestamp);
+    const entry = map.get(key) ?? {
+      timestamp,
+      label: formatBucketLabel(bucket.timestamp, granularity),
+      value: 0,
+    };
+    entry.value += valueTransform(bucket.value);
+    map.set(key, entry);
     return map;
-  }, new Map<string, { timestamp: number; value: number }>());
+  }, new Map<string, { timestamp: number; label: string; value: number }>());
 }
 
-function mergeDailySeries(
-  series: Record<string, Map<string, { timestamp: number; value: number }>>,
+function mergeTimeSeries(
+  series: Record<string, Map<string, { timestamp: number; label: string; value: number }>>,
 ): ChartSeries[] {
-  const merged = new Map<string, { timestamp: number; values: Record<string, number> }>();
+  const merged = new Map<
+    string,
+    { timestamp: number; label: string; values: Record<string, number> }
+  >();
   const keys = Object.keys(series);
 
   keys.forEach((key) => {
-    series[key]?.forEach((entry, date) => {
-      const current = merged.get(date) ?? { timestamp: entry.timestamp, values: {} };
+    series[key]?.forEach((entry, timestampKey) => {
+      const current = merged.get(timestampKey) ?? {
+        timestamp: entry.timestamp,
+        label: entry.label,
+        values: {},
+      };
       current.values[key] = entry.value;
       current.timestamp = Math.min(current.timestamp, entry.timestamp);
-      merged.set(date, current);
+      merged.set(timestampKey, current);
     });
   });
 
-  return Array.from(merged.entries())
-    .sort((a, b) => a[1].timestamp - b[1].timestamp)
-    .map(([date, entry]) => {
+  return Array.from(merged.values())
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .map((entry) => {
       const values = keys.reduce<Record<string, number>>((acc, key) => {
         acc[key] = entry.values[key] ?? 0;
         return acc;
       }, {});
-      return { date, ...values };
+      return { date: entry.label, ...values };
     });
 }
 
-function buildTopGroups(buckets: UsageBucket[], limit = 5): Array<{ label: string; value: number }> {
-  const grouped = groupTotalsByValue(buckets);
-  return Array.from(grouped.entries())
-    .map(([label, value]) => ({ label, value: microsToNumber(value) }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, limit);
+function formatTopGroupTooltipLabel(label: ReactNode, payload: readonly unknown[]): ReactNode {
+  const entry = (payload[0] as { payload?: TopGroupBase } | undefined)?.payload;
+  if (!entry?.id) return label;
+  if (entry.detail) {
+    if (!entry.label || entry.label === entry.detail) return entry.detail;
+    return `${entry.label} (${entry.detail})`;
+  }
+  if (entry.label === entry.id) return entry.id;
+  return `${entry.label} (${entry.id})`;
 }
 
 function UsageMetricCard({
@@ -418,6 +598,11 @@ export function OrganizationUsageTab() {
     [rangeOption, customStart, customEnd],
   );
   const rangeKey = range ? `${range.start.toISOString()}-${range.end.toISOString()}` : 'invalid';
+  const rangeGranularity = useMemo(
+    () => (range ? resolveRangeGranularity(rangeOption, range) : Granularity.DAY),
+    [rangeOption, range],
+  );
+  const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
   const startTimestamp = range ? toTimestamp(range.start) : undefined;
   const endTimestamp = range ? toTimestamp(range.end) : undefined;
@@ -425,7 +610,7 @@ export function OrganizationUsageTab() {
 
   const usageQueries = useQueries({
     queries: usageQueryConfigs.map((config) => ({
-      queryKey: ['metering', organizationId, rangeKey, config.key],
+      queryKey: ['metering', organizationId, rangeKey, rangeGranularity, timeZone, config.key],
       queryFn: () => {
         if (!startTimestamp || !endTimestamp) {
           throw new Error('Usage range not available.');
@@ -435,6 +620,8 @@ export function OrganizationUsageTab() {
           start: startTimestamp,
           end: endTimestamp,
           config,
+          rangeGranularity,
+          timeZone,
         });
       },
       enabled: isRangeReady,
@@ -452,14 +639,17 @@ export function OrganizationUsageTab() {
   const llmOutputQuery = queriesByKey['llm-output-total'];
   const llmRequestsQuery = queriesByKey['llm-requests-total'];
   const llmDailyQuery = queriesByKey['llm-daily-tokens'];
-  const llmConsumersQuery = queriesByKey['llm-consumers-total'];
-  const llmModelsQuery = queriesByKey['llm-models-total'];
+  const llmConsumersInputQuery = queriesByKey['llm-consumers-input-total'];
+  const llmConsumersOutputQuery = queriesByKey['llm-consumers-output-total'];
+  const llmModelsInputQuery = queriesByKey['llm-models-input-total'];
+  const llmModelsOutputQuery = queriesByKey['llm-models-output-total'];
 
   const computeCpuQuery = queriesByKey['compute-cpu-total'];
   const computeRamQuery = queriesByKey['compute-ram-total'];
   const computeCpuDailyQuery = queriesByKey['compute-cpu-daily'];
   const computeRamDailyQuery = queriesByKey['compute-ram-daily'];
-  const computeConsumersQuery = queriesByKey['compute-consumers-total'];
+  const computeConsumersCpuQuery = queriesByKey['compute-consumers-cpu-total'];
+  const computeConsumersRamQuery = queriesByKey['compute-consumers-ram-total'];
 
   const storageTotalQuery = queriesByKey['storage-total'];
   const storageDailyQuery = queriesByKey['storage-daily'];
@@ -470,56 +660,148 @@ export function OrganizationUsageTab() {
   const platformThreadsDailyQuery = queriesByKey['platform-threads-daily'];
   const platformMessagesDailyQuery = queriesByKey['platform-messages-daily'];
 
+  const modelsQuery = useQuery({
+    queryKey: ['llm', 'models', organizationId],
+    queryFn: () => llmClient.listModels({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
   const llmRequestsTotals = useMemo(
     () => groupTotalsByValue(llmRequestsQuery.data?.buckets ?? []),
     [llmRequestsQuery.data?.buckets],
   );
   const llmRequestSuccess = llmRequestsTotals.get('success') ?? 0n;
   const llmRequestFailed = llmRequestsTotals.get('failed') ?? 0n;
-  const llmRequestsTotal = Array.from(llmRequestsTotals.values()).reduce((sum, value) => sum + value, 0n);
+
+  const modelNameMap = useMemo(() => {
+    const models = modelsQuery.data?.models ?? [];
+    return new Map(
+      models.flatMap((model) => {
+        const modelId = model.meta?.id;
+        return modelId ? ([[modelId, model.name]] as const) : [];
+      }),
+    );
+  }, [modelsQuery.data?.models]);
 
   const llmDailySeries = useMemo(
-    () => buildDailySeries(llmDailyQuery.data?.buckets ?? [], ['input', 'cached', 'output']),
-    [llmDailyQuery.data?.buckets],
+    () => buildLlmTokenSeries(llmDailyQuery.data?.buckets ?? [], rangeGranularity),
+    [llmDailyQuery.data?.buckets, rangeGranularity],
   );
+
+  const llmConsumerTotals = useMemo(() => {
+    const inputTotals = groupTotalsByValue(llmConsumersInputQuery.data?.buckets ?? []);
+    const outputTotals = groupTotalsByValue(llmConsumersOutputQuery.data?.buckets ?? []);
+    return mapTotalsToNumbers(mergeTotalsMaps(inputTotals, outputTotals), microsToNumber);
+  }, [llmConsumersInputQuery.data?.buckets, llmConsumersOutputQuery.data?.buckets]);
+
+  const llmModelTotals = useMemo(() => {
+    const inputTotals = groupTotalsByValue(llmModelsInputQuery.data?.buckets ?? []);
+    const outputTotals = groupTotalsByValue(llmModelsOutputQuery.data?.buckets ?? []);
+    return mapTotalsToNumbers(mergeTotalsMaps(inputTotals, outputTotals), microsToNumber);
+  }, [llmModelsInputQuery.data?.buckets, llmModelsOutputQuery.data?.buckets]);
+
+  const computeConsumerCpuTotals = useMemo(
+    () => mapTotalsToNumbers(groupTotalsByValue(computeConsumersCpuQuery.data?.buckets ?? []), microsToHours),
+    [computeConsumersCpuQuery.data?.buckets],
+  );
+  const computeConsumerRamTotals = useMemo(
+    () => mapTotalsToNumbers(groupTotalsByValue(computeConsumersRamQuery.data?.buckets ?? []), microsToHours),
+    [computeConsumersRamQuery.data?.buckets],
+  );
+
+  const storageConsumerTotals = useMemo(
+    () => mapTotalsToNumbers(groupTotalsByValue(storageConsumersQuery.data?.buckets ?? []), microsToHours),
+    [storageConsumersQuery.data?.buckets],
+  );
+
+  const topLlmConsumerIds = useMemo(() => buildTopGroupIds(llmConsumerTotals), [llmConsumerTotals]);
+  const topComputeConsumerIds = useMemo(() => {
+    const cpuLeaders = buildTopGroupIds(computeConsumerCpuTotals);
+    const ramLeaders = buildTopGroupIds(computeConsumerRamTotals);
+    const candidates = Array.from(new Set([...cpuLeaders, ...ramLeaders]));
+    return candidates
+      .map((id) => ({
+        id,
+        rank: Math.max(computeConsumerCpuTotals.get(id) ?? 0, computeConsumerRamTotals.get(id) ?? 0),
+      }))
+      .sort((a, b) => b.rank - a.rank)
+      .slice(0, 5)
+      .map(({ id }) => id);
+  }, [computeConsumerCpuTotals, computeConsumerRamTotals]);
+  const topStorageConsumerIds = useMemo(() => buildTopGroupIds(storageConsumerTotals), [storageConsumerTotals]);
+
+  const identityIds = useMemo(
+    () => Array.from(new Set([...topLlmConsumerIds, ...topComputeConsumerIds, ...topStorageConsumerIds])),
+    [topLlmConsumerIds, topComputeConsumerIds, topStorageConsumerIds],
+  );
+
+  const { formatHandleLabel, formatHandleTooltip } = useIdentityHandles(identityIds);
+
   const llmConsumerSeries = useMemo(
-    () => buildTopGroups(llmConsumersQuery.data?.buckets ?? []),
-    [llmConsumersQuery.data?.buckets],
+    () =>
+      buildTopGroups(llmConsumerTotals, {
+        labelResolver: (id) => formatHandleLabel(id),
+        detailResolver: (id) => formatHandleTooltip(id),
+      }),
+    [llmConsumerTotals, formatHandleLabel, formatHandleTooltip],
   );
   const llmModelSeries = useMemo(
-    () => buildTopGroups(llmModelsQuery.data?.buckets ?? []),
-    [llmModelsQuery.data?.buckets],
+    () => buildTopGroups(llmModelTotals, { labelResolver: (id) => modelNameMap.get(id) ?? id }),
+    [llmModelTotals, modelNameMap],
   );
 
   const computeDailySeries = useMemo(
     () =>
-      mergeDailySeries({
-        cpu: buildDailySeriesMap(computeCpuDailyQuery.data?.buckets ?? []),
-        ram: buildDailySeriesMap(computeRamDailyQuery.data?.buckets ?? []),
+      mergeTimeSeries({
+        cpu: buildTimeSeriesMap(computeCpuDailyQuery.data?.buckets ?? [], rangeGranularity, microsToHours),
+        ram: buildTimeSeriesMap(computeRamDailyQuery.data?.buckets ?? [], rangeGranularity, microsToHours),
       }),
-    [computeCpuDailyQuery.data?.buckets, computeRamDailyQuery.data?.buckets],
+    [computeCpuDailyQuery.data?.buckets, computeRamDailyQuery.data?.buckets, rangeGranularity],
   );
   const computeConsumersSeries = useMemo(
-    () => buildTopGroups(computeConsumersQuery.data?.buckets ?? []),
-    [computeConsumersQuery.data?.buckets],
+    () =>
+      buildTopGroupSeries(
+        topComputeConsumerIds,
+        { cpu: computeConsumerCpuTotals, ram: computeConsumerRamTotals },
+        {
+          labelResolver: (id) => formatHandleLabel(id),
+          detailResolver: (id) => formatHandleTooltip(id),
+        },
+      ),
+    [
+      computeConsumerCpuTotals,
+      computeConsumerRamTotals,
+      formatHandleLabel,
+      formatHandleTooltip,
+      topComputeConsumerIds,
+    ],
   );
 
   const storageDailySeries = useMemo(
-    () => mergeDailySeries({ storage: buildDailySeriesMap(storageDailyQuery.data?.buckets ?? []) }),
-    [storageDailyQuery.data?.buckets],
+    () =>
+      mergeTimeSeries({
+        storage: buildTimeSeriesMap(storageDailyQuery.data?.buckets ?? [], rangeGranularity, microsToHours),
+      }),
+    [storageDailyQuery.data?.buckets, rangeGranularity],
   );
   const storageConsumersSeries = useMemo(
-    () => buildTopGroups(storageConsumersQuery.data?.buckets ?? []),
-    [storageConsumersQuery.data?.buckets],
+    () =>
+      buildTopGroups(storageConsumerTotals, {
+        labelResolver: (id) => formatHandleLabel(id),
+        detailResolver: (id) => formatHandleTooltip(id),
+      }),
+    [storageConsumerTotals, formatHandleLabel, formatHandleTooltip],
   );
 
   const platformDailySeries = useMemo(
     () =>
-      mergeDailySeries({
-        threads: buildDailySeriesMap(platformThreadsDailyQuery.data?.buckets ?? []),
-        messages: buildDailySeriesMap(platformMessagesDailyQuery.data?.buckets ?? []),
+      mergeTimeSeries({
+        threads: buildTimeSeriesMap(platformThreadsDailyQuery.data?.buckets ?? [], rangeGranularity),
+        messages: buildTimeSeriesMap(platformMessagesDailyQuery.data?.buckets ?? [], rangeGranularity),
       }),
-    [platformThreadsDailyQuery.data?.buckets, platformMessagesDailyQuery.data?.buckets],
+    [platformThreadsDailyQuery.data?.buckets, platformMessagesDailyQuery.data?.buckets, rangeGranularity],
   );
 
   const hasUsageData =
@@ -531,6 +813,10 @@ export function OrganizationUsageTab() {
   const llmInputTotal = sumUsageBuckets(llmInputQuery.data?.buckets ?? []);
   const llmCachedTotal = sumUsageBuckets(llmCachedQuery.data?.buckets ?? []);
   const llmOutputTotal = sumUsageBuckets(llmOutputQuery.data?.buckets ?? []);
+  const cachedInputHelper = useMemo(() => {
+    if (llmInputQuery.isPending || llmInputQuery.isError) return undefined;
+    return `of ${formatUsageValue(llmInputTotal)} input`;
+  }, [llmInputQuery.isPending, llmInputQuery.isError, llmInputTotal]);
 
   const computeCpuTotal = sumUsageBuckets(computeCpuQuery.data?.buckets ?? []);
   const computeRamTotal = sumUsageBuckets(computeRamQuery.data?.buckets ?? []);
@@ -600,7 +886,7 @@ export function OrganizationUsageTab() {
               <h3 className="text-base font-semibold text-foreground">LLM usage</h3>
               <p className="text-sm text-muted-foreground">Token consumption and request volume.</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-testid="organization-usage-llm-metrics">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5" data-testid="organization-usage-llm-metrics">
               <UsageMetricCard
                 label="Input tokens"
                 value={formatUsageValue(llmInputTotal)}
@@ -611,6 +897,7 @@ export function OrganizationUsageTab() {
               <UsageMetricCard
                 label="Cached tokens"
                 value={formatUsageValue(llmCachedTotal)}
+                helper={cachedInputHelper}
                 isLoading={llmCachedQuery.isPending}
                 isError={llmCachedQuery.isError}
                 testId="organization-usage-llm-cached"
@@ -623,19 +910,23 @@ export function OrganizationUsageTab() {
                 testId="organization-usage-llm-output"
               />
               <UsageMetricCard
-                label="Requests"
-                value={formatUsageValue(llmRequestsTotal)}
-                helper={`${formatUsageValue(llmRequestSuccess)} ${statusLabels.success.toLowerCase()} / ${formatUsageValue(
-                  llmRequestFailed,
-                )} ${statusLabels.failed.toLowerCase()}`}
+                label="Successful requests"
+                value={formatUsageValue(llmRequestSuccess)}
                 isLoading={llmRequestsQuery.isPending}
                 isError={llmRequestsQuery.isError}
-                testId="organization-usage-llm-requests"
+                testId="organization-usage-llm-requests-success"
+              />
+              <UsageMetricCard
+                label="Failed requests"
+                value={formatUsageValue(llmRequestFailed)}
+                isLoading={llmRequestsQuery.isPending}
+                isError={llmRequestsQuery.isError}
+                testId="organization-usage-llm-requests-failed"
               />
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <UsageChartCard
-                title="Daily tokens by kind"
+                title="Tokens over time"
                 isLoading={llmDailyQuery.isPending}
                 isError={llmDailyQuery.isError}
                 isEmpty={llmDailySeries.length === 0}
@@ -646,18 +937,21 @@ export function OrganizationUsageTab() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(value) => formatUsageNumber(value)} />
-                    <Tooltip formatter={(value) => formatUsageNumber(Number(value))} />
+                    <Tooltip
+                      formatter={(value) => formatUsageNumber(Number(value))}
+                      labelFormatter={formatTopGroupTooltipLabel}
+                    />
                     <Legend formatter={(value) => llmKindLabels[value as string] ?? value} />
-                    <Bar dataKey="input" stackId="tokens" fill="var(--color-chart-1)" />
-                    <Bar dataKey="cached" stackId="tokens" fill="var(--color-chart-2)" />
-                    <Bar dataKey="output" stackId="tokens" fill="var(--color-chart-3)" />
+                    <Bar dataKey="input" stackId="input" fill="var(--color-chart-1)" />
+                    <Bar dataKey="cached" stackId="input" fill="var(--color-chart-2)" />
+                    <Bar dataKey="output" stackId="output" fill="var(--color-chart-3)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
               <UsageChartCard
                 title="Top consumers"
-                isLoading={llmConsumersQuery.isPending}
-                isError={llmConsumersQuery.isError}
+                isLoading={llmConsumersInputQuery.isPending || llmConsumersOutputQuery.isPending}
+                isError={llmConsumersInputQuery.isError || llmConsumersOutputQuery.isError}
                 isEmpty={llmConsumerSeries.length === 0}
                 testId="organization-usage-llm-consumers-chart"
               >
@@ -671,16 +965,19 @@ export function OrganizationUsageTab() {
                       width={120}
                       tickFormatter={(value) => truncate(value, 18)}
                     />
-                    <Tooltip formatter={(value) => formatUsageNumber(Number(value))} />
-                    <Bar dataKey="value" fill="var(--color-chart-4)" />
+                    <Tooltip
+                      formatter={(value) => formatUsageNumber(Number(value))}
+                      labelFormatter={formatTopGroupTooltipLabel}
+                    />
+                    <Bar dataKey="value" fill="var(--color-chart-1)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
             </div>
             <UsageChartCard
-              title="Top models"
-              isLoading={llmModelsQuery.isPending}
-              isError={llmModelsQuery.isError}
+              title="By model"
+              isLoading={llmModelsInputQuery.isPending || llmModelsOutputQuery.isPending || modelsQuery.isPending}
+              isError={llmModelsInputQuery.isError || llmModelsOutputQuery.isError}
               isEmpty={llmModelSeries.length === 0}
               testId="organization-usage-llm-models-chart"
             >
@@ -694,8 +991,11 @@ export function OrganizationUsageTab() {
                     width={160}
                     tickFormatter={(value) => truncate(value, 22)}
                   />
-                  <Tooltip formatter={(value) => formatUsageNumber(Number(value))} />
-                  <Bar dataKey="value" fill="var(--color-chart-5)" />
+                  <Tooltip
+                    formatter={(value) => formatUsageNumber(Number(value))}
+                    labelFormatter={formatTopGroupTooltipLabel}
+                  />
+                  <Bar dataKey="value" fill="var(--color-chart-2)" />
                 </BarChart>
               </ResponsiveContainer>
             </UsageChartCard>
@@ -708,15 +1008,15 @@ export function OrganizationUsageTab() {
             </div>
             <div className="grid gap-4 md:grid-cols-2" data-testid="organization-usage-compute-metrics">
               <UsageMetricCard
-                label="CPU core seconds"
-                value={formatUsageValue(computeCpuTotal)}
+                label="CPU-core-hours"
+                value={formatUsageHours(computeCpuTotal)}
                 isLoading={computeCpuQuery.isPending}
                 isError={computeCpuQuery.isError}
                 testId="organization-usage-compute-cpu"
               />
               <UsageMetricCard
-                label="RAM GB seconds"
-                value={formatUsageValue(computeRamTotal)}
+                label="RAM-GB-hours"
+                value={formatUsageHours(computeRamTotal)}
                 isLoading={computeRamQuery.isPending}
                 isError={computeRamQuery.isError}
                 testId="organization-usage-compute-ram"
@@ -724,7 +1024,7 @@ export function OrganizationUsageTab() {
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <UsageChartCard
-                title="Daily CPU & RAM"
+                title="Usage over time"
                 isLoading={computeCpuDailyQuery.isPending || computeRamDailyQuery.isPending}
                 isError={computeCpuDailyQuery.isError || computeRamDailyQuery.isError}
                 isEmpty={computeDailySeries.length === 0}
@@ -734,33 +1034,38 @@ export function OrganizationUsageTab() {
                   <BarChart data={computeDailySeries} margin={{ left: 8, right: 16 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(value) => formatUsageNumber(value)} />
-                    <Tooltip formatter={(value) => formatUsageNumber(Number(value))} />
+                    <YAxis tickFormatter={(value) => formatUsageHoursNumber(value)} />
+                    <Tooltip formatter={(value) => formatUsageHoursNumber(Number(value))} />
                     <Legend />
-                    <Bar dataKey="cpu" name="CPU core seconds" fill="var(--color-chart-2)" />
-                    <Bar dataKey="ram" name="RAM GB seconds" fill="var(--color-chart-3)" />
+                    <Bar dataKey="cpu" name="CPU-core-hours" fill="var(--color-chart-1)" />
+                    <Bar dataKey="ram" name="RAM-GB-hours" fill="var(--color-chart-4)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
               <UsageChartCard
-                title="Top consumers"
-                isLoading={computeConsumersQuery.isPending}
-                isError={computeConsumersQuery.isError}
+                title="Top agents"
+                isLoading={computeConsumersCpuQuery.isPending || computeConsumersRamQuery.isPending}
+                isError={computeConsumersCpuQuery.isError || computeConsumersRamQuery.isError}
                 isEmpty={computeConsumersSeries.length === 0}
                 testId="organization-usage-compute-consumers-chart"
               >
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={computeConsumersSeries} layout="vertical" margin={{ left: 16 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" tickFormatter={(value) => formatUsageNumber(value)} />
+                    <XAxis type="number" tickFormatter={(value) => formatUsageHoursNumber(value)} />
                     <YAxis
                       type="category"
                       dataKey="label"
                       width={120}
                       tickFormatter={(value) => truncate(value, 18)}
                     />
-                    <Tooltip formatter={(value) => formatUsageNumber(Number(value))} />
-                    <Bar dataKey="value" fill="var(--color-chart-1)" />
+                    <Legend />
+                    <Tooltip
+                      formatter={(value) => formatUsageHoursNumber(Number(value))}
+                      labelFormatter={formatTopGroupTooltipLabel}
+                    />
+                    <Bar dataKey="cpu" name="CPU-core-hours" fill="var(--color-chart-1)" />
+                    <Bar dataKey="ram" name="RAM-GB-hours" fill="var(--color-chart-4)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
@@ -774,8 +1079,8 @@ export function OrganizationUsageTab() {
             </div>
             <div className="grid gap-4 md:grid-cols-2" data-testid="organization-usage-storage-metrics">
               <UsageMetricCard
-                label="Storage GB seconds"
-                value={formatUsageValue(storageTotal)}
+                label="Storage-GB-hours"
+                value={formatUsageHours(storageTotal)}
                 isLoading={storageTotalQuery.isPending}
                 isError={storageTotalQuery.isError}
                 testId="organization-usage-storage-total"
@@ -783,7 +1088,7 @@ export function OrganizationUsageTab() {
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <UsageChartCard
-                title="Daily storage"
+                title="Usage over time"
                 isLoading={storageDailyQuery.isPending}
                 isError={storageDailyQuery.isError}
                 isEmpty={storageDailySeries.length === 0}
@@ -793,14 +1098,14 @@ export function OrganizationUsageTab() {
                   <BarChart data={storageDailySeries} margin={{ left: 8, right: 16 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(value) => formatUsageNumber(value)} />
-                    <Tooltip formatter={(value) => formatUsageNumber(Number(value))} />
-                    <Bar dataKey="storage" name="Storage GB seconds" fill="var(--color-chart-4)" />
+                    <YAxis tickFormatter={(value) => formatUsageHoursNumber(value)} />
+                    <Tooltip formatter={(value) => formatUsageHoursNumber(Number(value))} />
+                    <Bar dataKey="storage" name="GB-hours" fill="var(--color-chart-5)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
               <UsageChartCard
-                title="Top consumers"
+                title="Top agents"
                 isLoading={storageConsumersQuery.isPending}
                 isError={storageConsumersQuery.isError}
                 isEmpty={storageConsumersSeries.length === 0}
@@ -809,14 +1114,17 @@ export function OrganizationUsageTab() {
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={storageConsumersSeries} layout="vertical" margin={{ left: 16 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" tickFormatter={(value) => formatUsageNumber(value)} />
+                    <XAxis type="number" tickFormatter={(value) => formatUsageHoursNumber(value)} />
                     <YAxis
                       type="category"
                       dataKey="label"
                       width={120}
                       tickFormatter={(value) => truncate(value, 18)}
                     />
-                    <Tooltip formatter={(value) => formatUsageNumber(Number(value))} />
+                    <Tooltip
+                      formatter={(value) => formatUsageHoursNumber(Number(value))}
+                      labelFormatter={formatTopGroupTooltipLabel}
+                    />
                     <Bar dataKey="value" fill="var(--color-chart-5)" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -846,7 +1154,7 @@ export function OrganizationUsageTab() {
               />
             </div>
             <UsageChartCard
-              title="Daily threads & messages"
+              title="Activity over time"
               isLoading={platformThreadsDailyQuery.isPending || platformMessagesDailyQuery.isPending}
               isError={platformThreadsDailyQuery.isError || platformMessagesDailyQuery.isError}
               isEmpty={platformDailySeries.length === 0}
@@ -857,9 +1165,12 @@ export function OrganizationUsageTab() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                   <YAxis tickFormatter={(value) => formatUsageNumber(value)} />
-                  <Tooltip formatter={(value) => formatUsageNumber(Number(value))} />
+                  <Tooltip
+                    formatter={(value) => formatUsageNumber(Number(value))}
+                    labelFormatter={formatTopGroupTooltipLabel}
+                  />
                   <Legend />
-                  <Bar dataKey="threads" name="Threads" fill="var(--color-chart-2)" />
+                  <Bar dataKey="threads" name="Threads" fill="var(--color-chart-1)" />
                   <Bar dataKey="messages" name="Messages" fill="var(--color-chart-3)" />
                 </BarChart>
               </ResponsiveContainer>
