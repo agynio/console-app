@@ -157,10 +157,7 @@ export function OrganizationMembersTab() {
     onSuccess: () => {
       toast.success('Member invited.');
       void queryClient.invalidateQueries({ queryKey: ['organizations', organizationId, 'members'] });
-      setInviteOpen(false);
-      setSelectedUserId('');
-      setSelectedRole(MembershipRole.MEMBER);
-      setInviteError('');
+      handleInviteOpenChange(false);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to invite member.');

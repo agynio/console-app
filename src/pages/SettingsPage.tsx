@@ -43,15 +43,21 @@ export function SettingsPage() {
       organizationId: string | null;
     }) => {
       await usersClient.updateMe({ name: payload.name, username: payload.username });
+      let nicknameError: Error | null = null;
       if (payload.organizationId) {
-        await organizationsClient.setMyOrgNickname({
-          organizationId: payload.organizationId,
-          nickname: payload.nickname,
-        });
+        try {
+          await organizationsClient.setMyOrgNickname({
+            organizationId: payload.organizationId,
+            nickname: payload.nickname,
+          });
+        } catch (error) {
+          nicknameError =
+            error instanceof Error ? error : new Error('Failed to update nickname.');
+        }
       }
+      return { nicknameError };
     },
-    onSuccess: () => {
-      toast.success('Profile updated.');
+    onSuccess: ({ nicknameError }) => {
       void queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
       void queryClient.invalidateQueries({ queryKey: ['users', 'list'] });
       void queryClient.invalidateQueries({ queryKey: ['users', 'batch'] });
@@ -62,6 +68,12 @@ export function SettingsPage() {
         void queryClient.invalidateQueries({
           queryKey: ['organizations', selectedOrganization.id, 'members'],
         });
+      }
+      if (nicknameError) {
+        toast.success('Profile updated.');
+        toast.error(`Nickname update failed: ${nicknameError.message}`);
+      } else {
+        toast.success('Profile updated.');
       }
       setEditOpen(false);
     },
