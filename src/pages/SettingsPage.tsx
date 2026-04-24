@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { usersClient } from '@/api/client';
+import { organizationsClient, usersClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { toast } from 'sonner';
@@ -23,30 +24,56 @@ export function SettingsPage() {
   useDocumentTitle('Settings');
 
   const { currentUser, isClusterAdmin, signOut } = useUserContext();
+  const { selectedOrganization } = useOrganizationContext();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [nickname, setNickname] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
   const [nameError, setNameError] = useState('');
-  const [emailError, setEmailError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+
+  const nicknameLabel = selectedOrganization ? `Nickname (${selectedOrganization.name})` : 'Nickname';
 
   const updateProfileMutation = useMutation({
-    mutationFn: (payload: { identityId: string; name: string; email: string; nickname: string; photoUrl: string }) =>
-      usersClient.updateUser({
-        identityId: payload.identityId,
-        name: payload.name,
-        email: payload.email,
-        nickname: payload.nickname,
-        photoUrl: payload.photoUrl,
-      }),
-    onSuccess: () => {
-      toast.success('Profile updated.');
+    mutationFn: async (payload: {
+      name: string;
+      username: string;
+      nickname: string;
+      organizationId: string | null;
+    }) => {
+      await usersClient.updateMe({ name: payload.name, username: payload.username });
+      let nicknameError: Error | null = null;
+      if (payload.organizationId) {
+        try {
+          await organizationsClient.setMyOrgNickname({
+            organizationId: payload.organizationId,
+            nickname: payload.nickname,
+          });
+        } catch (error) {
+          nicknameError =
+            error instanceof Error ? error : new Error('Failed to update nickname.');
+        }
+      }
+      return { nicknameError };
+    },
+    onSuccess: ({ nicknameError }) => {
       void queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
       void queryClient.invalidateQueries({ queryKey: ['users', 'list'] });
+      void queryClient.invalidateQueries({ queryKey: ['users', 'batch'] });
       if (currentUser?.id) {
         void queryClient.invalidateQueries({ queryKey: ['users', currentUser.id] });
+      }
+      if (selectedOrganization?.id) {
+        void queryClient.invalidateQueries({
+          queryKey: ['organizations', selectedOrganization.id, 'members'],
+        });
+      }
+      if (nicknameError) {
+        toast.success('Profile updated.');
+        toast.error(`Nickname update failed: ${nicknameError.message}`);
+      } else {
+        toast.success('Profile updated.');
       }
       setEditOpen(false);
     },
@@ -59,24 +86,23 @@ export function SettingsPage() {
     setEditOpen(open);
     if (open) {
       setName(currentUser?.name ?? '');
-      setEmail(currentUser?.email ?? '');
+      setUsername(currentUser?.username ?? '');
       setNickname(currentUser?.nickname ?? '');
-      setPhotoUrl(currentUser?.photoUrl ?? '');
       setNameError('');
-      setEmailError('');
+      setUsernameError('');
     } else {
       setName('');
-      setEmail('');
+      setUsername('');
       setNickname('');
-      setPhotoUrl('');
       setNameError('');
-      setEmailError('');
+      setUsernameError('');
     }
   };
 
   const handleSaveProfile = () => {
     const trimmedName = name.trim();
-    const trimmedEmail = email.trim();
+    const trimmedUsername = username.trim();
+    const trimmedNickname = nickname.trim();
     let hasError = false;
 
     if (!trimmedName) {
@@ -86,25 +112,24 @@ export function SettingsPage() {
       setNameError('');
     }
 
-    if (!trimmedEmail) {
-      setEmailError('Email is required.');
+    if (!trimmedUsername) {
+      setUsernameError('Username is required.');
       hasError = true;
-    } else if (emailError) {
-      setEmailError('');
+    } else if (usernameError) {
+      setUsernameError('');
     }
 
     if (hasError) return;
-    if (!currentUser?.id) {
+    if (!currentUser) {
       toast.error('Missing user profile.');
       return;
     }
 
     updateProfileMutation.mutate({
-      identityId: currentUser.id,
       name: trimmedName,
-      email: trimmedEmail,
-      nickname: nickname.trim(),
-      photoUrl: photoUrl.trim(),
+      username: trimmedUsername,
+      nickname: trimmedNickname,
+      organizationId: selectedOrganization?.id ?? null,
     });
   };
 
@@ -133,11 +158,15 @@ export function SettingsPage() {
               <div className="text-sm text-foreground">{currentUser?.name ?? '—'}</div>
             </div>
             <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Username</div>
+              <div className="text-sm text-foreground">{currentUser?.username ?? '—'}</div>
+            </div>
+            <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Email</div>
               <div className="text-sm text-foreground">{currentUser?.email ?? '—'}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Nickname</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">{nicknameLabel}</div>
               <div className="text-sm text-foreground">{currentUser?.nickname ?? '—'}</div>
             </div>
             <div>
@@ -169,7 +198,7 @@ export function SettingsPage() {
           <DialogHeader>
             <DialogTitle data-testid="settings-profile-edit-title">Edit profile</DialogTitle>
             <DialogDescription data-testid="settings-profile-edit-description">
-              Update your console profile details.
+              Update your name, username, and organization nickname.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -191,41 +220,39 @@ export function SettingsPage() {
               ) : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="settings-profile-edit-email">Email</Label>
+              <Label htmlFor="settings-profile-edit-username">Username</Label>
               <Input
-                id="settings-profile-edit-email"
-                type="email"
-                value={email}
+                id="settings-profile-edit-username"
+                value={username}
                 onChange={(event) => {
-                  setEmail(event.target.value);
-                  if (emailError) setEmailError('');
+                  setUsername(event.target.value);
+                  if (usernameError) setUsernameError('');
                 }}
-                data-testid="settings-profile-edit-email"
+                data-testid="settings-profile-edit-username"
               />
-              {emailError ? (
-                <p className="text-sm text-destructive" data-testid="settings-profile-edit-email-error">
-                  {emailError}
+              {usernameError ? (
+                <p className="text-sm text-destructive" data-testid="settings-profile-edit-username-error">
+                  {usernameError}
                 </p>
               ) : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="settings-profile-edit-nickname">Nickname</Label>
+              <Label htmlFor="settings-profile-edit-nickname">{nicknameLabel}</Label>
               <Input
                 id="settings-profile-edit-nickname"
                 value={nickname}
                 onChange={(event) => setNickname(event.target.value)}
+                disabled={!selectedOrganization}
                 data-testid="settings-profile-edit-nickname"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="settings-profile-edit-photo-url">Photo URL</Label>
-              <Input
-                id="settings-profile-edit-photo-url"
-                placeholder="https://..."
-                value={photoUrl}
-                onChange={(event) => setPhotoUrl(event.target.value)}
-                data-testid="settings-profile-edit-photo-url"
-              />
+              {!selectedOrganization ? (
+                <p
+                  className="text-sm text-muted-foreground"
+                  data-testid="settings-profile-edit-nickname-help"
+                >
+                  Select an organization to edit your nickname.
+                </p>
+              ) : null}
             </div>
           </div>
           <DialogFooter>

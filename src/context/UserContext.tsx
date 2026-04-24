@@ -12,6 +12,7 @@ import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
 type CurrentUser = {
   id: string;
   name: string;
+  username: string;
   email: string;
   nickname: string;
   photoUrl: string;
@@ -36,6 +37,7 @@ function buildCurrentUser(user?: User): CurrentUser | null {
   return {
     id,
     name: user.name,
+    username: user.username,
     email: user.email,
     nickname: user.nickname,
     photoUrl: user.photoUrl,
