@@ -79,6 +79,7 @@ export function getSeriesColor(seriesKey: string, theme: 'light' | 'dark'): stri
         return rgbToHex(candidate);
       }
     }
+    return rgbToHex(darkenRgb(baseRgb, DARKEN_STEPS[DARKEN_STEPS.length - 1]));
   }
 
   return rgbToHex(darkenRgb(baseRgb, DARKEN_STEPS[darkenIndex]));
