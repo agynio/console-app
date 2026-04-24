@@ -43,6 +43,8 @@ export function OrganizationMembersTab() {
   const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
 
   const trimmedInviteSearch = inviteSearch.trim();
+  const hasInviteSearch = trimmedInviteSearch.length > 0;
+  const isInviteSearchActive = hasInviteSearch && !selectedUserId;
 
   const activeQuery = useInfiniteQuery({
     queryKey: ['organizations', organizationId, 'members', 'active'],
@@ -98,18 +100,30 @@ export function OrganizationMembersTab() {
   const searchUsersQuery = useQuery({
     queryKey: ['users', 'search', trimmedInviteSearch],
     queryFn: () => usersClient.searchUsers({ prefix: trimmedInviteSearch, limit: 10 }),
-    enabled: trimmedInviteSearch.length > 0,
+    enabled: isInviteSearchActive,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 
-  const inviteCandidates = useMemo(() => {
-    if (trimmedInviteSearch.length === 0) return [];
-    const users = searchUsersQuery.data?.users ?? [];
-    if (identityIds.length === 0) return users;
-    const existingIds = new Set(identityIds);
-    return users.filter((user) => user.identityId && !existingIds.has(user.identityId));
-  }, [identityIds, searchUsersQuery.data?.users, trimmedInviteSearch]);
+  const membershipStatusByIdentityId = useMemo(() => {
+    const statusMap = new Map<string, MembershipStatus>();
+    memberships.forEach((membership) => {
+      if (!membership.identityId) return;
+      if (membership.status === MembershipStatus.ACTIVE) {
+        statusMap.set(membership.identityId, MembershipStatus.ACTIVE);
+        return;
+      }
+      if (!statusMap.has(membership.identityId)) {
+        statusMap.set(membership.identityId, membership.status);
+      }
+    });
+    return statusMap;
+  }, [memberships]);
+
+  const inviteUsers = useMemo(() => {
+    if (!isInviteSearchActive) return [];
+    return searchUsersQuery.data?.users ?? [];
+  }, [isInviteSearchActive, searchUsersQuery.data?.users]);
 
   const userMap = useMemo(() => {
     const users = usersQuery.data?.users ?? [];
@@ -206,6 +220,14 @@ export function OrganizationMembersTab() {
       setInviteError('');
     }
   };
+
+  const handleInviteSelection = (identityId: string, displayValue: string) => {
+    setSelectedUserId(identityId);
+    setInviteSearch(displayValue);
+    if (inviteError) setInviteError('');
+  };
+
+  const showInviteDropdown = isInviteSearchActive;
 
   return (
     <div className="space-y-4">
@@ -381,45 +403,69 @@ export function OrganizationMembersTab() {
                 }}
                 data-testid="organization-members-invite-search"
               />
-              {searchUsersQuery.isPending ? (
-                <p className="text-sm text-muted-foreground">Searching users...</p>
+              {showInviteDropdown ? (
+                <div className="mt-2 rounded-md border bg-popover text-popover-foreground shadow-md">
+                  <div className="max-h-60 overflow-y-auto p-1">
+                    {searchUsersQuery.isPending ? (
+                      <div className="px-2 py-2 text-sm text-muted-foreground">Searching users...</div>
+                    ) : null}
+                    {searchUsersQuery.isError ? (
+                      <div
+                        className="flex items-center justify-between gap-2 px-2 py-2 text-sm text-muted-foreground"
+                        data-testid="organization-members-invite-search-error"
+                      >
+                        <span>Failed to load users.</span>
+                        <button
+                          type="button"
+                          className="text-primary underline-offset-4 hover:underline"
+                          onClick={() => searchUsersQuery.refetch()}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : null}
+                    {!searchUsersQuery.isPending && !searchUsersQuery.isError && inviteUsers.length === 0 ? (
+                      <div className="px-2 py-2 text-sm text-muted-foreground">No users found.</div>
+                    ) : null}
+                    {!searchUsersQuery.isPending && !searchUsersQuery.isError
+                      ? inviteUsers.map((user) => {
+                          const memberStatus = membershipStatusByIdentityId.get(user.identityId);
+                          const isDisabled =
+                            memberStatus === MembershipStatus.ACTIVE || memberStatus === MembershipStatus.PENDING;
+                          const disabledReason =
+                            memberStatus === MembershipStatus.ACTIVE
+                              ? 'Already a member'
+                              : memberStatus === MembershipStatus.PENDING
+                                ? 'Already invited'
+                                : '';
+                          const displayLabel = user.username ? `@${user.username}` : user.identityId;
+                          const inputLabel = user.username || user.identityId;
+                          return (
+                            <button
+                              key={user.identityId}
+                              type="button"
+                              className="flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                              onClick={() => handleInviteSelection(user.identityId, inputLabel)}
+                              disabled={isDisabled}
+                            >
+                              <div className="flex w-full items-start justify-between gap-2">
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{displayLabel}</span>
+                                  {user.name ? (
+                                    <span className="text-xs text-muted-foreground">{user.name}</span>
+                                  ) : null}
+                                </div>
+                                {disabledReason ? (
+                                  <span className="text-xs text-muted-foreground">{disabledReason}</span>
+                                ) : null}
+                              </div>
+                            </button>
+                          );
+                        })
+                      : null}
+                  </div>
+                </div>
               ) : null}
-              {searchUsersQuery.isError ? (
-                <p className="text-sm text-destructive" data-testid="organization-members-invite-search-error">
-                  Failed to load users.
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organization-members-invite-user">User</Label>
-              <Select
-                value={selectedUserId}
-                onValueChange={(value) => {
-                  setSelectedUserId(value);
-                  if (inviteError) setInviteError('');
-                }}
-                disabled={trimmedInviteSearch.length === 0 || searchUsersQuery.isPending || searchUsersQuery.isError}
-              >
-                <SelectTrigger id="organization-members-invite-user" data-testid="organization-members-invite-user">
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {inviteCandidates.length === 0 ? (
-                    <div className="px-2 py-2 text-sm text-muted-foreground">
-                      {trimmedInviteSearch.length === 0
-                        ? 'Search for a username to see results.'
-                        : 'No users found.'}
-                    </div>
-                  ) : (
-                    inviteCandidates.map((user) => (
-                      <SelectItem key={user.identityId} value={user.identityId}>
-                        {user.username ? `@${user.username}` : user.identityId}
-                        {user.name ? ` - ${user.name}` : ''}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
               {inviteError ? (
                 <p className="text-sm text-destructive" data-testid="organization-members-invite-error">
                   {inviteError}
@@ -453,7 +499,7 @@ export function OrganizationMembersTab() {
             <Button
               size="sm"
               onClick={handleInviteMember}
-              disabled={inviteMemberMutation.isPending}
+              disabled={inviteMemberMutation.isPending || !selectedUserId}
               data-testid="organization-members-invite-submit"
             >
               {inviteMemberMutation.isPending ? 'Inviting...' : 'Invite member'}
