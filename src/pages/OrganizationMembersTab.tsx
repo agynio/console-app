@@ -44,6 +44,7 @@ export function OrganizationMembersTab() {
 
   const trimmedInviteSearch = inviteSearch.trim();
   const hasInviteSearch = trimmedInviteSearch.length > 0;
+  const isInviteSearchActive = hasInviteSearch && !selectedUserId;
 
   const activeQuery = useInfiniteQuery({
     queryKey: ['organizations', organizationId, 'members', 'active'],
@@ -99,7 +100,7 @@ export function OrganizationMembersTab() {
   const searchUsersQuery = useQuery({
     queryKey: ['users', 'search', trimmedInviteSearch],
     queryFn: () => usersClient.searchUsers({ prefix: trimmedInviteSearch, limit: 10 }),
-    enabled: hasInviteSearch,
+    enabled: isInviteSearchActive,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
@@ -120,9 +121,9 @@ export function OrganizationMembersTab() {
   }, [memberships]);
 
   const inviteUsers = useMemo(() => {
-    if (!hasInviteSearch) return [];
+    if (!isInviteSearchActive) return [];
     return searchUsersQuery.data?.users ?? [];
-  }, [hasInviteSearch, searchUsersQuery.data?.users]);
+  }, [isInviteSearchActive, searchUsersQuery.data?.users]);
 
   const userMap = useMemo(() => {
     const users = usersQuery.data?.users ?? [];
@@ -226,7 +227,7 @@ export function OrganizationMembersTab() {
     if (inviteError) setInviteError('');
   };
 
-  const showInviteDropdown = hasInviteSearch && !selectedUserId;
+  const showInviteDropdown = isInviteSearchActive;
 
   return (
     <div className="space-y-4">
@@ -391,82 +392,80 @@ export function OrganizationMembersTab() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="organization-members-invite-search">Search by username</Label>
-              <div className="relative">
-                <Input
-                  id="organization-members-invite-search"
-                  placeholder="Start typing a username"
-                  value={inviteSearch}
-                  onChange={(event) => {
-                    setInviteSearch(event.target.value);
-                    setSelectedUserId('');
-                    if (inviteError) setInviteError('');
-                  }}
-                  data-testid="organization-members-invite-search"
-                />
-                {showInviteDropdown ? (
-                  <div className="absolute left-0 right-0 z-50 mt-1 rounded-md border bg-popover text-popover-foreground shadow-md">
-                    <div className="max-h-60 overflow-y-auto p-1">
-                      {searchUsersQuery.isPending ? (
-                        <div className="px-2 py-2 text-sm text-muted-foreground">Searching users...</div>
-                      ) : null}
-                      {searchUsersQuery.isError ? (
-                        <div
-                          className="flex items-center justify-between gap-2 px-2 py-2 text-sm text-muted-foreground"
-                          data-testid="organization-members-invite-search-error"
+              <Input
+                id="organization-members-invite-search"
+                placeholder="Start typing a username"
+                value={inviteSearch}
+                onChange={(event) => {
+                  setInviteSearch(event.target.value);
+                  setSelectedUserId('');
+                  if (inviteError) setInviteError('');
+                }}
+                data-testid="organization-members-invite-search"
+              />
+              {showInviteDropdown ? (
+                <div className="mt-2 rounded-md border bg-popover text-popover-foreground shadow-md">
+                  <div className="max-h-60 overflow-y-auto p-1">
+                    {searchUsersQuery.isPending ? (
+                      <div className="px-2 py-2 text-sm text-muted-foreground">Searching users...</div>
+                    ) : null}
+                    {searchUsersQuery.isError ? (
+                      <div
+                        className="flex items-center justify-between gap-2 px-2 py-2 text-sm text-muted-foreground"
+                        data-testid="organization-members-invite-search-error"
+                      >
+                        <span>Failed to load users.</span>
+                        <button
+                          type="button"
+                          className="text-primary underline-offset-4 hover:underline"
+                          onClick={() => searchUsersQuery.refetch()}
                         >
-                          <span>Failed to load users.</span>
-                          <button
-                            type="button"
-                            className="text-primary underline-offset-4 hover:underline"
-                            onClick={() => searchUsersQuery.refetch()}
-                          >
-                            Retry
-                          </button>
-                        </div>
-                      ) : null}
-                      {!searchUsersQuery.isPending && !searchUsersQuery.isError && inviteUsers.length === 0 ? (
-                        <div className="px-2 py-2 text-sm text-muted-foreground">No users found.</div>
-                      ) : null}
-                      {!searchUsersQuery.isPending && !searchUsersQuery.isError
-                        ? inviteUsers.map((user) => {
-                            const memberStatus = membershipStatusByIdentityId.get(user.identityId);
-                            const isDisabled =
-                              memberStatus === MembershipStatus.ACTIVE || memberStatus === MembershipStatus.PENDING;
-                            const disabledReason =
-                              memberStatus === MembershipStatus.ACTIVE
-                                ? 'Already a member'
-                                : memberStatus === MembershipStatus.PENDING
-                                  ? 'Already invited'
-                                  : '';
-                            const displayLabel = user.username ? `@${user.username}` : user.identityId;
-                            const inputLabel = user.username || user.identityId;
-                            return (
-                              <button
-                                key={user.identityId}
-                                type="button"
-                                className="flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-                                onClick={() => handleInviteSelection(user.identityId, inputLabel)}
-                                disabled={isDisabled}
-                              >
-                                <div className="flex w-full items-start justify-between gap-2">
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{displayLabel}</span>
-                                    {user.name ? (
-                                      <span className="text-xs text-muted-foreground">{user.name}</span>
-                                    ) : null}
-                                  </div>
-                                  {disabledReason ? (
-                                    <span className="text-xs text-muted-foreground">{disabledReason}</span>
+                          Retry
+                        </button>
+                      </div>
+                    ) : null}
+                    {!searchUsersQuery.isPending && !searchUsersQuery.isError && inviteUsers.length === 0 ? (
+                      <div className="px-2 py-2 text-sm text-muted-foreground">No users found.</div>
+                    ) : null}
+                    {!searchUsersQuery.isPending && !searchUsersQuery.isError
+                      ? inviteUsers.map((user) => {
+                          const memberStatus = membershipStatusByIdentityId.get(user.identityId);
+                          const isDisabled =
+                            memberStatus === MembershipStatus.ACTIVE || memberStatus === MembershipStatus.PENDING;
+                          const disabledReason =
+                            memberStatus === MembershipStatus.ACTIVE
+                              ? 'Already a member'
+                              : memberStatus === MembershipStatus.PENDING
+                                ? 'Already invited'
+                                : '';
+                          const displayLabel = user.username ? `@${user.username}` : user.identityId;
+                          const inputLabel = user.username || user.identityId;
+                          return (
+                            <button
+                              key={user.identityId}
+                              type="button"
+                              className="flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                              onClick={() => handleInviteSelection(user.identityId, inputLabel)}
+                              disabled={isDisabled}
+                            >
+                              <div className="flex w-full items-start justify-between gap-2">
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{displayLabel}</span>
+                                  {user.name ? (
+                                    <span className="text-xs text-muted-foreground">{user.name}</span>
                                   ) : null}
                                 </div>
-                              </button>
-                            );
-                          })
-                        : null}
-                    </div>
+                                {disabledReason ? (
+                                  <span className="text-xs text-muted-foreground">{disabledReason}</span>
+                                ) : null}
+                              </div>
+                            </button>
+                          );
+                        })
+                      : null}
                   </div>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
               {inviteError ? (
                 <p className="text-sm text-destructive" data-testid="organization-members-invite-error">
                   {inviteError}
