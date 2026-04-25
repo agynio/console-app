@@ -343,6 +343,8 @@ export function WorkloadDetailPage() {
   const runnerId = workload?.runnerId ?? '';
   const agentLink = organizationId && agentId ? `/organizations/${organizationId}/agents/${agentId}` : '';
   const runnerLink = organizationId && runnerId ? `/organizations/${organizationId}/runners/${runnerId}` : '';
+  const agentLabel = agentName || agentId || EMPTY_PLACEHOLDER;
+  const runnerLabel = runnerName || runnerId || EMPTY_PLACEHOLDER;
   const durationLabel = workload ? formatDurationBetween(workload.meta?.createdAt, workload.removedAt) : EMPTY_PLACEHOLDER;
   const allocatedCpu = workload ? `${workload.allocatedCpuMillicores.toLocaleString()} m` : EMPTY_PLACEHOLDER;
   const allocatedRam = workload ? `${workload.allocatedRamBytes.toString()} bytes` : EMPTY_PLACEHOLDER;
@@ -383,15 +385,12 @@ export function WorkloadDetailPage() {
                   <div className="text-sm text-foreground">
                     {runnerLink ? (
                       <NavLink to={runnerLink} className="hover:underline">
-                        {runnerName || runnerId || EMPTY_PLACEHOLDER}
+                        {runnerLabel}
                       </NavLink>
                     ) : (
-                      runnerName || runnerId || EMPTY_PLACEHOLDER
+                      runnerLabel
                     )}
                   </div>
-                  {runnerName && runnerId && runnerName !== runnerId ? (
-                    <div className="text-xs text-muted-foreground">{runnerId}</div>
-                  ) : null}
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Thread ID</div>
@@ -402,15 +401,12 @@ export function WorkloadDetailPage() {
                   <div className="text-sm text-foreground">
                     {agentLink ? (
                       <NavLink to={agentLink} className="hover:underline">
-                        {agentName || agentId || EMPTY_PLACEHOLDER}
+                        {agentLabel}
                       </NavLink>
                     ) : (
-                      agentName || agentId || EMPTY_PLACEHOLDER
+                      agentLabel
                     )}
                   </div>
-                  {agentName && agentId && agentName !== agentId ? (
-                    <div className="text-xs text-muted-foreground">{agentId}</div>
-                  ) : null}
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Instance ID</div>

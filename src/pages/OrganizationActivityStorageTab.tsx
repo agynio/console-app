@@ -50,7 +50,7 @@ const ATTACHMENT_KIND_LABELS: Record<AttachmentKind, string> = {
   [AttachmentKind.HOOK]: 'Hook',
 };
 
-const getVolumeName = (volume: Volume) => volume.volumeName || volume.volumeId || volume.meta?.id || '';
+const getVolumeName = (volume: Volume) => volume.volumeName?.trim() || volume.volumeId || volume.meta?.id || '';
 
 const formatAttachmentLabel = (attachment: Attachment) => {
   const name = attachment.name?.trim() || attachment.id || '';
@@ -86,17 +86,10 @@ const extractVolumeId = (payload?: NotificationEnvelope['payload']): string | nu
   return resolveString((meta as Record<string, unknown>).id);
 };
 
-const replaceFirstPage = <TPage,>(
-  data: InfiniteData<TPage, unknown> | undefined,
+const resetPagination = <TPage,>(
+  _data: InfiniteData<TPage, unknown> | undefined,
   firstPage: TPage,
-): InfiniteData<TPage, unknown> => {
-  if (!data) {
-    return { pages: [firstPage], pageParams: [''] };
-  }
-  const nextPages = [firstPage, ...data.pages.slice(1)];
-  const nextPageParams = data.pageParams.length > 0 ? data.pageParams : [''];
-  return { ...data, pages: nextPages, pageParams: nextPageParams };
-};
+): InfiniteData<TPage, unknown> => ({ pages: [firstPage], pageParams: [''] });
 
 const upsertVolume = (
   data: InfiniteData<Awaited<ReturnType<typeof runnersClient.listVolumes>>, unknown> | undefined,
@@ -280,7 +273,7 @@ export function OrganizationActivityStorageTab() {
             });
             queryClient.setQueryData<InfiniteData<Awaited<ReturnType<typeof runnersClient.listVolumes>>, unknown>>(
               volumesQueryKey,
-              (data) => replaceFirstPage(data, firstPage),
+              (data) => resetPagination(data, firstPage),
             );
           } catch (error) {
             console.error('[useNotifications] volume refetch error:', error);
@@ -400,7 +393,7 @@ export function OrganizationActivityStorageTab() {
             </div>
             <div className="divide-y divide-border">
               {volumes.map((volume) => {
-                const name = getVolumeName(volume) || EMPTY_PLACEHOLDER;
+                const name = volume.volumeName?.trim() || getVolumeName(volume) || EMPTY_PLACEHOLDER;
                 const volumeId = volume.volumeId || volume.meta?.id || '';
                 const volumeLink = volumeId ? `/organizations/${organizationId}/volumes/${volumeId}` : null;
                 const sizeLabel = volume.sizeGb ? `${volume.sizeGb} GB` : EMPTY_PLACEHOLDER;
@@ -426,9 +419,6 @@ export function OrganizationActivityStorageTab() {
                         ) : (
                           truncate(name, 24)
                         )}
-                      </div>
-                      <div className="text-xs text-muted-foreground" data-testid="organization-storage-id">
-                        {volumeId || name}
                       </div>
                     </div>
                     <span className="text-xs text-muted-foreground" data-testid="organization-storage-size">

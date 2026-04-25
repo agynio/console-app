@@ -66,17 +66,10 @@ const extractThreadId = (payload?: NotificationEnvelope['payload']): string | nu
   return resolveString(threadRecord.threadId ?? threadRecord.thread_id ?? threadRecord.id);
 };
 
-const replaceFirstPage = <TPage,>(
-  data: InfiniteData<TPage, unknown> | undefined,
+const resetPagination = <TPage,>(
+  _data: InfiniteData<TPage, unknown> | undefined,
   firstPage: TPage,
-): InfiniteData<TPage, unknown> => {
-  if (!data) {
-    return { pages: [firstPage], pageParams: [''] };
-  }
-  const nextPages = [firstPage, ...data.pages.slice(1)];
-  const nextPageParams = data.pageParams.length > 0 ? data.pageParams : [''];
-  return { ...data, pages: nextPages, pageParams: nextPageParams };
-};
+): InfiniteData<TPage, unknown> => ({ pages: [firstPage], pageParams: [''] });
 
 const upsertThread = (
   data: InfiniteData<Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>, unknown> | undefined,
@@ -250,7 +243,7 @@ export function OrganizationThreadsTab() {
             });
             queryClient.setQueryData<
               InfiniteData<Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>, unknown>
-            >(threadsQueryKey, (data) => replaceFirstPage(data, firstPage));
+            >(threadsQueryKey, (data) => resetPagination(data, firstPage));
           } catch (error) {
             console.error('[useNotifications] thread refetch error:', error);
           }
