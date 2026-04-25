@@ -255,6 +255,7 @@ export function WorkloadDetailPage() {
   const location = useLocation();
 
   useNotifications({
+    rooms: workloadId ? [`workload:${workloadId}`] : [],
     events: ['workload.status_changed', 'workload.updated'],
     invalidateKeys: [['workloads', workloadId, 'detail']],
     enabled: Boolean(workloadId),

@@ -13,7 +13,8 @@ export function OrganizationActivityWorkloadsTab() {
   const organizationId = id ?? '';
 
   useNotifications({
-    events: ['workload.status_changed'],
+    rooms: organizationId ? [`organization:${organizationId}`] : [],
+    events: ['workload.updated'],
     invalidateKeys: [['workloads', organizationId, 'list']],
     enabled: Boolean(organizationId),
   });

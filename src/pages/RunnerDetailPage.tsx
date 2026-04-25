@@ -38,11 +38,13 @@ export function RunnerDetailPage() {
   const [labelEntries, setLabelEntries] = useState<LabelEntry[]>([]);
   const [runnerName, setRunnerName] = useState('');
   const [runnerNameError, setRunnerNameError] = useState('');
+  const notificationRooms = organizationId ? [`organization:${organizationId}`] : [];
 
   useNotifications({
-    events: ['workload.status_changed', 'workload.updated'],
+    rooms: notificationRooms,
+    events: ['workload.updated'],
     invalidateKeys: [['workloads', 'runner', runnerId]],
-    enabled: Boolean(runnerId),
+    enabled: Boolean(runnerId && organizationId),
   });
 
   const runnerQuery = useQuery({
