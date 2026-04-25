@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  ListOrganizationThreadsResponseSchema,
   ListOrganizationThreadsSortField,
   SortDirection as ThreadsSortDirection,
   type Thread,
@@ -22,12 +23,24 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { type SortDirection } from '@/hooks/useListControls';
 import { useUserContext } from '@/context/UserContext';
-import { EMPTY_PLACEHOLDER, formatDateOnly, formatThreadStatus, truncate } from '@/lib/format';
+import { EMPTY_PLACEHOLDER, formatDateOnly, formatThreadStatus, timestampToMillis, truncate } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 type ThreadSortKey = 'status' | 'messages' | 'created' | 'updated';
 
 const THREAD_STATUS_OPTIONS = [ThreadStatus.ACTIVE, ThreadStatus.ARCHIVED, ThreadStatus.DEGRADED];
+
+type ThreadsPage = Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>;
+type LegacyThreadsPage = Awaited<ReturnType<typeof threadsClient.getOrganizationThreads>>;
+
+const toThreadsPage = (response: LegacyThreadsPage): ThreadsPage =>
+  create(ListOrganizationThreadsResponseSchema, {
+    threads: response.threads,
+    nextPageToken: response.nextPageToken,
+  });
+
+const isLegacyThreadsError = (error: unknown) =>
+  error instanceof ConnectError && (error.code === Code.Unimplemented || error.code === Code.NotFound);
 
 const parseDateInput = (value: string, isEnd = false): Date | null => {
   if (!value) return null;
@@ -113,6 +126,7 @@ export function OrganizationThreadsTab() {
   const [createdBefore, setCreatedBefore] = useState('');
   const [sortKey, setSortKey] = useState<ThreadSortKey>('created');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [isLegacyThreadsApi, setIsLegacyThreadsApi] = useState(false);
 
   const notificationRooms = useMemo(
     () => (identityId ? [`thread_participant:${identityId}`] : []),
@@ -144,31 +158,57 @@ export function OrganizationThreadsTab() {
       direction: sortDirection === 'asc' ? ThreadsSortDirection.ASC : ThreadsSortDirection.DESC,
     };
   }, [sortDirection, sortKey]);
-  const filterSpec = useMemo(() => {
-    const statusValues = statusFilter.map((value) => Number(value) as ThreadStatus).filter((value) => value > 0);
-    return {
+  const statusValues = useMemo(
+    () => statusFilter.map((value) => Number(value) as ThreadStatus).filter((value) => value > 0),
+    [statusFilter],
+  );
+
+  const filterSpec = useMemo(
+    () => ({
       participantIdIn: participantFilter,
       statusIn: statusValues,
       createdAfter: rangeError ? undefined : startDate ? toTimestamp(startDate) : undefined,
       createdBefore: rangeError ? undefined : endDate ? toTimestamp(endDate) : undefined,
-    };
-  }, [participantFilter, statusFilter, startDate, endDate, rangeError]);
+    }),
+    [participantFilter, statusValues, startDate, endDate, rangeError],
+  );
 
   const threadsQueryKey = useMemo(
     () => ['threads', organizationId, 'list', filterKey, sortSpec] as const,
     [filterKey, organizationId, sortSpec],
   );
 
+  const fetchThreadsPage = async (pageToken: string): Promise<ThreadsPage> => {
+    if (!isLegacyThreadsApi) {
+      try {
+        return await threadsClient.listOrganizationThreads({
+          organizationId,
+          pageSize: DEFAULT_PAGE_SIZE,
+          pageToken,
+          filter: filterSpec,
+          sort: sortSpec,
+        });
+      } catch (error) {
+        if (!isLegacyThreadsError(error)) {
+          throw error;
+        }
+        setIsLegacyThreadsApi(true);
+      }
+    }
+
+    const legacyStatus = statusValues.length === 1 ? statusValues[0] : ThreadStatus.UNSPECIFIED;
+    const legacyResponse = await threadsClient.getOrganizationThreads({
+      organizationId,
+      pageSize: DEFAULT_PAGE_SIZE,
+      pageToken,
+      status: legacyStatus,
+    });
+    return toThreadsPage(legacyResponse);
+  };
+
   const threadsQuery = useInfiniteQuery({
     queryKey: threadsQueryKey,
-    queryFn: ({ pageParam }) =>
-      threadsClient.listOrganizationThreads({
-        organizationId,
-        pageSize: DEFAULT_PAGE_SIZE,
-        pageToken: pageParam,
-        filter: filterSpec,
-        sort: sortSpec,
-      }),
+    queryFn: ({ pageParam }) => fetchThreadsPage(pageParam),
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(organizationId),
@@ -180,6 +220,47 @@ export function OrganizationThreadsTab() {
     () => threadsQuery.data?.pages.flatMap((page) => page.threads) ?? [],
     [threadsQuery.data?.pages],
   );
+  const visibleThreads = useMemo(() => {
+    if (!isLegacyThreadsApi) return threads;
+
+    let nextThreads = threads;
+    if (participantFilter.length > 0) {
+      const participantSet = new Set(participantFilter);
+      nextThreads = nextThreads.filter((thread) =>
+        thread.participants.some((participant) => participant.id && participantSet.has(participant.id)),
+      );
+    }
+    if (statusValues.length > 0) {
+      const statusSet = new Set(statusValues);
+      nextThreads = nextThreads.filter((thread) => statusSet.has(thread.status));
+    }
+    if (!rangeError && (startDate || endDate)) {
+      const startMillis = startDate ? startDate.getTime() : null;
+      const endMillis = endDate ? endDate.getTime() : null;
+      nextThreads = nextThreads.filter((thread) => {
+        const createdMillis = timestampToMillis(thread.createdAt);
+        if (!createdMillis) return true;
+        if (startMillis && createdMillis < startMillis) return false;
+        if (endMillis && createdMillis > endMillis) return false;
+        return true;
+      });
+    }
+
+    const sortValueMap: Record<ThreadSortKey, (thread: Thread) => number> = {
+      status: (thread) => thread.status,
+      messages: (thread) => thread.messageCount ?? 0,
+      created: (thread) => timestampToMillis(thread.createdAt),
+      updated: (thread) => timestampToMillis(thread.updatedAt),
+    };
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    const sorted = [...nextThreads].sort((left, right) => {
+      const leftValue = sortValueMap[sortKey](left);
+      const rightValue = sortValueMap[sortKey](right);
+      if (leftValue === rightValue) return 0;
+      return leftValue > rightValue ? direction : -direction;
+    });
+    return sorted;
+  }, [threads, isLegacyThreadsApi, participantFilter, statusValues, rangeError, startDate, endDate, sortKey, sortDirection]);
   const isLoading = threadsQuery.isPending;
   const isError = threadsQuery.isError;
   const isPermissionDenied =
@@ -234,13 +315,7 @@ export function OrganizationThreadsTab() {
       if (hasActiveControls) {
         void (async () => {
           try {
-            const firstPage = await threadsClient.listOrganizationThreads({
-              organizationId,
-              pageSize: DEFAULT_PAGE_SIZE,
-              pageToken: '',
-              filter: filterSpec,
-              sort: sortSpec,
-            });
+            const firstPage = await fetchThreadsPage('');
             queryClient.setQueryData<
               InfiniteData<Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>, unknown>
             >(threadsQueryKey, (data) => resetPagination(data, firstPage));
@@ -318,14 +393,14 @@ export function OrganizationThreadsTab() {
           {isPermissionDenied ? 'You do not have permission to view threads.' : 'Failed to load threads.'}
         </div>
       ) : null}
-      {threads.length === 0 && !isLoading && !isError ? (
+      {visibleThreads.length === 0 && !isLoading && !isError ? (
         <Card className="border-border" data-testid="organization-threads-empty">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             {hasActiveFilters ? 'No results found.' : 'No threads yet.'}
           </CardContent>
         </Card>
       ) : null}
-      {threads.length > 0 ? (
+      {visibleThreads.length > 0 ? (
         <Card className="border-border" data-testid="organization-threads-table">
           <CardContent className="px-0">
             <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_2fr_1fr_1fr_1fr_1fr]">
@@ -361,7 +436,7 @@ export function OrganizationThreadsTab() {
               />
             </div>
             <div className="divide-y divide-border">
-              {threads.map((thread) => {
+              {visibleThreads.map((thread) => {
                 const threadId = thread.id;
                 const messageCount = thread.messageCount ?? 0;
                 const participantHandles = thread.participants
