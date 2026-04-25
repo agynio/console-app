@@ -27,6 +27,7 @@ import { UserDetailPage } from '@/pages/UserDetailPage';
 import { RunnersListPage } from '@/pages/RunnersListPage';
 import { RunnerDetailPage } from '@/pages/RunnerDetailPage';
 import { WorkloadDetailPage } from '@/pages/WorkloadDetailPage';
+import { VolumeDetailPage } from '@/pages/VolumeDetailPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AppsPage } from '@/pages/AppsPage';
 import { ApiTokensPage } from '@/pages/ApiTokensPage';
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="agents/:agentId" element={<AgentDetailPage />} />
           <Route path="agents" element={<OrganizationAgentsTab />} />
           <Route path="volumes" element={<OrganizationVolumesTab />} />
+          <Route path="volumes/:volumeId" element={<VolumeDetailPage />} />
           <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
           <Route path="models" element={<OrganizationModelsTab />} />
           <Route path="secrets" element={<OrganizationSecretsTab />} />
