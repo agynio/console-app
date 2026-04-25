@@ -10,7 +10,14 @@ import { Input } from '@/components/ui/input';
 import type { ListWorkloadsResponse, Workload } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { type SortDirection, useListControls } from '@/hooks/useListControls';
-import { formatTimestamp, formatWorkloadStatus, summarizeContainers, timestampToMillis } from '@/lib/format';
+import {
+  EMPTY_PLACEHOLDER,
+  formatDurationBetween,
+  formatTimestamp,
+  formatWorkloadStatus,
+  summarizeContainers,
+  timestampToMillis,
+} from '@/lib/format';
 
 export type WorkloadSortKey = 'agentId' | 'runnerId' | 'threadId' | 'status' | 'started';
 
@@ -26,7 +33,14 @@ type WorkloadsTableProps = {
   workloads: Workload[];
   query: UseInfiniteQueryResult<InfiniteData<ListWorkloadsResponse, unknown>, Error>;
   showRunnerColumn?: boolean;
+  showDuration?: boolean;
+  showSearch?: boolean;
   getWorkloadLink?: (workload: Workload) => string | null;
+  getAgentName?: (workload: Workload) => string | undefined;
+  getRunnerName?: (workload: Workload) => string | undefined;
+  agentLabel?: string;
+  runnerLabel?: string;
+  rowLinkMode?: 'row' | 'action';
   controls?: WorkloadsTableControls;
   filterBar?: ReactNode;
   searchPlaceholder?: string;
@@ -38,7 +52,14 @@ export function WorkloadsTable({
   workloads,
   query,
   showRunnerColumn = false,
+  showDuration = false,
+  showSearch = true,
   getWorkloadLink,
+  getAgentName,
+  getRunnerName,
+  agentLabel = 'Agent ID',
+  runnerLabel = 'Runner ID',
+  rowLinkMode = 'action',
   controls,
   filterBar,
   searchPlaceholder = 'Search workloads...',
@@ -46,9 +67,11 @@ export function WorkloadsTable({
   testIdPrefix,
 }: WorkloadsTableProps) {
   const location = useLocation();
+  const resolveAgentName = (workload: Workload) => getAgentName?.(workload)?.trim() || '';
+  const resolveRunnerName = (workload: Workload) => getRunnerName?.(workload)?.trim() || '';
   const searchFields = [
-    (workload: Workload) => workload.agentId,
-    ...(showRunnerColumn ? [(workload: Workload) => workload.runnerId] : []),
+    (workload: Workload) => resolveAgentName(workload) || workload.agentId,
+    ...(showRunnerColumn ? [(workload: Workload) => resolveRunnerName(workload) || workload.runnerId] : []),
     (workload: Workload) => workload.threadId,
     (workload: Workload) => formatWorkloadStatus(workload.status),
   ];
@@ -79,9 +102,9 @@ export function WorkloadsTable({
   const handleSort = controls?.onSort ?? listControls.handleSort;
 
   const visibleWorkloads = controls ? workloads : listControls.filteredItems;
-  const hasSearch = searchTerm.trim().length > 0;
+  const hasSearch = showSearch && searchTerm.trim().length > 0;
   const hasFilters = controls ? (hasActiveFilters ?? hasSearch) : hasSearch;
-  const hasAction = Boolean(getWorkloadLink);
+  const hasAction = rowLinkMode === 'action' && Boolean(getWorkloadLink);
 
   const getStatusVariant = (status: WorkloadStatus) => {
     if (status === WorkloadStatus.RUNNING) return 'default';
@@ -91,27 +114,32 @@ export function WorkloadsTable({
     return 'outline';
   };
 
-  const gridClass = showRunnerColumn
-    ? hasAction
-      ? 'md:grid-cols-[1.4fr_1.4fr_1.4fr_140px_200px_170px_120px]'
-      : 'md:grid-cols-[1.4fr_1.4fr_1.4fr_140px_200px_170px]'
-    : hasAction
-      ? 'md:grid-cols-[1.6fr_1.6fr_140px_200px_170px_120px]'
-      : 'md:grid-cols-[1.6fr_1.6fr_140px_200px_170px]';
+  const gridColumns: string[] = [];
+  gridColumns.push(showRunnerColumn ? '1.4fr' : '1.6fr');
+  if (showRunnerColumn) gridColumns.push('1.4fr');
+  gridColumns.push(showRunnerColumn ? '1.4fr' : '1.6fr');
+  gridColumns.push('140px');
+  gridColumns.push('200px');
+  gridColumns.push('170px');
+  if (showDuration) gridColumns.push('140px');
+  if (hasAction) gridColumns.push('120px');
+  const gridClass = `md:grid-cols-[${gridColumns.join('_')}]`;
 
   const emptyMessage = showRunnerColumn ? 'No workloads found.' : 'No workloads on this runner.';
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-[220px] max-w-sm flex-1">
-          <Input
-            placeholder={searchPlaceholder}
-            value={searchTerm}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            data-testid={`${testIdPrefix}-search`}
-          />
-        </div>
+        {showSearch ? (
+          <div className="min-w-[220px] max-w-sm flex-1">
+            <Input
+              placeholder={searchPlaceholder}
+              value={searchTerm}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              data-testid={`${testIdPrefix}-search`}
+            />
+          </div>
+        ) : null}
         {filterBar}
       </div>
       {query.isPending ? <div className="text-sm text-muted-foreground">Loading workloads...</div> : null}
@@ -123,7 +151,7 @@ export function WorkloadsTable({
             data-testid={`${testIdPrefix}-header`}
           >
             <SortableHeader
-              label="Agent ID"
+              label={agentLabel}
               sortKey="agentId"
               activeSortKey={sortKey}
               sortDirection={sortDirection}
@@ -131,7 +159,7 @@ export function WorkloadsTable({
             />
             {showRunnerColumn ? (
               <SortableHeader
-                label="Runner ID"
+                label={runnerLabel}
                 sortKey="runnerId"
                 activeSortKey={sortKey}
                 sortDirection={sortDirection}
@@ -164,6 +192,7 @@ export function WorkloadsTable({
               sortDirection={sortDirection}
               onSort={handleSort}
             />
+            {showDuration ? <span>Duration</span> : null}
             {hasAction ? <span className="text-right">Action</span> : null}
           </div>
           <div className="divide-y divide-border">
@@ -179,22 +208,45 @@ export function WorkloadsTable({
                     ? `${workload.runnerId}:${workload.threadId}:${workload.agentId}`
                     : `${workload.threadId}:${workload.agentId}`);
                 const workloadLink = getWorkloadLink ? getWorkloadLink(workload) : null;
-                return (
-                  <div
-                    key={rowKey}
-                    className={`grid items-center gap-2 px-6 py-4 text-sm text-foreground ${gridClass}`}
-                    data-testid={`${testIdPrefix}-row`}
-                  >
-                    <span className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-agent`}>
-                      {workload.agentId || '—'}
-                    </span>
+                const agentName = resolveAgentName(workload);
+                const runnerName = resolveRunnerName(workload);
+                const agentIdLabel = workload.agentId || EMPTY_PLACEHOLDER;
+                const runnerIdLabel = workload.runnerId || EMPTY_PLACEHOLDER;
+                const durationEnd =
+                  workload.removedAt ??
+                  (workload.status === WorkloadStatus.STOPPED || workload.status === WorkloadStatus.FAILED
+                    ? workload.lastActivityAt
+                    : undefined);
+                const durationLabel = showDuration
+                  ? formatDurationBetween(workload.meta?.createdAt, durationEnd)
+                  : EMPTY_PLACEHOLDER;
+
+                const rowContent = (
+                  <>
+                    <div className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-agent`}>
+                      {agentName ? (
+                        <div>
+                          <div className="font-medium text-foreground">{agentName}</div>
+                          <div className="text-xs text-muted-foreground">{agentIdLabel}</div>
+                        </div>
+                      ) : (
+                        agentIdLabel
+                      )}
+                    </div>
                     {showRunnerColumn ? (
-                      <span className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-runner`}>
-                        {workload.runnerId || '—'}
-                      </span>
+                      <div className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-runner`}>
+                        {runnerName ? (
+                          <div>
+                            <div className="font-medium text-foreground">{runnerName}</div>
+                            <div className="text-xs text-muted-foreground">{runnerIdLabel}</div>
+                          </div>
+                        ) : (
+                          runnerIdLabel
+                        )}
+                      </div>
                     ) : null}
                     <span className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-thread`}>
-                      {workload.threadId || '—'}
+                      {workload.threadId || EMPTY_PLACEHOLDER}
                     </span>
                     <Badge variant={getStatusVariant(workload.status)} data-testid={`${testIdPrefix}-status`}>
                       {formatWorkloadStatus(workload.status)}
@@ -205,6 +257,11 @@ export function WorkloadsTable({
                     <span className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-started`}>
                       {formatTimestamp(workload.meta?.createdAt)}
                     </span>
+                    {showDuration ? (
+                      <span className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-duration`}>
+                        {durationLabel}
+                      </span>
+                    ) : null}
                     {hasAction ? (
                       <div className="text-right">
                         {workloadLink ? (
@@ -224,6 +281,30 @@ export function WorkloadsTable({
                         )}
                       </div>
                     ) : null}
+                  </>
+                );
+
+                if (rowLinkMode === 'row' && workloadLink) {
+                  return (
+                    <NavLink
+                      key={rowKey}
+                      to={workloadLink}
+                      state={{ from: location.pathname }}
+                      className={`grid items-center gap-2 px-6 py-4 text-sm text-foreground ${gridClass} hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                      data-testid={`${testIdPrefix}-row`}
+                    >
+                      {rowContent}
+                    </NavLink>
+                  );
+                }
+
+                return (
+                  <div
+                    key={rowKey}
+                    className={`grid items-center gap-2 px-6 py-4 text-sm text-foreground ${gridClass}`}
+                    data-testid={`${testIdPrefix}-row`}
+                  >
+                    {rowContent}
                   </div>
                 );
               })
