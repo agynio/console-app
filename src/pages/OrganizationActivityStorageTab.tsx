@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useQueries } from '@tanstack/react-query';
 import { agentsClient, runnersClient } from '@/api/client';
@@ -7,20 +7,33 @@ import { SortableHeader } from '@/components/SortableHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { VolumeAttachment } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { VolumeStatus, type Volume } from '@/gen/agynio/api/runners/v1/runners_pb';
+import {
+  ListVolumesSortField,
+  SortDirection as VolumesSortDirection,
+  VolumeStatus,
+  type Volume,
+} from '@/gen/agynio/api/runners/v1/runners_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { useListControls } from '@/hooks/useListControls';
+import { useNotifications } from '@/hooks/useNotifications';
+import { type SortDirection } from '@/hooks/useListControls';
 import { EMPTY_PLACEHOLDER, formatVolumeStatus, truncate } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 
 const UNATTACHED_LABEL = 'Unattached';
 
+type VolumeSortKey = 'name' | 'size' | 'status';
+
+const VOLUME_STATUS_OPTIONS = [
+  VolumeStatus.PROVISIONING,
+  VolumeStatus.ACTIVE,
+  VolumeStatus.DEPROVISIONING,
+  VolumeStatus.DELETED,
+  VolumeStatus.FAILED,
+];
+
 const getVolumeName = (volume: Volume) => volume.meta?.id || volume.instanceId || volume.volumeId || '';
-const getVolumeSize = (volume: Volume) => {
-  const parsed = Number(volume.sizeGb);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
 
 const formatAttachmentTarget = (attachment: VolumeAttachment) => {
   const targetId = attachment.target.value;
@@ -36,15 +49,56 @@ export function OrganizationActivityStorageTab() {
 
   const { id } = useParams();
   const organizationId = id ?? '';
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortKey, setSortKey] = useState<VolumeSortKey>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const notificationRooms = useMemo(
+    () => (organizationId ? [`organization:${organizationId}`] : []),
+    [organizationId],
+  );
+
+  useNotifications({
+    events: ['volume.updated'],
+    invalidateKeys: [['runners', organizationId, 'volumes', 'list']],
+    rooms: notificationRooms,
+    enabled: Boolean(organizationId) && notificationRooms.length > 0,
+  });
+
+  const normalizedSearch = searchTerm.trim();
+  const filterKey = useMemo(
+    () => ({ search: normalizedSearch, status: statusFilter }),
+    [normalizedSearch, statusFilter],
+  );
+  const sortSpec = useMemo(() => {
+    const fieldMap: Record<VolumeSortKey, ListVolumesSortField> = {
+      name: ListVolumesSortField.NAME,
+      size: ListVolumesSortField.SIZE,
+      status: ListVolumesSortField.STATUS,
+    };
+    return {
+      field: fieldMap[sortKey],
+      direction: sortDirection === 'asc' ? VolumesSortDirection.ASC : VolumesSortDirection.DESC,
+    };
+  }, [sortDirection, sortKey]);
+  const filterSpec = useMemo(() => {
+    const statusValue = statusFilter === 'all' ? null : (Number(statusFilter) as VolumeStatus);
+    return {
+      volumeNameSubstring: normalizedSearch || undefined,
+      statusIn: statusValue ? [statusValue] : [],
+    };
+  }, [normalizedSearch, statusFilter]);
 
   const volumesQuery = useInfiniteQuery({
-    queryKey: ['runners', organizationId, 'volumes', 'list'],
+    queryKey: ['runners', organizationId, 'volumes', 'list', filterKey, sortSpec],
     queryFn: ({ pageParam }) =>
       runnersClient.listVolumes({
         organizationId,
         pageSize: DEFAULT_PAGE_SIZE,
         pageToken: pageParam,
-        statuses: [],
+        filter: filterSpec,
+        sort: sortSpec,
       }),
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
@@ -94,27 +148,15 @@ export function OrganizationActivityStorageTab() {
     return labels.length > 0 ? labels.join(', ') : UNATTACHED_LABEL;
   };
 
-  const listControls = useListControls({
-    items: volumes,
-    searchFields: [
-      (volume) => getVolumeName(volume),
-      (volume) => volume.volumeId,
-      (volume) => volume.sizeGb,
-      (volume) => getAttachedLabel(volume),
-      (volume) => formatVolumeStatus(volume.status),
-    ],
-    sortOptions: {
-      name: (volume) => getVolumeName(volume),
-      size: (volume) => getVolumeSize(volume),
-      used: () => '',
-      attached: (volume) => getAttachedLabel(volume),
-      status: (volume) => formatVolumeStatus(volume.status),
-    },
-    defaultSortKey: 'name',
-  });
-
-  const visibleVolumes = listControls.filteredItems;
-  const hasSearch = listControls.searchTerm.trim().length > 0;
+  const hasActiveFilters = normalizedSearch.length > 0 || statusFilter !== 'all';
+  const handleSort = (key: VolumeSortKey) => {
+    if (key === sortKey) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection('asc');
+  };
 
   const getStatusVariant = (status: VolumeStatus) => {
     if (status === VolumeStatus.ACTIVE) return 'default';
@@ -131,20 +173,37 @@ export function OrganizationActivityStorageTab() {
           Real-time view of persistent volumes in use across the organization.
         </p>
       </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search storage volumes..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="organization-storage-search"
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-[220px] max-w-sm flex-1">
+          <Input
+            placeholder="Search storage volumes..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            data-testid="organization-storage-search"
+          />
+        </div>
+        <div className="min-w-[180px]">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger data-testid="organization-storage-status-filter">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {VOLUME_STATUS_OPTIONS.map((status) => (
+                <SelectItem key={status} value={String(status)}>
+                  {formatVolumeStatus(status)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       {volumesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading storage volumes...</div> : null}
       {volumesQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load storage.</div> : null}
       {volumes.length === 0 && !volumesQuery.isPending ? (
         <Card className="border-border" data-testid="organization-storage-empty">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No storage volumes yet.
+            {hasActiveFilters ? 'No results found.' : 'No storage volumes yet.'}
           </CardContent>
         </Card>
       ) : null}
@@ -158,79 +217,61 @@ export function OrganizationActivityStorageTab() {
               <SortableHeader
                 label="Name"
                 sortKey="name"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={handleSort}
               />
               <SortableHeader
                 label="Size"
                 sortKey="size"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={handleSort}
               />
-              <SortableHeader
-                label="Used"
-                sortKey="used"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
-              />
-              <SortableHeader
-                label="Attached to"
-                sortKey="attached"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
-              />
+              <span>Used</span>
+              <span>Attached to</span>
               <SortableHeader
                 label="Status"
                 sortKey="status"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={handleSort}
               />
             </div>
             <div className="divide-y divide-border">
-              {visibleVolumes.length === 0 ? (
-                <div className="px-6 py-6 text-sm text-muted-foreground">
-                  {hasSearch ? 'No results found.' : 'No storage volumes yet.'}
-                </div>
-              ) : (
-                visibleVolumes.map((volume) => {
-                  const name = getVolumeName(volume) || EMPTY_PLACEHOLDER;
-                  const sizeLabel = volume.sizeGb ? `${volume.sizeGb} GB` : EMPTY_PLACEHOLDER;
-                  const attachedLabel = getAttachedLabel(volume);
-                  return (
-                    <div
-                      key={volume.meta?.id ?? volume.volumeId}
-                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_2fr_120px]"
-                      data-testid="organization-storage-row"
-                    >
-                      <div>
-                        <div className="font-medium" data-testid="organization-storage-name">
-                          {truncate(name, 24)}
-                        </div>
-                        <div className="text-xs text-muted-foreground" data-testid="organization-storage-id">
-                          {name}
-                        </div>
+              {volumes.map((volume) => {
+                const name = getVolumeName(volume) || EMPTY_PLACEHOLDER;
+                const sizeLabel = volume.sizeGb ? `${volume.sizeGb} GB` : EMPTY_PLACEHOLDER;
+                const attachedLabel = getAttachedLabel(volume);
+                return (
+                  <div
+                    key={volume.meta?.id ?? volume.volumeId}
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_2fr_120px]"
+                    data-testid="organization-storage-row"
+                  >
+                    <div>
+                      <div className="font-medium" data-testid="organization-storage-name">
+                        {truncate(name, 24)}
                       </div>
-                      <span className="text-xs text-muted-foreground" data-testid="organization-storage-size">
-                        {sizeLabel}
-                      </span>
-                      <span className="text-xs text-muted-foreground" data-testid="organization-storage-used">
-                        {EMPTY_PLACEHOLDER}
-                      </span>
-                      <span className="text-xs text-muted-foreground" data-testid="organization-storage-attached">
-                        {attachedLabel}
-                      </span>
-                      <Badge variant={getStatusVariant(volume.status)} data-testid="organization-storage-status">
-                        {formatVolumeStatus(volume.status)}
-                      </Badge>
+                      <div className="text-xs text-muted-foreground" data-testid="organization-storage-id">
+                        {name}
+                      </div>
                     </div>
-                  );
-                })
-              )}
+                    <span className="text-xs text-muted-foreground" data-testid="organization-storage-size">
+                      {sizeLabel}
+                    </span>
+                    <span className="text-xs text-muted-foreground" data-testid="organization-storage-used">
+                      {EMPTY_PLACEHOLDER}
+                    </span>
+                    <span className="text-xs text-muted-foreground" data-testid="organization-storage-attached">
+                      {attachedLabel}
+                    </span>
+                    <Badge variant={getStatusVariant(volume.status)} data-testid="organization-storage-status">
+                      {formatVolumeStatus(volume.status)}
+                    </Badge>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
