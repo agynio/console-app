@@ -14,15 +14,17 @@ import {
 
 type UserContextValue = ReturnType<typeof useUserContext>;
 
-const { listMyMemberships, listAccessibleOrganizations } = vi.hoisted(() => ({
+const { listMyMemberships, listOrganizations, getOrganization } = vi.hoisted(() => ({
   listMyMemberships: vi.fn(),
-  listAccessibleOrganizations: vi.fn(),
+  listOrganizations: vi.fn(),
+  getOrganization: vi.fn(),
 }));
 
 vi.mock('@/api/client', () => ({
   organizationsClient: {
     listMyMemberships,
-    listAccessibleOrganizations,
+    listOrganizations,
+    getOrganization,
   },
 }));
 
@@ -75,6 +77,21 @@ function mockMemberships(active: Membership[], pending: Membership[] = []) {
   });
 }
 
+function mockOrganizationLookup(organizations: Array<{ id: string; name: string }>) {
+  const lookup = new Map(organizations.map((org) => [org.id, org]));
+  getOrganization.mockImplementation(({ id }: { id: string }) => {
+    const org = lookup.get(id);
+    return Promise.resolve({ organization: org ? create(OrganizationSchema, org) : undefined });
+  });
+}
+
+function mockOrganizationList(organizations: Array<{ id: string; name: string }>) {
+  listOrganizations.mockResolvedValue({
+    organizations: organizations.map((org) => create(OrganizationSchema, org)),
+    nextPageToken: '',
+  });
+}
+
 describe('OrganizationContext', () => {
   afterEach(() => {
     cleanup();
@@ -93,7 +110,8 @@ describe('OrganizationContext', () => {
 
     window.localStorage.clear();
     listMyMemberships.mockReset();
-    listAccessibleOrganizations.mockReset();
+    listOrganizations.mockReset();
+    getOrganization.mockReset();
   });
 
   it('migrates legacy selections into context mode storage', async () => {
@@ -108,13 +126,10 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.ACTIVE,
       }),
     ]);
-
-    listAccessibleOrganizations.mockResolvedValue({
-      organizations: [
-        create(OrganizationSchema, { id: 'org-1', name: 'Org One' }),
-        create(OrganizationSchema, { id: 'org-2', name: 'Org Two' }),
-      ],
-    });
+    mockOrganizationLookup([
+      { id: 'org-1', name: 'Org One' },
+      { id: 'org-2', name: 'Org Two' },
+    ]);
 
     renderWithProviders();
 
@@ -138,13 +153,10 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.ACTIVE,
       }),
     ]);
-
-    listAccessibleOrganizations.mockResolvedValue({
-      organizations: [
-        create(OrganizationSchema, { id: 'org-2', name: 'Zeta Org' }),
-        create(OrganizationSchema, { id: 'org-1', name: 'Alpha Org' }),
-      ],
-    });
+    mockOrganizationLookup([
+      { id: 'org-2', name: 'Zeta Org' },
+      { id: 'org-1', name: 'Alpha Org' },
+    ]);
 
     renderWithProviders();
 
@@ -166,10 +178,7 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.ACTIVE,
       }),
     ]);
-
-    listAccessibleOrganizations.mockResolvedValue({
-      organizations: [create(OrganizationSchema, { id: 'org-1', name: 'Org One' })],
-    });
+    mockOrganizationList([{ id: 'org-1', name: 'Org One' }]);
 
     renderWithProviders();
 
@@ -182,7 +191,7 @@ describe('OrganizationContext', () => {
     userContext.isClusterAdmin = true;
 
     mockMemberships([]);
-    listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+    mockOrganizationList([]);
 
     renderWithProviders();
 
@@ -208,13 +217,10 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.ACTIVE,
       }),
     ]);
-
-    listAccessibleOrganizations.mockResolvedValue({
-      organizations: [
-        create(OrganizationSchema, { id: 'org-1', name: 'Org One' }),
-        create(OrganizationSchema, { id: 'org-2', name: 'Org Two' }),
-      ],
-    });
+    mockOrganizationLookup([
+      { id: 'org-1', name: 'Org One' },
+      { id: 'org-2', name: 'Org Two' },
+    ]);
 
     renderWithProviders();
 
@@ -227,12 +233,10 @@ describe('OrganizationContext', () => {
     userContext.isClusterAdmin = true;
 
     mockMemberships([]);
-    listAccessibleOrganizations.mockResolvedValue({
-      organizations: [
-        create(OrganizationSchema, { id: 'org-1', name: 'Org One' }),
-        create(OrganizationSchema, { id: 'org-2', name: 'Org Two' }),
-      ],
-    });
+    mockOrganizationList([
+      { id: 'org-1', name: 'Org One' },
+      { id: 'org-2', name: 'Org Two' },
+    ]);
 
     renderWithProviders();
 
@@ -258,8 +262,7 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.PENDING,
       }),
     ]);
-
-    listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+    mockOrganizationLookup([]);
 
     renderWithProviders();
 
@@ -278,8 +281,7 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.PENDING,
       }),
     ]);
-
-    listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+    mockOrganizationLookup([]);
 
     renderWithProviders();
 
@@ -298,10 +300,7 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.ACTIVE,
       }),
     ]);
-
-    listAccessibleOrganizations.mockResolvedValue({
-      organizations: [create(OrganizationSchema, { id: 'org-1', name: 'Org One' })],
-    });
+    mockOrganizationLookup([{ id: 'org-1', name: 'Org One' }]);
 
     renderWithProviders();
 
@@ -327,8 +326,7 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.PENDING,
       }),
     ]);
-
-    listAccessibleOrganizations.mockResolvedValue({ organizations: [] });
+    mockOrganizationLookup([]);
 
     renderWithProviders();
 

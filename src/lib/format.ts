@@ -34,6 +34,39 @@ export function formatDateOnly(timestamp?: Timestamp | null): string {
   return formatTimestamp(timestamp, { dateStyle: 'medium' });
 }
 
+export function formatDuration(milliseconds: number): string {
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) return EMPTY_PLACEHOLDER;
+  let remainingSeconds = Math.max(1, Math.floor(milliseconds / 1000));
+  const units = [
+    { label: 'd', seconds: 86_400 },
+    { label: 'h', seconds: 3_600 },
+    { label: 'm', seconds: 60 },
+    { label: 's', seconds: 1 },
+  ];
+  const parts: string[] = [];
+
+  for (const unit of units) {
+    if (parts.length >= 2) break;
+    if (remainingSeconds < unit.seconds && unit.label !== 's') continue;
+    const value = Math.floor(remainingSeconds / unit.seconds);
+    if (value <= 0) continue;
+    parts.push(`${value}${unit.label}`);
+    remainingSeconds -= value * unit.seconds;
+  }
+
+  return parts.length > 0 ? parts.join(' ') : EMPTY_PLACEHOLDER;
+}
+
+export function formatDurationBetween(start?: Timestamp | null, end?: Timestamp | null): string {
+  if (!start) return EMPTY_PLACEHOLDER;
+  const startMillis = timestampToMillis(start);
+  if (!startMillis) return EMPTY_PLACEHOLDER;
+  const endMillis = end ? timestampToMillis(end) : Date.now();
+  if (!endMillis) return EMPTY_PLACEHOLDER;
+  const duration = Math.max(0, endMillis - startMillis);
+  return formatDuration(duration);
+}
+
 export function formatLabelPairs(labels: Record<string, string>): string {
   const entries = Object.entries(labels);
   if (entries.length === 0) return EMPTY_PLACEHOLDER;

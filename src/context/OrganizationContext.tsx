@@ -133,15 +133,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: false,
   });
 
-  // Accessible orgs provide metadata even when memberships are filtered by status.
-  const organizationsQuery = useQuery({
-    queryKey: ['organizations', 'accessible', identityId],
-    queryFn: () => organizationsClient.listAccessibleOrganizations({ identityId: identityId ?? '' }),
-    enabled: userStatus === 'ready' && Boolean(identityId),
-    staleTime: 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
-
   const memberships = useMemo(
     () => membershipsQuery.data?.memberships ?? [],
     [membershipsQuery.data?.memberships],
@@ -150,14 +141,56 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     () => pendingMembershipsQuery.data?.memberships ?? [],
     [pendingMembershipsQuery.data?.memberships],
   );
-  const accessibleOrganizations = useMemo(
+  const organizationIds = useMemo(() => {
+    const ids = new Set<string>();
+    memberships.forEach((membership) => {
+      if (membership.organizationId) ids.add(membership.organizationId);
+    });
+    return Array.from(ids).sort((a, b) => a.localeCompare(b));
+  }, [memberships]);
+
+  const organizationsQuery = useQuery({
+    queryKey: isClusterAdmin
+      ? ['organizations', 'list']
+      : ['organizations', 'by-membership', organizationIds],
+    queryFn: async () => {
+      if (isClusterAdmin) {
+        const organizations: Organization[] = [];
+        let pageToken = '';
+        do {
+          const response = await organizationsClient.listOrganizations({
+            pageSize: MAX_PAGE_SIZE,
+            pageToken,
+          });
+          organizations.push(...response.organizations);
+          pageToken = response.nextPageToken;
+        } while (pageToken);
+        return { organizations };
+      }
+      if (organizationIds.length === 0) {
+        return { organizations: [] };
+      }
+      const responses = await Promise.all(
+        organizationIds.map((id) => organizationsClient.getOrganization({ id })),
+      );
+      const organizations = responses.flatMap((response) =>
+        response.organization ? [response.organization] : [],
+      );
+      return { organizations };
+    },
+    enabled: userStatus === 'ready' && Boolean(identityId) && (isClusterAdmin || membershipsQuery.isSuccess),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const listedOrganizations = useMemo(
     () => organizationsQuery.data?.organizations ?? [],
     [organizationsQuery.data?.organizations],
   );
 
   const mappedOrganizations = useMemo(
-    () => mapOrganizations(accessibleOrganizations, memberships),
-    [accessibleOrganizations, memberships],
+    () => mapOrganizations(listedOrganizations, memberships),
+    [listedOrganizations, memberships],
   );
 
   const visibleOrganizations = useMemo(() => {

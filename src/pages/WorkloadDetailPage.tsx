@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useParams } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { useQuery } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import {
   EMPTY_PLACEHOLDER,
   formatContainerStatus,
+  formatDurationBetween,
   formatTimestamp,
   formatWorkloadStatus,
   truncate,
@@ -254,10 +255,18 @@ export function WorkloadDetailPage() {
   const workloadId = workloadIdParam ?? '';
   const location = useLocation();
 
+  const notificationRooms = useMemo(() => {
+    const rooms: string[] = [];
+    if (organizationId) rooms.push(`organization:${organizationId}`);
+    if (workloadId) rooms.push(`workload:${workloadId}`);
+    return rooms;
+  }, [organizationId, workloadId]);
+
   useNotifications({
     events: ['workload.status_changed', 'workload.updated'],
     invalidateKeys: [['workloads', workloadId, 'detail']],
-    enabled: Boolean(workloadId),
+    rooms: notificationRooms,
+    enabled: Boolean(workloadId) && notificationRooms.length > 0,
   });
 
   const workloadQuery = useQuery({
@@ -327,6 +336,15 @@ export function WorkloadDetailPage() {
       : '← Back to Runners';
 
   const workloadIdLabel = workload?.meta?.id ?? EMPTY_PLACEHOLDER;
+  const agentName = workload?.agentName?.trim();
+  const runnerName = workload?.runnerName?.trim();
+  const agentId = workload?.agentId ?? '';
+  const runnerId = workload?.runnerId ?? '';
+  const agentLink = organizationId && agentId ? `/organizations/${organizationId}/agents/${agentId}` : '';
+  const runnerLink = organizationId && runnerId ? `/organizations/${organizationId}/runners/${runnerId}` : '';
+  const agentLabel = agentName || agentId || EMPTY_PLACEHOLDER;
+  const runnerLabel = runnerName || runnerId || EMPTY_PLACEHOLDER;
+  const durationLabel = workload ? formatDurationBetween(workload.meta?.createdAt, workload.removedAt) : EMPTY_PLACEHOLDER;
   const allocatedCpu = workload ? `${workload.allocatedCpuMillicores.toLocaleString()} m` : EMPTY_PLACEHOLDER;
   const allocatedRam = workload ? `${workload.allocatedRamBytes.toString()} bytes` : EMPTY_PLACEHOLDER;
 
@@ -362,16 +380,32 @@ export function WorkloadDetailPage() {
                   <div className="text-sm text-foreground">{workload.organizationId || EMPTY_PLACEHOLDER}</div>
                 </div>
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Runner ID</div>
-                  <div className="text-sm text-foreground">{workload.runnerId || EMPTY_PLACEHOLDER}</div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Runner</div>
+                  <div className="text-sm text-foreground">
+                    {runnerLink ? (
+                      <NavLink to={runnerLink} className="hover:underline">
+                        {runnerLabel}
+                      </NavLink>
+                    ) : (
+                      runnerLabel
+                    )}
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Thread ID</div>
                   <div className="text-sm text-foreground">{workload.threadId || EMPTY_PLACEHOLDER}</div>
                 </div>
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Agent ID</div>
-                  <div className="text-sm text-foreground">{workload.agentId || EMPTY_PLACEHOLDER}</div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Agent</div>
+                  <div className="text-sm text-foreground">
+                    {agentLink ? (
+                      <NavLink to={agentLink} className="hover:underline">
+                        {agentLabel}
+                      </NavLink>
+                    ) : (
+                      agentLabel
+                    )}
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Instance ID</div>
@@ -384,6 +418,10 @@ export function WorkloadDetailPage() {
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Created</div>
                   <div className="text-sm text-foreground">{formatTimestamp(workload.meta?.createdAt)}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Duration</div>
+                  <div className="text-sm text-foreground">{durationLabel}</div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Last Activity</div>
