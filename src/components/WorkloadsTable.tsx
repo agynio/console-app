@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { SortableHeader } from '@/components/SortableHeader';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ import {
   timestampToMillis,
 } from '@/lib/format';
 
-export type WorkloadSortKey = 'agentId' | 'runnerId' | 'threadId' | 'status' | 'started';
+export type WorkloadSortKey = 'agentId' | 'runnerId' | 'threadId' | 'status' | 'started' | 'duration';
 
 type WorkloadsTableControls = {
   searchTerm: string;
@@ -38,6 +38,8 @@ type WorkloadsTableProps = {
   getWorkloadLink?: (workload: Workload) => string | null;
   getAgentName?: (workload: Workload) => string | undefined;
   getRunnerName?: (workload: Workload) => string | undefined;
+  getAgentLink?: (workload: Workload) => string | null;
+  getRunnerLink?: (workload: Workload) => string | null;
   agentLabel?: string;
   runnerLabel?: string;
   rowLinkMode?: 'row' | 'action';
@@ -57,6 +59,8 @@ export function WorkloadsTable({
   getWorkloadLink,
   getAgentName,
   getRunnerName,
+  getAgentLink,
+  getRunnerLink,
   agentLabel = 'Agent ID',
   runnerLabel = 'Runner ID',
   rowLinkMode = 'action',
@@ -67,8 +71,21 @@ export function WorkloadsTable({
   testIdPrefix,
 }: WorkloadsTableProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const resolveAgentName = (workload: Workload) => getAgentName?.(workload)?.trim() || '';
   const resolveRunnerName = (workload: Workload) => getRunnerName?.(workload)?.trim() || '';
+  const resolveDurationEnd = (workload: Workload) =>
+    workload.removedAt ??
+    (workload.status === WorkloadStatus.STOPPED || workload.status === WorkloadStatus.FAILED
+      ? workload.lastActivityAt
+      : undefined);
+  const resolveDurationMillis = (workload: Workload) => {
+    const startMillis = timestampToMillis(workload.meta?.createdAt);
+    if (!startMillis) return 0;
+    const endTimestamp = resolveDurationEnd(workload);
+    const endMillis = endTimestamp ? timestampToMillis(endTimestamp) : Date.now();
+    return Math.max(0, endMillis - startMillis);
+  };
   const searchFields = [
     (workload: Workload) => resolveAgentName(workload) || workload.agentId,
     ...(showRunnerColumn ? [(workload: Workload) => resolveRunnerName(workload) || workload.runnerId] : []),
@@ -81,6 +98,7 @@ export function WorkloadsTable({
     threadId: (workload) => workload.threadId,
     status: (workload) => formatWorkloadStatus(workload.status),
     started: (workload) => timestampToMillis(workload.meta?.createdAt),
+    duration: (workload) => resolveDurationMillis(workload),
   };
 
   if (showRunnerColumn) {
@@ -192,7 +210,15 @@ export function WorkloadsTable({
               sortDirection={sortDirection}
               onSort={handleSort}
             />
-            {showDuration ? <span>Duration</span> : null}
+            {showDuration ? (
+              <SortableHeader
+                label="Duration"
+                sortKey="duration"
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+            ) : null}
             {hasAction ? <span className="text-right">Action</span> : null}
           </div>
           <div className="divide-y divide-border">
@@ -210,13 +236,11 @@ export function WorkloadsTable({
                 const workloadLink = getWorkloadLink ? getWorkloadLink(workload) : null;
                 const agentName = resolveAgentName(workload);
                 const runnerName = resolveRunnerName(workload);
-                const agentIdLabel = workload.agentId || EMPTY_PLACEHOLDER;
-                const runnerIdLabel = workload.runnerId || EMPTY_PLACEHOLDER;
-                const durationEnd =
-                  workload.removedAt ??
-                  (workload.status === WorkloadStatus.STOPPED || workload.status === WorkloadStatus.FAILED
-                    ? workload.lastActivityAt
-                    : undefined);
+                const agentLabel = agentName || workload.agentId || EMPTY_PLACEHOLDER;
+                const runnerLabelText = runnerName || workload.runnerId || EMPTY_PLACEHOLDER;
+                const agentLink = getAgentLink?.(workload) ?? null;
+                const runnerLink = getRunnerLink?.(workload) ?? null;
+                const durationEnd = resolveDurationEnd(workload);
                 const durationLabel = showDuration
                   ? formatDurationBetween(workload.meta?.createdAt, durationEnd)
                   : EMPTY_PLACEHOLDER;
@@ -224,24 +248,30 @@ export function WorkloadsTable({
                 const rowContent = (
                   <>
                     <div className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-agent`}>
-                      {agentName ? (
-                        <div>
-                          <div className="font-medium text-foreground">{agentName}</div>
-                          <div className="text-xs text-muted-foreground">{agentIdLabel}</div>
-                        </div>
+                      {agentLink ? (
+                        <NavLink
+                          to={agentLink}
+                          className="font-medium text-foreground hover:underline"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {agentLabel}
+                        </NavLink>
                       ) : (
-                        agentIdLabel
+                        <span className="font-medium text-foreground">{agentLabel}</span>
                       )}
                     </div>
                     {showRunnerColumn ? (
                       <div className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-runner`}>
-                        {runnerName ? (
-                          <div>
-                            <div className="font-medium text-foreground">{runnerName}</div>
-                            <div className="text-xs text-muted-foreground">{runnerIdLabel}</div>
-                          </div>
+                        {runnerLink ? (
+                          <NavLink
+                            to={runnerLink}
+                            className="font-medium text-foreground hover:underline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {runnerLabelText}
+                          </NavLink>
                         ) : (
-                          runnerIdLabel
+                          <span className="font-medium text-foreground">{runnerLabelText}</span>
                         )}
                       </div>
                     ) : null}
@@ -286,15 +316,27 @@ export function WorkloadsTable({
 
                 if (rowLinkMode === 'row' && workloadLink) {
                   return (
-                    <NavLink
+                    <div
                       key={rowKey}
-                      to={workloadLink}
-                      state={{ from: location.pathname }}
-                      className={`grid items-center gap-2 px-6 py-4 text-sm text-foreground ${gridClass} hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                      role="link"
+                      tabIndex={0}
+                      className={`grid items-center gap-2 px-6 py-4 text-sm text-foreground ${gridClass} cursor-pointer hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
                       data-testid={`${testIdPrefix}-row`}
+                      onClick={(event) => {
+                        const target = event.target as HTMLElement;
+                        if (target.closest('a, button')) return;
+                        navigate(workloadLink, { state: { from: location.pathname } });
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.currentTarget !== event.target) return;
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          navigate(workloadLink, { state: { from: location.pathname } });
+                        }
+                      }}
                     >
                       {rowContent}
-                    </NavLink>
+                    </div>
                   );
                 }
 

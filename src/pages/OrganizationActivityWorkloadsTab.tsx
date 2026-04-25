@@ -67,17 +67,10 @@ const extractWorkloadId = (payload?: NotificationEnvelope['payload']): string | 
   return resolveString((meta as Record<string, unknown>).id);
 };
 
-const replaceFirstPage = <TPage,>(
-  data: InfiniteData<TPage, unknown> | undefined,
+const resetPagination = <TPage,>(
+  _data: InfiniteData<TPage, unknown> | undefined,
   firstPage: TPage,
-): InfiniteData<TPage, unknown> => {
-  if (!data) {
-    return { pages: [firstPage], pageParams: [''] };
-  }
-  const nextPages = [firstPage, ...data.pages.slice(1)];
-  const nextPageParams = data.pageParams.length > 0 ? data.pageParams : [''];
-  return { ...data, pages: nextPages, pageParams: nextPageParams };
-};
+): InfiniteData<TPage, unknown> => ({ pages: [firstPage], pageParams: [''] });
 
 const upsertWorkload = (
   data: InfiniteData<Awaited<ReturnType<typeof runnersClient.listWorkloads>>, unknown> | undefined,
@@ -214,6 +207,7 @@ export function OrganizationActivityWorkloadsTab() {
       runnerId: ListWorkloadsSortField.RUNNER,
       status: ListWorkloadsSortField.STATUS,
       started: ListWorkloadsSortField.STARTED,
+      duration: ListWorkloadsSortField.DURATION,
     };
     return {
       field: fieldMap[sortKey],
@@ -291,7 +285,7 @@ export function OrganizationActivityWorkloadsTab() {
             });
             queryClient.setQueryData<InfiniteData<Awaited<ReturnType<typeof runnersClient.listWorkloads>>, unknown>>(
               workloadsQueryKey,
-              (data) => replaceFirstPage(data, firstPage),
+              (data) => resetPagination(data, firstPage),
             );
           } catch (error) {
             console.error('[useNotifications] workload refetch error:', error);
@@ -340,6 +334,12 @@ export function OrganizationActivityWorkloadsTab() {
         }}
         getAgentName={(workload) => workload.agentName || ''}
         getRunnerName={(workload) => workload.runnerName || ''}
+        getAgentLink={(workload) =>
+          workload.agentId ? `/organizations/${organizationId}/agents/${workload.agentId}` : null
+        }
+        getRunnerLink={(workload) =>
+          workload.runnerId ? `/organizations/${organizationId}/runners/${workload.runnerId}` : null
+        }
         agentLabel="Agent"
         runnerLabel="Runner"
         controls={{
