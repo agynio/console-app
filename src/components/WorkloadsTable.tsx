@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
 import { NavLink, useLocation } from 'react-router-dom';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -8,14 +9,28 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { ListWorkloadsResponse, Workload } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
-import { useListControls } from '@/hooks/useListControls';
+import { type SortDirection, useListControls } from '@/hooks/useListControls';
 import { formatTimestamp, formatWorkloadStatus, summarizeContainers, timestampToMillis } from '@/lib/format';
+
+export type WorkloadSortKey = 'agentId' | 'runnerId' | 'threadId' | 'status' | 'started';
+
+type WorkloadsTableControls = {
+  searchTerm: string;
+  onSearchTermChange: (value: string) => void;
+  sortKey: WorkloadSortKey;
+  sortDirection: SortDirection;
+  onSort: (key: WorkloadSortKey) => void;
+};
 
 type WorkloadsTableProps = {
   workloads: Workload[];
   query: UseInfiniteQueryResult<InfiniteData<ListWorkloadsResponse, unknown>, Error>;
   showRunnerColumn?: boolean;
   getWorkloadLink?: (workload: Workload) => string | null;
+  controls?: WorkloadsTableControls;
+  filterBar?: ReactNode;
+  searchPlaceholder?: string;
+  hasActiveFilters?: boolean;
   testIdPrefix: string;
 };
 
@@ -24,6 +39,10 @@ export function WorkloadsTable({
   query,
   showRunnerColumn = false,
   getWorkloadLink,
+  controls,
+  filterBar,
+  searchPlaceholder = 'Search workloads...',
+  hasActiveFilters,
   testIdPrefix,
 }: WorkloadsTableProps) {
   const location = useLocation();
@@ -53,8 +72,15 @@ export function WorkloadsTable({
     defaultSortDirection: 'desc',
   });
 
-  const visibleWorkloads = listControls.filteredItems;
-  const hasSearch = listControls.searchTerm.trim().length > 0;
+  const searchTerm = controls?.searchTerm ?? listControls.searchTerm;
+  const handleSearchChange = controls?.onSearchTermChange ?? listControls.setSearchTerm;
+  const sortKey = controls?.sortKey ?? (listControls.sortKey as WorkloadSortKey);
+  const sortDirection = controls?.sortDirection ?? listControls.sortDirection;
+  const handleSort = controls?.onSort ?? listControls.handleSort;
+
+  const visibleWorkloads = controls ? workloads : listControls.filteredItems;
+  const hasSearch = searchTerm.trim().length > 0;
+  const hasFilters = controls ? (hasActiveFilters ?? hasSearch) : hasSearch;
   const hasAction = Boolean(getWorkloadLink);
 
   const getStatusVariant = (status: WorkloadStatus) => {
@@ -77,13 +103,16 @@ export function WorkloadsTable({
 
   return (
     <div className="space-y-4">
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search workloads..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid={`${testIdPrefix}-search`}
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-[220px] max-w-sm flex-1">
+          <Input
+            placeholder={searchPlaceholder}
+            value={searchTerm}
+            onChange={(event) => handleSearchChange(event.target.value)}
+            data-testid={`${testIdPrefix}-search`}
+          />
+        </div>
+        {filterBar}
       </div>
       {query.isPending ? <div className="text-sm text-muted-foreground">Loading workloads...</div> : null}
       {query.isError ? <div className="text-sm text-muted-foreground">Failed to load workloads.</div> : null}
@@ -96,47 +125,51 @@ export function WorkloadsTable({
             <SortableHeader
               label="Agent ID"
               sortKey="agentId"
-              activeSortKey={listControls.sortKey}
-              sortDirection={listControls.sortDirection}
-              onSort={listControls.handleSort}
+              activeSortKey={sortKey}
+              sortDirection={sortDirection}
+              onSort={handleSort}
             />
             {showRunnerColumn ? (
               <SortableHeader
                 label="Runner ID"
                 sortKey="runnerId"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={handleSort}
               />
             ) : null}
-            <SortableHeader
-              label="Thread ID"
-              sortKey="threadId"
-              activeSortKey={listControls.sortKey}
-              sortDirection={listControls.sortDirection}
-              onSort={listControls.handleSort}
-            />
+            {controls ? (
+              <span>Thread ID</span>
+            ) : (
+              <SortableHeader
+                label="Thread ID"
+                sortKey="threadId"
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+            )}
             <SortableHeader
               label="Status"
               sortKey="status"
-              activeSortKey={listControls.sortKey}
-              sortDirection={listControls.sortDirection}
-              onSort={listControls.handleSort}
+              activeSortKey={sortKey}
+              sortDirection={sortDirection}
+              onSort={handleSort}
             />
             <span>Containers</span>
             <SortableHeader
               label="Started"
               sortKey="started"
-              activeSortKey={listControls.sortKey}
-              sortDirection={listControls.sortDirection}
-              onSort={listControls.handleSort}
+              activeSortKey={sortKey}
+              sortDirection={sortDirection}
+              onSort={handleSort}
             />
             {hasAction ? <span className="text-right">Action</span> : null}
           </div>
           <div className="divide-y divide-border">
             {visibleWorkloads.length === 0 ? (
               <div className="px-6 py-6 text-sm text-muted-foreground" data-testid={`${testIdPrefix}-empty`}>
-                {hasSearch ? 'No results found.' : emptyMessage}
+                {hasFilters ? 'No results found.' : emptyMessage}
               </div>
             ) : (
               visibleWorkloads.map((workload) => {

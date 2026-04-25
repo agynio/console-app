@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useParams } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { useQuery } from '@tanstack/react-query';
@@ -254,11 +254,19 @@ export function WorkloadDetailPage() {
   const workloadId = workloadIdParam ?? '';
   const location = useLocation();
 
+  const notificationRooms = useMemo(() => {
+    const rooms: string[] = [];
+    if (organizationId) rooms.push(`organization:${organizationId}`);
+    if (workloadId) rooms.push(`workload:${workloadId}`);
+    return rooms;
+  }, [organizationId, workloadId]);
+
   useNotifications({
     rooms: workloadId ? [`workload:${workloadId}`] : [],
     events: ['workload.status_changed', 'workload.updated'],
     invalidateKeys: [['workloads', workloadId, 'detail']],
-    enabled: Boolean(workloadId),
+    rooms: notificationRooms,
+    enabled: Boolean(workloadId) && notificationRooms.length > 0,
   });
 
   const workloadQuery = useQuery({
