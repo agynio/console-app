@@ -326,7 +326,8 @@ export function OrganizationActivityWorkloadsTab() {
         showRunnerColumn
         showDuration
         showSearch={false}
-        rowLinkMode="row"
+        rowLinkMode="action"
+        actionLabel="View workload"
         getWorkloadLink={(workload) => {
           const workloadId = workload.meta?.id;
           if (!workloadId) return null;

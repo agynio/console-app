@@ -43,6 +43,7 @@ type WorkloadsTableProps = {
   agentLabel?: string;
   runnerLabel?: string;
   rowLinkMode?: 'row' | 'action';
+  actionLabel?: string;
   controls?: WorkloadsTableControls;
   filterBar?: ReactNode;
   searchPlaceholder?: string;
@@ -64,6 +65,7 @@ export function WorkloadsTable({
   agentLabel = 'Agent ID',
   runnerLabel = 'Runner ID',
   rowLinkMode = 'action',
+  actionLabel,
   controls,
   filterBar,
   searchPlaceholder = 'Search workloads...',
@@ -72,8 +74,14 @@ export function WorkloadsTable({
 }: WorkloadsTableProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const resolveAgentName = (workload: Workload) => getAgentName?.(workload)?.trim() || '';
-  const resolveRunnerName = (workload: Workload) => getRunnerName?.(workload)?.trim() || '';
+  const resolveAgentName = (workload: Workload) => {
+    const name = getAgentName ? getAgentName(workload) : workload.agentName;
+    return name?.trim() || '';
+  };
+  const resolveRunnerName = (workload: Workload) => {
+    const name = getRunnerName ? getRunnerName(workload) : workload.runnerName;
+    return name?.trim() || '';
+  };
   const resolveDurationEnd = (workload: Workload) =>
     workload.removedAt ??
     (workload.status === WorkloadStatus.STOPPED || workload.status === WorkloadStatus.FAILED
@@ -122,6 +130,7 @@ export function WorkloadsTable({
   const visibleWorkloads = controls ? workloads : listControls.filteredItems;
   const hasSearch = showSearch && searchTerm.trim().length > 0;
   const hasFilters = controls ? (hasActiveFilters ?? hasSearch) : hasSearch;
+  const actionLabelText = actionLabel?.trim() || 'View';
   const hasAction = rowLinkMode === 'action' && Boolean(getWorkloadLink);
 
   const getStatusVariant = (status: WorkloadStatus) => {
@@ -140,7 +149,10 @@ export function WorkloadsTable({
   gridColumns.push('200px');
   gridColumns.push('170px');
   if (showDuration) gridColumns.push('140px');
-  if (hasAction) gridColumns.push('120px');
+  if (hasAction) {
+    const actionWidth = actionLabelText.length > 6 ? '160px' : '120px';
+    gridColumns.push(actionWidth);
+  }
   const gridClass = `md:grid-cols-[${gridColumns.join('_')}]`;
 
   const emptyMessage = showRunnerColumn ? 'No workloads found.' : 'No workloads on this runner.';
@@ -301,12 +313,12 @@ export function WorkloadsTable({
                               state={{ from: location.pathname }}
                               data-testid={`${testIdPrefix}-view`}
                             >
-                              View
+                              {actionLabelText}
                             </NavLink>
                           </Button>
                         ) : (
                           <Button variant="outline" size="sm" disabled data-testid={`${testIdPrefix}-view`}>
-                            View
+                            {actionLabelText}
                           </Button>
                         )}
                       </div>
