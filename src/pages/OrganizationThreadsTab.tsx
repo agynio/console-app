@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  ListOrganizationThreadsResponseSchema,
   ListOrganizationThreadsSortField,
   SortDirection as ThreadsSortDirection,
   type Thread,
@@ -23,7 +22,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { type SortDirection } from '@/hooks/useListControls';
 import { useUserContext } from '@/context/UserContext';
-import { EMPTY_PLACEHOLDER, formatDateOnly, formatThreadStatus, timestampToMillis, truncate } from '@/lib/format';
+import { EMPTY_PLACEHOLDER, formatDateOnly, formatThreadStatus, truncate } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 type ThreadSortKey = 'status' | 'messages' | 'created' | 'updated';
@@ -31,16 +30,6 @@ type ThreadSortKey = 'status' | 'messages' | 'created' | 'updated';
 const THREAD_STATUS_OPTIONS = [ThreadStatus.ACTIVE, ThreadStatus.ARCHIVED, ThreadStatus.DEGRADED];
 
 type ThreadsPage = Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>;
-type LegacyThreadsPage = Awaited<ReturnType<typeof threadsClient.getOrganizationThreads>>;
-
-const toThreadsPage = (response: LegacyThreadsPage): ThreadsPage =>
-  create(ListOrganizationThreadsResponseSchema, {
-    threads: response.threads,
-    nextPageToken: response.nextPageToken,
-  });
-
-const isLegacyThreadsError = (error: unknown) =>
-  error instanceof ConnectError && (error.code === Code.Unimplemented || error.code === Code.NotFound);
 
 const parseDateInput = (value: string, isEnd = false): Date | null => {
   if (!value) return null;
@@ -126,7 +115,6 @@ export function OrganizationThreadsTab() {
   const [createdBefore, setCreatedBefore] = useState('');
   const [sortKey, setSortKey] = useState<ThreadSortKey>('created');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [isLegacyThreadsApi, setIsLegacyThreadsApi] = useState(false);
 
   const notificationRooms = useMemo(
     () => (identityId ? [`thread_participant:${identityId}`] : []),
@@ -178,33 +166,14 @@ export function OrganizationThreadsTab() {
     [filterKey, organizationId, sortSpec],
   );
 
-  const fetchThreadsPage = async (pageToken: string): Promise<ThreadsPage> => {
-    if (!isLegacyThreadsApi) {
-      try {
-        return await threadsClient.listOrganizationThreads({
-          organizationId,
-          pageSize: DEFAULT_PAGE_SIZE,
-          pageToken,
-          filter: filterSpec,
-          sort: sortSpec,
-        });
-      } catch (error) {
-        if (!isLegacyThreadsError(error)) {
-          throw error;
-        }
-        setIsLegacyThreadsApi(true);
-      }
-    }
-
-    const legacyStatus = statusValues.length === 1 ? statusValues[0] : ThreadStatus.UNSPECIFIED;
-    const legacyResponse = await threadsClient.getOrganizationThreads({
+  const fetchThreadsPage = (pageToken: string): Promise<ThreadsPage> =>
+    threadsClient.listOrganizationThreads({
       organizationId,
       pageSize: DEFAULT_PAGE_SIZE,
       pageToken,
-      status: legacyStatus,
+      filter: filterSpec,
+      sort: sortSpec,
     });
-    return toThreadsPage(legacyResponse);
-  };
 
   const threadsQuery = useInfiniteQuery({
     queryKey: threadsQueryKey,
@@ -220,47 +189,7 @@ export function OrganizationThreadsTab() {
     () => threadsQuery.data?.pages.flatMap((page) => page.threads) ?? [],
     [threadsQuery.data?.pages],
   );
-  const visibleThreads = useMemo(() => {
-    if (!isLegacyThreadsApi) return threads;
-
-    let nextThreads = threads;
-    if (participantFilter.length > 0) {
-      const participantSet = new Set(participantFilter);
-      nextThreads = nextThreads.filter((thread) =>
-        thread.participants.some((participant) => participant.id && participantSet.has(participant.id)),
-      );
-    }
-    if (statusValues.length > 0) {
-      const statusSet = new Set(statusValues);
-      nextThreads = nextThreads.filter((thread) => statusSet.has(thread.status));
-    }
-    if (!rangeError && (startDate || endDate)) {
-      const startMillis = startDate ? startDate.getTime() : null;
-      const endMillis = endDate ? endDate.getTime() : null;
-      nextThreads = nextThreads.filter((thread) => {
-        const createdMillis = timestampToMillis(thread.createdAt);
-        if (!createdMillis) return true;
-        if (startMillis && createdMillis < startMillis) return false;
-        if (endMillis && createdMillis > endMillis) return false;
-        return true;
-      });
-    }
-
-    const sortValueMap: Record<ThreadSortKey, (thread: Thread) => number> = {
-      status: (thread) => thread.status,
-      messages: (thread) => thread.messageCount ?? 0,
-      created: (thread) => timestampToMillis(thread.createdAt),
-      updated: (thread) => timestampToMillis(thread.updatedAt),
-    };
-    const direction = sortDirection === 'asc' ? 1 : -1;
-    const sorted = [...nextThreads].sort((left, right) => {
-      const leftValue = sortValueMap[sortKey](left);
-      const rightValue = sortValueMap[sortKey](right);
-      if (leftValue === rightValue) return 0;
-      return leftValue > rightValue ? direction : -direction;
-    });
-    return sorted;
-  }, [threads, isLegacyThreadsApi, participantFilter, statusValues, rangeError, startDate, endDate, sortKey, sortDirection]);
+  const visibleThreads = threads;
   const isLoading = threadsQuery.isPending;
   const isError = threadsQuery.isError;
   const isPermissionDenied =

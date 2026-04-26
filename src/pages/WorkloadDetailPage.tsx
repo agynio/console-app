@@ -263,7 +263,6 @@ export function WorkloadDetailPage() {
   }, [organizationId, workloadId]);
 
   useNotifications({
-    rooms: workloadId ? [`workload:${workloadId}`] : [],
     events: ['workload.status_changed', 'workload.updated'],
     invalidateKeys: [['workloads', workloadId, 'detail']],
     rooms: notificationRooms,
