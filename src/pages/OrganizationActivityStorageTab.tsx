@@ -50,7 +50,7 @@ const ATTACHMENT_KIND_LABELS: Record<AttachmentKind, string> = {
   [AttachmentKind.HOOK]: 'Hook',
 };
 
-const getVolumeName = (volume: Volume) => volume.volumeName?.trim() || volume.volumeId || volume.meta?.id || '';
+const getVolumeName = (volume: Volume) => volume.volumeName?.trim() || '';
 
 const formatAttachmentLabel = (attachment: Attachment) => {
   const name = attachment.name?.trim() || attachment.id || '';
@@ -393,7 +393,7 @@ export function OrganizationActivityStorageTab() {
             </div>
             <div className="divide-y divide-border">
               {volumes.map((volume) => {
-                const name = volume.volumeName?.trim() || getVolumeName(volume) || EMPTY_PLACEHOLDER;
+                const name = volume.volumeName?.trim() || EMPTY_PLACEHOLDER;
                 const volumeId = volume.volumeId || volume.meta?.id || '';
                 const volumeLink = volumeId ? `/organizations/${organizationId}/volumes/${volumeId}` : null;
                 const sizeLabel = volume.sizeGb ? `${volume.sizeGb} GB` : EMPTY_PLACEHOLDER;

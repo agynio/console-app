@@ -248,10 +248,10 @@ export function WorkloadsTable({
                 const workloadLink = getWorkloadLink ? getWorkloadLink(workload) : null;
                 const agentName = resolveAgentName(workload);
                 const runnerName = resolveRunnerName(workload);
-                const agentLabel = agentName || workload.agentId || EMPTY_PLACEHOLDER;
-                const runnerLabelText = runnerName || workload.runnerId || EMPTY_PLACEHOLDER;
-                const agentLink = getAgentLink?.(workload) ?? null;
-                const runnerLink = getRunnerLink?.(workload) ?? null;
+                const agentLabel = agentName || EMPTY_PLACEHOLDER;
+                const runnerLabelText = runnerName || EMPTY_PLACEHOLDER;
+                const agentLink = agentLabel !== EMPTY_PLACEHOLDER ? getAgentLink?.(workload) ?? null : null;
+                const runnerLink = runnerLabelText !== EMPTY_PLACEHOLDER ? getRunnerLink?.(workload) ?? null : null;
                 const durationEnd = resolveDurationEnd(workload);
                 const durationLabel = showDuration
                   ? formatDurationBetween(workload.meta?.createdAt, durationEnd)

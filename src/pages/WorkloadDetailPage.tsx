@@ -340,10 +340,10 @@ export function WorkloadDetailPage() {
   const runnerName = workload?.runnerName?.trim();
   const agentId = workload?.agentId ?? '';
   const runnerId = workload?.runnerId ?? '';
-  const agentLink = organizationId && agentId ? `/organizations/${organizationId}/agents/${agentId}` : '';
-  const runnerLink = organizationId && runnerId ? `/organizations/${organizationId}/runners/${runnerId}` : '';
-  const agentLabel = agentName || agentId || EMPTY_PLACEHOLDER;
-  const runnerLabel = runnerName || runnerId || EMPTY_PLACEHOLDER;
+  const agentLink = organizationId && agentId && agentName ? `/organizations/${organizationId}/agents/${agentId}` : '';
+  const runnerLink = organizationId && runnerId && runnerName ? `/organizations/${organizationId}/runners/${runnerId}` : '';
+  const agentLabel = agentName || EMPTY_PLACEHOLDER;
+  const runnerLabel = runnerName || EMPTY_PLACEHOLDER;
   const durationLabel = workload ? formatDurationBetween(workload.meta?.createdAt, workload.removedAt) : EMPTY_PLACEHOLDER;
   const allocatedCpu = workload ? `${workload.allocatedCpuMillicores.toLocaleString()} m` : EMPTY_PLACEHOLDER;
   const allocatedRam = workload ? `${workload.allocatedRamBytes.toString()} bytes` : EMPTY_PLACEHOLDER;
