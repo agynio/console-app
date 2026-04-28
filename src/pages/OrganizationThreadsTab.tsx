@@ -151,15 +151,22 @@ export function OrganizationThreadsTab() {
     [statusFilter],
   );
 
-  const filterSpec = useMemo(
-    () => ({
+  const filterSpec = useMemo(() => {
+    const createdAfterValue = rangeError ? undefined : startDate ? toTimestamp(startDate) : undefined;
+    const createdBeforeValue = rangeError ? undefined : endDate ? toTimestamp(endDate) : undefined;
+    const hasFilters =
+      participantFilter.length > 0 ||
+      statusValues.length > 0 ||
+      createdAfterValue !== undefined ||
+      createdBeforeValue !== undefined;
+    if (!hasFilters) return undefined;
+    return {
       participantIdIn: participantFilter,
       statusIn: statusValues,
-      createdAfter: rangeError ? undefined : startDate ? toTimestamp(startDate) : undefined,
-      createdBefore: rangeError ? undefined : endDate ? toTimestamp(endDate) : undefined,
-    }),
-    [participantFilter, statusValues, startDate, endDate, rangeError],
-  );
+      createdAfter: createdAfterValue,
+      createdBefore: createdBeforeValue,
+    };
+  }, [participantFilter, statusValues, startDate, endDate, rangeError]);
 
   const threadsQueryKey = useMemo(
     () => ['threads', organizationId, 'list', filterKey, sortSpec] as const,
