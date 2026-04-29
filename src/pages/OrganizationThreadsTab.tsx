@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { create } from '@bufbuild/protobuf';
@@ -22,14 +22,17 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { type SortDirection } from '@/hooks/useListControls';
 import { useUserContext } from '@/context/UserContext';
-import { EMPTY_PLACEHOLDER, formatDateOnly, formatThreadStatus, truncate } from '@/lib/format';
+import { EMPTY_PLACEHOLDER, formatDateOnly, formatThreadStatus, timestampToMillis, truncate } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 type ThreadSortKey = 'status' | 'messages' | 'created' | 'updated';
 
 const THREAD_STATUS_OPTIONS = [ThreadStatus.ACTIVE, ThreadStatus.ARCHIVED, ThreadStatus.DEGRADED];
 
-type ThreadsPage = Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>;
+type ThreadsPage = {
+  threads: Thread[];
+  nextPageToken?: string;
+};
 
 const parseDateInput = (value: string, isEnd = false): Date | null => {
   if (!value) return null;
@@ -74,9 +77,9 @@ const resetPagination = <TPage,>(
 ): InfiniteData<TPage, unknown> => ({ pages: [firstPage], pageParams: [''] });
 
 const upsertThread = (
-  data: InfiniteData<Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>, unknown> | undefined,
+  data: InfiniteData<ThreadsPage, unknown> | undefined,
   thread: Thread,
-): InfiniteData<Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>, unknown> | undefined => {
+): InfiniteData<ThreadsPage, unknown> | undefined => {
   if (!data) return data;
   if (!thread.id) return data;
 
@@ -109,6 +112,7 @@ export function OrganizationThreadsTab() {
   const organizationId = id ?? '';
   const { identityId } = useUserContext();
   const queryClient = useQueryClient();
+  const [useLegacyThreads, setUseLegacyThreads] = useState(false);
   const [participantFilter, setParticipantFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState('');
@@ -168,12 +172,16 @@ export function OrganizationThreadsTab() {
     };
   }, [participantFilter, statusValues, startDate, endDate, rangeError]);
 
-  const threadsQueryKey = useMemo(
+  const listThreadsQueryKey = useMemo(
     () => ['threads', organizationId, 'list', filterKey, sortSpec] as const,
     [filterKey, organizationId, sortSpec],
   );
+  const legacyThreadsQueryKey = useMemo(
+    () => ['threads', organizationId, 'legacy'] as const,
+    [organizationId],
+  );
 
-  const fetchThreadsPage = (pageToken: string): Promise<ThreadsPage> =>
+  const fetchListThreadsPage = (pageToken: string): Promise<ThreadsPage> =>
     threadsClient.listOrganizationThreads({
       organizationId,
       pageSize: DEFAULT_PAGE_SIZE,
@@ -182,21 +190,112 @@ export function OrganizationThreadsTab() {
       sort: sortSpec,
     });
 
-  const threadsQuery = useInfiniteQuery({
-    queryKey: threadsQueryKey,
-    queryFn: ({ pageParam }) => fetchThreadsPage(pageParam),
+  const fetchLegacyThreadsPage = (pageToken: string): Promise<ThreadsPage> =>
+    threadsClient.getOrganizationThreads({
+      organizationId,
+      pageSize: DEFAULT_PAGE_SIZE,
+      pageToken,
+    });
+
+  const listThreadsQuery = useInfiniteQuery({
+    queryKey: listThreadsQueryKey,
+    queryFn: ({ pageParam }) => fetchListThreadsPage(pageParam),
     initialPageParam: '',
     getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
-    enabled: Boolean(organizationId),
+    enabled: Boolean(organizationId) && !useLegacyThreads,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  const legacyThreadsQuery = useInfiniteQuery({
+    queryKey: legacyThreadsQueryKey,
+    queryFn: ({ pageParam }) => fetchLegacyThreadsPage(pageParam),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: Boolean(organizationId) && useLegacyThreads,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (organizationId) {
+      setUseLegacyThreads(false);
+    }
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (useLegacyThreads) return;
+    const error = listThreadsQuery.error;
+    if (!(error instanceof ConnectError)) return;
+    if (error.code === Code.NotFound || error.code === Code.Unimplemented) {
+      setUseLegacyThreads(true);
+    }
+  }, [listThreadsQuery.error, useLegacyThreads]);
+
+  const threadsQuery = useLegacyThreads ? legacyThreadsQuery : listThreadsQuery;
+  const activeThreadsQueryKey = useLegacyThreads ? legacyThreadsQueryKey : listThreadsQueryKey;
+  const fetchThreadsPage = useLegacyThreads ? fetchLegacyThreadsPage : fetchListThreadsPage;
 
   const threads = useMemo(
     () => threadsQuery.data?.pages.flatMap((page) => page.threads) ?? [],
     [threadsQuery.data?.pages],
   );
-  const visibleThreads = threads;
+  const visibleThreads = useMemo(() => {
+    if (!useLegacyThreads) return threads;
+    const filtered = threads.filter((thread) => {
+      if (participantFilter.length > 0) {
+        const matchesParticipant = thread.participants.some(
+          (participant) => participant.id && participantFilter.includes(participant.id),
+        );
+        if (!matchesParticipant) return false;
+      }
+      if (statusValues.length > 0 && !statusValues.includes(thread.status)) {
+        return false;
+      }
+      if (!rangeError) {
+        const createdMillis = timestampToMillis(thread.createdAt);
+        if (startDate && createdMillis < startDate.getTime()) {
+          return false;
+        }
+        if (endDate && createdMillis > endDate.getTime()) {
+          return false;
+        }
+      }
+      return true;
+    });
+    const sorted = [...filtered].sort((left, right) => {
+      const leftValue = (() => {
+        switch (sortKey) {
+          case 'status':
+            return left.status;
+          case 'messages':
+            return left.messageCount ?? 0;
+          case 'created':
+            return timestampToMillis(left.createdAt);
+          case 'updated':
+            return timestampToMillis(left.updatedAt);
+          default:
+            return 0;
+        }
+      })();
+      const rightValue = (() => {
+        switch (sortKey) {
+          case 'status':
+            return right.status;
+          case 'messages':
+            return right.messageCount ?? 0;
+          case 'created':
+            return timestampToMillis(right.createdAt);
+          case 'updated':
+            return timestampToMillis(right.updatedAt);
+          default:
+            return 0;
+        }
+      })();
+      return leftValue - rightValue;
+    });
+    return sortDirection === 'asc' ? sorted : sorted.reverse();
+  }, [endDate, participantFilter, rangeError, sortDirection, sortKey, startDate, statusValues, threads, useLegacyThreads]);
   const isLoading = threadsQuery.isPending;
   const isError = threadsQuery.isError;
   const isPermissionDenied =
@@ -252,9 +351,9 @@ export function OrganizationThreadsTab() {
         void (async () => {
           try {
             const firstPage = await fetchThreadsPage('');
-            queryClient.setQueryData<
-              InfiniteData<Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>, unknown>
-            >(threadsQueryKey, (data) => resetPagination(data, firstPage));
+            queryClient.setQueryData<InfiniteData<ThreadsPage, unknown>>(activeThreadsQueryKey, (data) =>
+              resetPagination(data, firstPage),
+            );
           } catch (error) {
             console.error('[useNotifications] thread refetch error:', error);
           }
@@ -269,9 +368,8 @@ export function OrganizationThreadsTab() {
           const response = await threadsClient.getThread({ threadId });
           const thread = response.thread;
           if (!thread) return;
-          queryClient.setQueryData<InfiniteData<Awaited<ReturnType<typeof threadsClient.listOrganizationThreads>>, unknown>>(
-            threadsQueryKey,
-            (data) => upsertThread(data, thread),
+          queryClient.setQueryData<InfiniteData<ThreadsPage, unknown>>(activeThreadsQueryKey, (data) =>
+            upsertThread(data, thread),
           );
         } catch (error) {
           console.error('[useNotifications] thread update error:', error);
