@@ -227,7 +227,9 @@ export function OrganizationThreadsTab() {
     if (useLegacyThreads) return;
     const error = listThreadsQuery.error;
     if (!(error instanceof ConnectError)) return;
-    if (error.code === Code.NotFound || error.code === Code.Unimplemented) {
+    if (error.code !== Code.Internal) return;
+    const message = error.rawMessage || error.message;
+    if (message.includes('BatchGetNicknames')) {
       setUseLegacyThreads(true);
     }
   }, [listThreadsQuery.error, useLegacyThreads]);
