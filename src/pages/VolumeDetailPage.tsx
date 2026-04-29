@@ -200,9 +200,6 @@ export function VolumeDetailPage() {
                     return (
                       <div key={`${attachment.kind}-${attachment.id}`} className="text-sm text-foreground">
                         <div className="font-medium">{label}</div>
-                        {attachment.id && attachment.id !== attachment.name ? (
-                          <div className="text-xs text-muted-foreground">{attachment.id}</div>
-                        ) : null}
                       </div>
                     );
                   })}

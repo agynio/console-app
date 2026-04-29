@@ -59,10 +59,12 @@ const formatAttachmentLabel = (attachment: Attachment) => {
   return kindLabel === 'Attachment' ? name : `${kindLabel} ${name}`;
 };
 
+const resolveAttachmentSortKey = (attachment: Attachment) => attachment.name?.trim() || attachment.id || '';
+
 const summarizeAttachments = (attachments: Attachment[]) => {
   if (attachments.length === 0) return UNATTACHED_LABEL;
   const labels = [...attachments]
-    .sort((left, right) => left.name.localeCompare(right.name))
+    .sort((left, right) => resolveAttachmentSortKey(left).localeCompare(resolveAttachmentSortKey(right)))
     .map((attachment) => formatAttachmentLabel(attachment))
     .filter((label) => label !== EMPTY_PLACEHOLDER);
   if (labels.length === 0) return UNATTACHED_LABEL;
@@ -152,11 +154,11 @@ export function OrganizationActivityStorageTab() {
       .map((runner) => {
         const runnerId = runner.meta?.id ?? '';
         if (!runnerId) return null;
-        const name = runner.name?.trim() || runnerId;
+        const name = runner.name?.trim();
+        if (!name) return null;
         return {
           value: runnerId,
           label: name,
-          secondary: name === runnerId ? undefined : runnerId,
         };
       })
       .filter((option): option is NonNullable<typeof option> => option !== null)

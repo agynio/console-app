@@ -108,7 +108,6 @@ export function OrganizationActivityWorkloadsTab() {
   const { id } = useParams();
   const organizationId = id ?? '';
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
   const [agentIdFilter, setAgentIdFilter] = useState<string[]>([]);
   const [runnerIdFilter, setRunnerIdFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -139,11 +138,11 @@ export function OrganizationActivityWorkloadsTab() {
       .map((agent) => {
         const agentId = agent.meta?.id ?? '';
         if (!agentId) return null;
-        const name = agent.name?.trim() || agentId;
+        const name = agent.name?.trim();
+        if (!name) return null;
         return {
           value: agentId,
           label: name,
-          secondary: name === agentId ? undefined : agentId,
         };
       })
       .filter((option): option is NonNullable<typeof option> => option !== null)
@@ -156,11 +155,11 @@ export function OrganizationActivityWorkloadsTab() {
       .map((runner) => {
         const runnerId = runner.meta?.id ?? '';
         if (!runnerId) return null;
-        const name = runner.name?.trim() || runnerId;
+        const name = runner.name?.trim();
+        if (!name) return null;
         return {
           value: runnerId,
           label: name,
-          secondary: name === runnerId ? undefined : runnerId,
         };
       })
       .filter((option): option is NonNullable<typeof option> => option !== null)
@@ -343,8 +342,6 @@ export function OrganizationActivityWorkloadsTab() {
         agentLabel="Agent"
         runnerLabel="Runner"
         controls={{
-          searchTerm,
-          onSearchTermChange: setSearchTerm,
           sortKey,
           sortDirection,
           onSort: handleSort,

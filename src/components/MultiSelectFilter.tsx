@@ -43,7 +43,7 @@ export function MultiSelectFilter({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" data-testid={testId} disabled={options.length === 0}>
+        <Button variant="outline" size="sm" data-testid={testId}>
           {triggerLabel}
         </Button>
       </DropdownMenuTrigger>

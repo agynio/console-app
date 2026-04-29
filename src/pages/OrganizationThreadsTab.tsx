@@ -211,11 +211,11 @@ export function OrganizationThreadsTab() {
       thread.participants.forEach((participant) => {
         if (!participant.id) return;
         const nickname = formatNickname(participant.nickname);
-        const label = nickname || participant.id;
+        if (!nickname) return;
+        const label = nickname;
         participantMap.set(participant.id, {
           value: participant.id,
           label,
-          secondary: nickname ? participant.id : undefined,
         });
       });
     });

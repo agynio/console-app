@@ -344,7 +344,13 @@ export function WorkloadDetailPage() {
   const runnerLink = organizationId && runnerId && runnerName ? `/organizations/${organizationId}/runners/${runnerId}` : '';
   const agentLabel = agentName || EMPTY_PLACEHOLDER;
   const runnerLabel = runnerName || EMPTY_PLACEHOLDER;
-  const durationLabel = workload ? formatDurationBetween(workload.meta?.createdAt, workload.removedAt) : EMPTY_PLACEHOLDER;
+  const durationEnd = workload
+    ? workload.removedAt ??
+      (workload.status === WorkloadStatus.STOPPED || workload.status === WorkloadStatus.FAILED
+        ? workload.lastActivityAt
+        : undefined)
+    : undefined;
+  const durationLabel = workload ? formatDurationBetween(workload.meta?.createdAt, durationEnd) : EMPTY_PLACEHOLDER;
   const allocatedCpu = workload ? `${workload.allocatedCpuMillicores.toLocaleString()} m` : EMPTY_PLACEHOLDER;
   const allocatedRam = workload ? `${workload.allocatedRamBytes.toString()} bytes` : EMPTY_PLACEHOLDER;
 

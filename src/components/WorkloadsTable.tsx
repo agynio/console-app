@@ -22,8 +22,8 @@ import {
 export type WorkloadSortKey = 'agentId' | 'runnerId' | 'threadId' | 'status' | 'started' | 'duration';
 
 type WorkloadsTableControls = {
-  searchTerm: string;
-  onSearchTermChange: (value: string) => void;
+  searchTerm?: string;
+  onSearchTermChange?: (value: string) => void;
   sortKey: WorkloadSortKey;
   sortDirection: SortDirection;
   onSort: (key: WorkloadSortKey) => void;
@@ -62,8 +62,8 @@ export function WorkloadsTable({
   getRunnerName,
   getAgentLink,
   getRunnerLink,
-  agentLabel = 'Agent ID',
-  runnerLabel = 'Runner ID',
+  agentLabel = 'Agent',
+  runnerLabel = 'Runner',
   rowLinkMode = 'action',
   actionLabel,
   controls,
@@ -82,6 +82,8 @@ export function WorkloadsTable({
     const name = getRunnerName ? getRunnerName(workload) : workload.runnerName;
     return name?.trim() || '';
   };
+  const resolveAgentSortKey = (workload: Workload) => resolveAgentName(workload) || workload.agentId;
+  const resolveRunnerSortKey = (workload: Workload) => resolveRunnerName(workload) || workload.runnerId;
   const resolveDurationEnd = (workload: Workload) =>
     workload.removedAt ??
     (workload.status === WorkloadStatus.STOPPED || workload.status === WorkloadStatus.FAILED
@@ -102,7 +104,7 @@ export function WorkloadsTable({
   ];
 
   const sortOptions: Record<string, (workload: Workload) => string | number> = {
-    agentId: (workload) => workload.agentId,
+    agentId: (workload) => resolveAgentSortKey(workload),
     threadId: (workload) => workload.threadId,
     status: (workload) => formatWorkloadStatus(workload.status),
     started: (workload) => timestampToMillis(workload.meta?.createdAt),
@@ -110,7 +112,7 @@ export function WorkloadsTable({
   };
 
   if (showRunnerColumn) {
-    sortOptions.runnerId = (workload) => workload.runnerId;
+    sortOptions.runnerId = (workload) => resolveRunnerSortKey(workload);
   }
 
   const listControls = useListControls({
@@ -335,8 +337,8 @@ export function WorkloadsTable({
                       className={`grid items-center gap-2 px-6 py-4 text-sm text-foreground ${gridClass} cursor-pointer hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
                       data-testid={`${testIdPrefix}-row`}
                       onClick={(event) => {
-                        const target = event.target as HTMLElement;
-                        if (target.closest('a, button')) return;
+                        const target = event.target;
+                        if (target instanceof Element && target.closest('a, button')) return;
                         navigate(workloadLink, { state: { from: location.pathname } });
                       }}
                       onKeyDown={(event) => {
