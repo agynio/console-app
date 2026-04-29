@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
@@ -38,15 +38,6 @@ export function RunnerDetailPage() {
   const [labelEntries, setLabelEntries] = useState<LabelEntry[]>([]);
   const [runnerName, setRunnerName] = useState('');
   const [runnerNameError, setRunnerNameError] = useState('');
-  const notificationRooms = organizationId ? [`organization:${organizationId}`] : [];
-
-  useNotifications({
-    rooms: notificationRooms,
-    events: ['workload.updated'],
-    invalidateKeys: [['workloads', 'runner', runnerId]],
-    enabled: Boolean(runnerId && organizationId),
-  });
-
   const runnerQuery = useQuery({
     queryKey: ['runners', runnerId],
     queryFn: () => runnersClient.getRunner({ id: runnerId }),
@@ -56,6 +47,19 @@ export function RunnerDetailPage() {
   });
 
   const runner = runnerQuery.data?.runner;
+  const notificationRooms = useMemo(() => {
+    const rooms = new Set<string>();
+    if (organizationId) rooms.add(`organization:${organizationId}`);
+    if (runner?.organizationId) rooms.add(`organization:${runner.organizationId}`);
+    return Array.from(rooms);
+  }, [organizationId, runner?.organizationId]);
+
+  useNotifications({
+    events: ['workload.updated'],
+    invalidateKeys: [['workloads', 'runner', runnerId]],
+    rooms: notificationRooms,
+    enabled: Boolean(runnerId) && notificationRooms.length > 0,
+  });
   const isOrgRunner = Boolean(organizationId) && runner?.organizationId === organizationId;
   const canManageRunner = !isOrgContext || isOrgRunner;
 

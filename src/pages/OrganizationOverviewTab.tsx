@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { agentsClient, appsClient, organizationsClient, runnersClient, secretsClient } from '@/api/client';
@@ -13,12 +14,16 @@ export function OrganizationOverviewTab() {
 
   const { id } = useParams();
   const organizationId = id ?? '';
+  const notificationRooms = useMemo(
+    () => (organizationId ? [`organization:${organizationId}`] : []),
+    [organizationId],
+  );
 
   useNotifications({
-    rooms: organizationId ? [`organization:${organizationId}`] : [],
     events: ['workload.updated'],
     invalidateKeys: [['workloads', organizationId, 'overview']],
-    enabled: Boolean(organizationId),
+    rooms: notificationRooms,
+    enabled: Boolean(organizationId) && notificationRooms.length > 0,
   });
 
   const membersQuery = useQuery({
