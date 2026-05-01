@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -155,7 +155,8 @@ export function WorkloadsTable({
     const actionWidth = actionLabelText.length > 6 ? '160px' : '120px';
     gridColumns.push(actionWidth);
   }
-  const gridClass = `md:grid-cols-[${gridColumns.join('_')}]`;
+  const gridStyle = { '--workloads-cols': gridColumns.join(' ') } as CSSProperties;
+  const gridClass = 'md:[grid-template-columns:var(--workloads-cols)]';
 
   const emptyMessage = showRunnerColumn ? 'No workloads found.' : 'No workloads on this runner.';
 
@@ -180,6 +181,7 @@ export function WorkloadsTable({
         <CardContent className="px-0">
           <div
             className={`grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground ${gridClass}`}
+            style={gridStyle}
             data-testid={`${testIdPrefix}-header`}
           >
             <SortableHeader
@@ -335,6 +337,7 @@ export function WorkloadsTable({
                       role="link"
                       tabIndex={0}
                       className={`grid items-center gap-2 px-6 py-4 text-sm text-foreground ${gridClass} cursor-pointer hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                      style={gridStyle}
                       data-testid={`${testIdPrefix}-row`}
                       onClick={(event) => {
                         const target = event.target;
@@ -358,6 +361,7 @@ export function WorkloadsTable({
                   <div
                     key={rowKey}
                     className={`grid items-center gap-2 px-6 py-4 text-sm text-foreground ${gridClass}`}
+                    style={gridStyle}
                     data-testid={`${testIdPrefix}-row`}
                   >
                     {rowContent}
