@@ -231,30 +231,33 @@ export function AgentCreatePage() {
               data-testid="agent-create-image"
             />
           </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-create-init-image">Init Image</Label>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-init-image">Init Image</Label>
             <Input
               id="agent-create-init-image"
               placeholder="ghcr.io/org/agent-init:latest"
               value={initImage}
               onChange={(event) => setInitImage(event.target.value)}
               data-testid="agent-create-init-image"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-create-availability">Availability</Label>
-              <Select value={String(availability)} onValueChange={(value) => setAvailability(Number(value) as AgentAvailability)}>
-                <SelectTrigger id="agent-create-availability" data-testid="agent-create-availability">
-                  <SelectValue placeholder="Select availability" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={String(AgentAvailability.INTERNAL)}>Internal</SelectItem>
-                  <SelectItem value={String(AgentAvailability.PRIVATE)}>Private</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-create-idle-timeout">Idle Timeout</Label>
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-availability">Availability</Label>
+            <Select
+              value={String(availability)}
+              onValueChange={(value) => setAvailability(Number(value) as AgentAvailability)}
+            >
+              <SelectTrigger id="agent-create-availability" data-testid="agent-create-availability">
+                <SelectValue placeholder="Select availability" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(AgentAvailability.INTERNAL)}>Internal</SelectItem>
+                <SelectItem value={String(AgentAvailability.PRIVATE)}>Private</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-idle-timeout">Idle Timeout</Label>
             <Input
               id="agent-create-idle-timeout"
               placeholder="5m"
