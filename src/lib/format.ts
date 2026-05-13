@@ -107,7 +107,7 @@ export function formatDeviceStatus(status: DeviceStatus): string {
 
 export function formatWorkloadStatus(status: WorkloadStatus): string {
   if (status === WorkloadStatus.STARTING) return 'Starting';
-  if (status === WorkloadStatus.RUNNING) return 'Running';
+  if (status === WorkloadStatus.RUNNING) return 'Started';
   if (status === WorkloadStatus.STOPPING) return 'Stopping';
   if (status === WorkloadStatus.STOPPED) return 'Stopped';
   if (status === WorkloadStatus.FAILED) return 'Failed';
