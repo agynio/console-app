@@ -5,6 +5,7 @@ import { agentsClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AgentConfigurationTab } from '@/pages/agent-detail/AgentConfigurationTab';
+import { AgentRolesSection } from '@/pages/agent-detail/AgentRolesSection';
 import { AgentEnvsTab } from '@/pages/agent-detail/AgentEnvsTab';
 import { AgentHooksTab } from '@/pages/agent-detail/AgentHooksTab';
 import { AgentInitScriptsTab } from '@/pages/agent-detail/AgentInitScriptsTab';
@@ -74,6 +75,9 @@ export function AgentDetailPage() {
         <div className="space-y-8">
           <section data-testid="agent-detail-section-configuration">
             <AgentConfigurationTab agent={agent} organizationId={organizationId} />
+          </section>
+          <section data-testid="agent-detail-section-roles">
+            <AgentRolesSection agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-mcps">
             <AgentMcpsTab agentId={resolvedAgentId} organizationId={organizationId} />

@@ -17,10 +17,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Agent, ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentAvailability, type Agent, type ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
-import { formatComputeResources } from '@/lib/format';
+import { formatAgentAvailability, formatComputeResources } from '@/lib/format';
 import { NICKNAME_MAX_LENGTH, getNicknameValidationError } from '@/lib/nickname';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
@@ -52,6 +52,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [configurationError, setConfigurationError] = useState('');
   const [idleTimeout, setIdleTimeout] = useState('');
   const [idleTimeoutError, setIdleTimeoutError] = useState('');
+  const [availability, setAvailability] = useState<AgentAvailability>(AgentAvailability.INTERNAL);
   const [resources, setResources] = useState<ComputeResources | undefined>(undefined);
 
   const modelsQuery = useQuery({
@@ -95,6 +96,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       initImage?: string;
       nickname?: string;
       idleTimeout?: string;
+      availability?: AgentAvailability;
       resources?: ComputeResources;
     }) => agentsClient.updateAgent(payload),
     onSuccess: () => {
@@ -121,6 +123,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setInitImage(agent.initImage);
       setConfiguration(agent.configuration);
       setIdleTimeout(agent.idleTimeout ?? '');
+      setAvailability(agent.availability || AgentAvailability.INTERNAL);
       setResources(agent.resources ?? undefined);
       setNameError('');
       setConfigurationError('');
@@ -181,6 +184,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       image: image.trim(),
       initImage: initImage.trim(),
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
+      availability,
       resources,
     });
   };
@@ -239,6 +243,10 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Idle Timeout</div>
               <div className="text-sm text-foreground">{agent.idleTimeout || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Availability</div>
+              <div className="text-sm text-foreground">{formatAgentAvailability(agent.availability)}</div>
             </div>
             <div className="md:col-span-2">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compute Resources</div>
@@ -357,6 +365,18 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                 onChange={(event) => setInitImage(event.target.value)}
                 data-testid="agent-configuration-init-image"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-availability">Availability</Label>
+              <Select value={String(availability)} onValueChange={(value) => setAvailability(Number(value) as AgentAvailability)}>
+                <SelectTrigger id="agent-configuration-availability" data-testid="agent-configuration-availability">
+                  <SelectValue placeholder="Select availability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={String(AgentAvailability.INTERNAL)}>Internal</SelectItem>
+                  <SelectItem value={String(AgentAvailability.PRIVATE)}>Private</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="agent-configuration-idle-timeout">Idle Timeout</Label>

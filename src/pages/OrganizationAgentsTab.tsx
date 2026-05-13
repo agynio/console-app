@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
-import { formatDateOnly, timestampToMillis } from '@/lib/format';
+import { formatAgentAvailability, formatDateOnly, timestampToMillis } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationAgentsTab() {
@@ -61,12 +61,14 @@ export function OrganizationAgentsTab() {
       (agent) => agent.name,
       (agent) => agent.meta?.id ?? '',
       (agent) => agent.role || '',
+      (agent) => formatAgentAvailability(agent.availability),
       (agent) => getModelLabel(agent),
       () => 'TBD',
     ],
     sortOptions: {
       name: (agent) => agent.name,
       role: (agent) => agent.role || '',
+      availability: (agent) => formatAgentAvailability(agent.availability),
       status: () => 'TBD',
       model: (agent) => getModelLabel(agent),
       created: (agent) => timestampToMillis(agent.meta?.createdAt),
@@ -105,7 +107,7 @@ export function OrganizationAgentsTab() {
         <Card className="border-border" data-testid="organization-agents-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr]"
               data-testid="organization-agents-header"
             >
               <SortableHeader
@@ -118,6 +120,13 @@ export function OrganizationAgentsTab() {
               <SortableHeader
                 label="Role"
                 sortKey="role"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Availability"
+                sortKey="availability"
                 activeSortKey={listControls.sortKey}
                 sortDirection={listControls.sortDirection}
                 onSort={listControls.handleSort}
@@ -166,6 +175,9 @@ export function OrganizationAgentsTab() {
                       <Badge variant="secondary" data-testid="organization-agent-role">
                         {agent.role || '—'}
                       </Badge>
+                      <Badge variant="outline" data-testid="organization-agent-availability">
+                        {formatAgentAvailability(agent.availability)}
+                      </Badge>
                       {/* TODO: replace with live agent status when available. */}
                       <Badge
                         variant="secondary"
@@ -188,7 +200,7 @@ export function OrganizationAgentsTab() {
                     <NavLink
                       key={agentId}
                       to={`/organizations/${organizationId}/agents/${agentId}`}
-                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       data-testid="organization-agent-row"
                     >
                       {rowContent}
@@ -196,7 +208,7 @@ export function OrganizationAgentsTab() {
                   ) : (
                     <div
                       key={agent.name}
-                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr]"
                       data-testid="organization-agent-row"
                     >
                       {rowContent}

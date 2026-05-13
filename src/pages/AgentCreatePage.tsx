@@ -9,7 +9,7 @@ import { JsonEditor } from '@/components/JsonEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentAvailability, type ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
@@ -37,6 +37,7 @@ export function AgentCreatePage() {
   const [configurationError, setConfigurationError] = useState('');
   const [idleTimeout, setIdleTimeout] = useState('');
   const [idleTimeoutError, setIdleTimeoutError] = useState('');
+  const [availability, setAvailability] = useState<AgentAvailability>(AgentAvailability.INTERNAL);
   const [resources, setResources] = useState<ComputeResources | undefined>(undefined);
 
   const modelsQuery = useQuery({
@@ -61,6 +62,7 @@ export function AgentCreatePage() {
       initImage: string;
       organizationId: string;
       idleTimeout?: string;
+      availability: AgentAvailability;
       resources?: ComputeResources;
     }) => agentsClient.createAgent(payload),
     onSuccess: (response) => {
@@ -128,6 +130,7 @@ export function AgentCreatePage() {
       initImage: initImage.trim(),
       organizationId,
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
+      availability,
       resources,
     });
   };
@@ -228,18 +231,30 @@ export function AgentCreatePage() {
               data-testid="agent-create-image"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="agent-create-init-image">Init Image</Label>
+            <div className="space-y-2">
+              <Label htmlFor="agent-create-init-image">Init Image</Label>
             <Input
               id="agent-create-init-image"
               placeholder="ghcr.io/org/agent-init:latest"
               value={initImage}
               onChange={(event) => setInitImage(event.target.value)}
               data-testid="agent-create-init-image"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="agent-create-idle-timeout">Idle Timeout</Label>
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-create-availability">Availability</Label>
+              <Select value={String(availability)} onValueChange={(value) => setAvailability(Number(value) as AgentAvailability)}>
+                <SelectTrigger id="agent-create-availability" data-testid="agent-create-availability">
+                  <SelectValue placeholder="Select availability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={String(AgentAvailability.INTERNAL)}>Internal</SelectItem>
+                  <SelectItem value={String(AgentAvailability.PRIVATE)}>Private</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-create-idle-timeout">Idle Timeout</Label>
             <Input
               id="agent-create-idle-timeout"
               placeholder="5m"
