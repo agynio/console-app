@@ -1,8 +1,6 @@
 version: v2
 inputs:
-  - git_repo: https://github.com/agynio/api.git
-    branch: noa/issue-51-agent-availability
-    subdir: proto
+  - module: buf.build/agynio/api
     paths:
       - agynio/api/gateway/v1
       - agynio/api/agents/v1
