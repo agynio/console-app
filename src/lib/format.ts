@@ -1,5 +1,5 @@
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
-import type { ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentAvailability, AgentRole, type ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AppVisibility, InstallationAuditLogLevel } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
@@ -199,6 +199,19 @@ export function formatSecretProviderType(type: SecretProviderType): string {
 export function formatMembershipRole(role?: MembershipRole): string {
   if (role === MembershipRole.OWNER) return 'Owner';
   if (role === MembershipRole.MEMBER) return 'Member';
+  return 'Unspecified';
+}
+
+export function formatAgentAvailability(availability?: AgentAvailability): string {
+  if (availability === AgentAvailability.INTERNAL) return 'Internal';
+  if (availability === AgentAvailability.PRIVATE) return 'Private';
+  return 'Unspecified';
+}
+
+export function formatAgentRole(role?: AgentRole): string {
+  if (role === AgentRole.OWNER) return 'Owner';
+  if (role === AgentRole.MAINTAINER) return 'Maintainer';
+  if (role === AgentRole.PARTICIPANT) return 'Participant';
   return 'Unspecified';
 }
 
