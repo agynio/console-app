@@ -17,7 +17,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AgentAvailability, AgentRole, type AgentRoleAssignment } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import { MembershipStatus, type Membership } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatAgentRole } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
@@ -29,6 +29,24 @@ type AgentRolesSectionProps = {
 };
 
 const assignableRoles = [AgentRole.OWNER, AgentRole.MAINTAINER, AgentRole.PARTICIPANT] as const;
+
+async function listActiveOrganizationMembers(organizationId: string): Promise<Membership[]> {
+  const memberships: Membership[] = [];
+  let pageToken = '';
+
+  do {
+    const response = await organizationsClient.listMembers({
+      organizationId,
+      status: MembershipStatus.ACTIVE,
+      pageSize: MAX_PAGE_SIZE,
+      pageToken,
+    });
+    memberships.push(...response.memberships);
+    pageToken = response.nextPageToken;
+  } while (pageToken);
+
+  return memberships;
+}
 
 function formatRoleError(error: unknown, fallback: string) {
   if (error instanceof ConnectError && error.code === Code.PermissionDenied) {
@@ -54,20 +72,14 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
 
   const membersQuery = useQuery({
     queryKey: ['organizations', organizationId, 'members', 'roles-picker'],
-    queryFn: () =>
-      organizationsClient.listMembers({
-        organizationId,
-        status: MembershipStatus.ACTIVE,
-        pageSize: MAX_PAGE_SIZE,
-        pageToken: '',
-      }),
+    queryFn: () => listActiveOrganizationMembers(organizationId),
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
   const assignments = useMemo(() => rolesQuery.data?.assignments ?? [], [rolesQuery.data?.assignments]);
-  const members = useMemo(() => membersQuery.data?.memberships ?? [], [membersQuery.data?.memberships]);
+  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
   const identityIds = useMemo(
     () =>
       Array.from(

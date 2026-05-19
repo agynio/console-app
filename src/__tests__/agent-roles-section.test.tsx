@@ -85,6 +85,17 @@ function buildUser(identityId: string, username: string, name: string, email: st
   });
 }
 
+function mockMembersPages(pages: Array<{ memberships: ReturnType<typeof buildMembership>[]; nextPageToken?: string }>) {
+  listMembers.mockImplementation(({ pageToken }: { pageToken: string }) => {
+    const pageIndex = pageToken ? Number(pageToken) : 0;
+    const page = pages[pageIndex];
+    return Promise.resolve({
+      memberships: page.memberships,
+      nextPageToken: page.nextPageToken ?? '',
+    });
+  });
+}
+
 async function openSelect(testId: string) {
   fireEvent.click(screen.getByTestId(testId));
   return screen.findByRole('listbox');
@@ -109,9 +120,9 @@ describe('AgentRolesSection', () => {
     listAgentRoles.mockResolvedValue({
       assignments: [buildAssignment('identity-owner', AgentRole.OWNER)],
     });
-    listMembers.mockResolvedValue({
-      memberships: [buildMembership('identity-owner'), buildMembership('identity-new')],
-    });
+    mockMembersPages([
+      { memberships: [buildMembership('identity-owner'), buildMembership('identity-new')] },
+    ]);
     batchGetUsers.mockResolvedValue({
       users: [
         buildUser('identity-owner', 'owner-user', 'Owner User', 'owner@example.com'),
@@ -161,6 +172,53 @@ describe('AgentRolesSection', () => {
       expect(setAgentRole).toHaveBeenCalledWith({
         agentId: 'agent-1',
         identityId: 'identity-new',
+        role: AgentRole.PARTICIPANT,
+      });
+    });
+  });
+
+  it('loads every page of organization members for the picker', async () => {
+    mockMembersPages([
+      { memberships: [buildMembership('identity-owner')], nextPageToken: '1' },
+      { memberships: [buildMembership('identity-later')] },
+    ]);
+    batchGetUsers.mockResolvedValue({
+      users: [
+        buildUser('identity-owner', 'owner-user', 'Owner User', 'owner@example.com'),
+        buildUser('identity-later', 'later-user', 'Later User', 'later@example.com'),
+      ],
+    });
+    setAgentRole.mockResolvedValue({ assignment: buildAssignment('identity-later', AgentRole.PARTICIPANT) });
+
+    renderSection();
+
+    fireEvent.click(screen.getByTestId('agent-roles-add'));
+    expect(await screen.findByTestId('agent-roles-dialog')).toBeTruthy();
+
+    await waitFor(() => {
+      expect(listMembers).toHaveBeenCalledTimes(2);
+    });
+    expect(listMembers).toHaveBeenNthCalledWith(1, {
+      organizationId: 'org-1',
+      status: MembershipStatus.ACTIVE,
+      pageSize: 200,
+      pageToken: '',
+    });
+    expect(listMembers).toHaveBeenNthCalledWith(2, {
+      organizationId: 'org-1',
+      status: MembershipStatus.ACTIVE,
+      pageSize: 200,
+      pageToken: '1',
+    });
+
+    const memberListbox = await openSelect('agent-roles-member');
+    fireEvent.click(within(memberListbox).getByText('@later-user'));
+    fireEvent.click(screen.getByTestId('agent-roles-save'));
+
+    await waitFor(() => {
+      expect(setAgentRole).toHaveBeenCalledWith({
+        agentId: 'agent-1',
+        identityId: 'identity-later',
         role: AgentRole.PARTICIPANT,
       });
     });
