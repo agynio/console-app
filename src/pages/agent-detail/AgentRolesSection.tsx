@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, organizationsClient, usersClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AgentRole, type AgentRoleAssignment } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentAvailability, AgentRole, type AgentRoleAssignment } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatAgentRole } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -24,15 +25,24 @@ import { toast } from 'sonner';
 type AgentRolesSectionProps = {
   agentId: string;
   organizationId: string;
+  availability: AgentAvailability;
 };
 
 const assignableRoles = [AgentRole.OWNER, AgentRole.MAINTAINER, AgentRole.PARTICIPANT] as const;
 
-export function AgentRolesSection({ agentId, organizationId }: AgentRolesSectionProps) {
+function formatRoleError(error: unknown, fallback: string) {
+  if (error instanceof ConnectError && error.code === Code.PermissionDenied) {
+    return 'You do not have permission to manage agent sharing roles.';
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
+export function AgentRolesSection({ agentId, organizationId, availability }: AgentRolesSectionProps) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedIdentityId, setSelectedIdentityId] = useState('');
   const [selectedRole, setSelectedRole] = useState<AgentRole>(AgentRole.PARTICIPANT);
+  const [roleError, setRoleError] = useState('');
 
   const rolesQuery = useQuery({
     queryKey: ['agents', agentId, 'roles'],
@@ -57,9 +67,18 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
   });
 
   const assignments = useMemo(() => rolesQuery.data?.assignments ?? [], [rolesQuery.data?.assignments]);
+  const members = useMemo(() => membersQuery.data?.memberships ?? [], [membersQuery.data?.memberships]);
   const identityIds = useMemo(
-    () => Array.from(new Set(assignments.map((assignment) => assignment.identityId).filter(Boolean))),
-    [assignments],
+    () =>
+      Array.from(
+        new Set(
+          [
+            ...assignments.map((assignment) => assignment.identityId),
+            ...members.map((membership) => membership.identityId),
+          ].filter(Boolean),
+        ),
+      ),
+    [assignments, members],
   );
 
   const usersQuery = useQuery({
@@ -80,7 +99,6 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
     );
   }, [usersQuery.data?.users]);
 
-  const members = membersQuery.data?.memberships ?? [];
   const roleByIdentityId = useMemo(
     () => new Map(assignments.map((assignment) => [assignment.identityId, assignment.role] as const)),
     [assignments],
@@ -95,9 +113,12 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
       setDialogOpen(false);
       setSelectedIdentityId('');
       setSelectedRole(AgentRole.PARTICIPANT);
+      setRoleError('');
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to save agent role.');
+      const message = formatRoleError(error, 'Failed to save agent role.');
+      setRoleError(message);
+      toast.error(message);
     },
   });
 
@@ -106,9 +127,12 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
     onSuccess: () => {
       toast.success('Agent role removed.');
       void queryClient.invalidateQueries({ queryKey: ['agents', agentId, 'roles'] });
+      setRoleError('');
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to remove agent role.');
+      const message = formatRoleError(error, 'Failed to remove agent role.');
+      setRoleError(message);
+      toast.error(message);
     },
   });
 
@@ -120,25 +144,57 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
   const openEdit = (assignment?: AgentRoleAssignment) => {
     setSelectedIdentityId(assignment?.identityId ?? '');
     setSelectedRole(assignment?.role || AgentRole.PARTICIPANT);
+    setRoleError('');
     setDialogOpen(true);
   };
 
+  const sharingDescription =
+    availability === AgentAvailability.PRIVATE
+      ? 'Private agents are shared by assigning owner, maintainer, or participant roles to specific organization members.'
+      : 'Assign roles now to prepare specific-user sharing before switching this agent to Private availability.';
+
   return (
-    <Card className="border-border" data-testid="agent-roles-card">
+    <Card className="border-primary/40 bg-primary/5" data-testid="agent-roles-card">
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">Roles</h3>
-            <p className="text-sm text-muted-foreground">Per-agent access for organization members.</p>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">Share with specific users</h3>
+              <Badge variant={availability === AgentAvailability.PRIVATE ? 'default' : 'outline'} data-testid="agent-roles-availability">
+                {availability === AgentAvailability.PRIVATE ? 'Private sharing active' : 'Available when Private'}
+              </Badge>
+            </div>
+            <p className="max-w-2xl text-sm text-muted-foreground">{sharingDescription}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => openEdit()} data-testid="agent-roles-add">
-            Add role
+            Share agent
           </Button>
         </div>
+        {availability !== AgentAvailability.PRIVATE ? (
+          <div className="rounded-md border border-border bg-background p-3 text-sm text-muted-foreground" data-testid="agent-roles-private-hint">
+            To limit thread access to only the users listed here, set Availability to Private in Configuration.
+          </div>
+        ) : null}
         {rolesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading roles...</div> : null}
-        {rolesQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load roles.</div> : null}
+        {rolesQuery.isError ? (
+          <div className="text-sm text-destructive" data-testid="agent-roles-load-error">
+            {formatRoleError(rolesQuery.error, 'Failed to load sharing roles.')}
+          </div>
+        ) : null}
+        {membersQuery.isError ? (
+          <div className="text-sm text-destructive" data-testid="agent-roles-members-error">
+            Failed to load organization members for sharing.
+          </div>
+        ) : null}
+        {roleError ? (
+          <div className="text-sm text-destructive" data-testid="agent-roles-error">
+            {roleError}
+          </div>
+        ) : null}
         {assignments.length === 0 && !rolesQuery.isPending ? (
-          <div className="text-sm text-muted-foreground">No explicit roles assigned.</div>
+          <div className="text-sm text-muted-foreground" data-testid="agent-roles-empty">
+            No users are explicitly shared on this agent yet.
+          </div>
         ) : null}
         {assignments.length > 0 ? (
           <div className="divide-y divide-border rounded-md border border-border" data-testid="agent-roles-list">
@@ -150,7 +206,7 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{formatAgentRole(assignment.role)}</Badge>
-                  <Button variant="outline" size="sm" onClick={() => openEdit(assignment)}>
+                  <Button variant="outline" size="sm" onClick={() => openEdit(assignment)} data-testid="agent-roles-change">
                     Change
                   </Button>
                   <Button
@@ -158,6 +214,7 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
                     size="sm"
                     onClick={() => removeRoleMutation.mutate(assignment.identityId)}
                     disabled={removeRoleMutation.isPending}
+                    data-testid="agent-roles-remove"
                   >
                     Remove
                   </Button>
@@ -170,8 +227,10 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent data-testid="agent-roles-dialog">
           <DialogHeader>
-            <DialogTitle>Agent role</DialogTitle>
-            <DialogDescription>Select an organization member and their role on this agent.</DialogDescription>
+            <DialogTitle>Share private agent</DialogTitle>
+            <DialogDescription>
+              Select an organization member who can use this agent when Availability is Private.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -181,6 +240,7 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
                   <SelectValue placeholder="Select member" />
                 </SelectTrigger>
                 <SelectContent>
+                  {membersQuery.isPending ? <SelectItem value="loading" disabled>Loading members...</SelectItem> : null}
                   {members.map((membership) => (
                     <SelectItem key={membership.identityId} value={membership.identityId}>
                       {memberLabel(membership.identityId)}
@@ -216,6 +276,7 @@ export function AgentRolesSection({ agentId, organizationId }: AgentRolesSection
               size="sm"
               onClick={() => setRoleMutation.mutate({ identityId: selectedIdentityId, role: selectedRole })}
               disabled={!selectedIdentityId || setRoleMutation.isPending}
+              data-testid="agent-roles-save"
             >
               {setRoleMutation.isPending ? 'Saving...' : 'Save role'}
             </Button>
