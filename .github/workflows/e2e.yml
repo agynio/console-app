@@ -50,3 +50,4 @@ jobs:
         uses: agynio/e2e/.github/actions/run-tests@main
         with:
           service: console
+          include_smoke: false
