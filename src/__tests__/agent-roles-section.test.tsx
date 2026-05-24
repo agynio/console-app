@@ -274,14 +274,28 @@ describe('AgentRolesSection', () => {
     });
   });
 
-  it('shows backend wiring guidance when gateway role methods are missing', async () => {
-    listAgentRoles.mockRejectedValueOnce(new ConnectError('not found', Code.NotFound));
+  it('shows backend wiring guidance when the gateway role route is missing', async () => {
+    listAgentRoles.mockRejectedValueOnce(new ConnectError('HTTP 404', Code.Unimplemented));
     renderSection();
 
     expect((await screen.findByTestId('agent-roles-load-error')).textContent).toContain(
       '/api/agynio.api.gateway.v1.AgentsGateway/*',
     );
     expect(screen.getByTestId('agent-roles-load-error').textContent).toContain('ListAgentRoles');
+  });
+
+  it('preserves legitimate service not-found errors', async () => {
+    listAgentRoles.mockRejectedValueOnce(new ConnectError('agent not found', Code.NotFound));
+    renderSection();
+
+    expect((await screen.findByTestId('agent-roles-load-error')).textContent).toBe('[not_found] agent not found');
+  });
+
+  it('does not treat Connect not-found codes as missing gateway routes', async () => {
+    listAgentRoles.mockRejectedValueOnce(new ConnectError('HTTP 404', Code.NotFound));
+    renderSection();
+
+    expect((await screen.findByTestId('agent-roles-load-error')).textContent).toBe('[not_found] HTTP 404');
   });
 
   it('shows a permission error when role management is denied', async () => {

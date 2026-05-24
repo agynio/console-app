@@ -53,12 +53,16 @@ async function listActiveOrganizationMembers(organizationId: string): Promise<Me
   return memberships;
 }
 
+function isMissingGatewayRoleMethod(error: ConnectError) {
+  return error.code === Code.Unimplemented;
+}
+
 function formatRoleError(error: unknown, fallback: string) {
   if (error instanceof ConnectError) {
     if (error.code === Code.PermissionDenied) {
       return 'You do not have permission to manage agent sharing roles.';
     }
-    if (error.code === Code.NotFound || error.code === Code.Unimplemented) {
+    if (isMissingGatewayRoleMethod(error)) {
       return missingGatewayRoleMethodMessage;
     }
   }
