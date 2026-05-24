@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, organizationsClient, usersClient } from '@/api/client';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogClose,
@@ -14,9 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AgentAvailability, AgentRole, type AgentRoleAssignment } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentsGateway } from '@/gen/agynio/api/gateway/v1/agents_pb';
 import { MembershipStatus, type Membership } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatAgentRole } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -29,6 +31,9 @@ type AgentRolesSectionProps = {
 };
 
 const assignableRoles = [AgentRole.OWNER, AgentRole.MAINTAINER, AgentRole.PARTICIPANT] as const;
+const agentsGatewayApiPath = `/api/${AgentsGateway.typeName}/*`;
+const missingGatewayRoleMethodMessage =
+  `Agent role management is not available from the gateway yet. The console is calling ${agentsGatewayApiPath}; update the gateway/backend to expose ListAgentRoles, SetAgentRole, and RemoveAgentRole.`;
 
 async function listActiveOrganizationMembers(organizationId: string): Promise<Membership[]> {
   const memberships: Membership[] = [];
@@ -49,8 +54,13 @@ async function listActiveOrganizationMembers(organizationId: string): Promise<Me
 }
 
 function formatRoleError(error: unknown, fallback: string) {
-  if (error instanceof ConnectError && error.code === Code.PermissionDenied) {
-    return 'You do not have permission to manage agent sharing roles.';
+  if (error instanceof ConnectError) {
+    if (error.code === Code.PermissionDenied) {
+      return 'You do not have permission to manage agent sharing roles.';
+    }
+    if (error.code === Code.NotFound || error.code === Code.Unimplemented) {
+      return missingGatewayRoleMethodMessage;
+    }
   }
   return error instanceof Error ? error.message : fallback;
 }
@@ -61,6 +71,7 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
   const [selectedIdentityId, setSelectedIdentityId] = useState('');
   const [selectedRole, setSelectedRole] = useState<AgentRole>(AgentRole.PARTICIPANT);
   const [roleError, setRoleError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const rolesQuery = useQuery({
     queryKey: ['agents', agentId, 'roles'],
@@ -116,6 +127,29 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
     [assignments],
   );
 
+  const memberLabel = (identityId: string) => {
+    const user = userMap.get(identityId);
+    return user?.username ? `@${user.username}` : user?.name || user?.email || identityId;
+  };
+
+  const filteredAssignments = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return assignments;
+
+    return assignments.filter((assignment) => {
+      const user = userMap.get(assignment.identityId);
+      const searchableValues = [
+        user?.username ? `@${user.username}` : user?.name || user?.email || assignment.identityId,
+        assignment.identityId,
+        user?.username ?? '',
+        user?.name ?? '',
+        user?.email ?? '',
+        formatAgentRole(assignment.role),
+      ];
+      return searchableValues.some((value) => value.toLowerCase().includes(normalizedSearch));
+    });
+  }, [assignments, searchTerm, userMap]);
+
   const setRoleMutation = useMutation({
     mutationFn: (payload: { identityId: string; role: AgentRole }) =>
       agentsClient.setAgentRole({ agentId, identityId: payload.identityId, role: payload.role }),
@@ -148,11 +182,6 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
     },
   });
 
-  const memberLabel = (identityId: string) => {
-    const user = userMap.get(identityId);
-    return user?.username ? `@${user.username}` : user?.name || user?.email || identityId;
-  };
-
   const openEdit = (assignment?: AgentRoleAssignment) => {
     setSelectedIdentityId(assignment?.identityId ?? '');
     setSelectedRole(assignment?.role || AgentRole.PARTICIPANT);
@@ -164,29 +193,38 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
     availability === AgentAvailability.PRIVATE
       ? 'Private agents are shared by assigning owner, maintainer, or participant roles to specific organization members.'
       : 'Assign roles now to prepare specific-user sharing before switching this agent to Private availability.';
+  const hasSearch = searchTerm.trim().length > 0;
 
   return (
-    <Card className="border-primary/40 bg-primary/5" data-testid="agent-roles-card">
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-semibold text-foreground">Share with specific users</h3>
-              <Badge variant={availability === AgentAvailability.PRIVATE ? 'default' : 'outline'} data-testid="agent-roles-availability">
-                {availability === AgentAvailability.PRIVATE ? 'Private sharing active' : 'Available when Private'}
-              </Badge>
-            </div>
-            <p className="max-w-2xl text-sm text-muted-foreground">{sharingDescription}</p>
-          </div>
+    <Card className="border-border" data-testid="agent-roles-card">
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center gap-2 text-lg text-foreground">
+          Share with specific users
+          <Badge variant={availability === AgentAvailability.PRIVATE ? 'default' : 'outline'} data-testid="agent-roles-availability">
+            {availability === AgentAvailability.PRIVATE ? 'Private sharing active' : 'Available when Private'}
+          </Badge>
+        </CardTitle>
+        <CardDescription className="max-w-2xl">{sharingDescription}</CardDescription>
+        <CardAction>
           <Button variant="outline" size="sm" onClick={() => openEdit()} data-testid="agent-roles-add">
             Share agent
           </Button>
-        </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="space-y-4">
         {availability !== AgentAvailability.PRIVATE ? (
-          <div className="rounded-md border border-border bg-background p-3 text-sm text-muted-foreground" data-testid="agent-roles-private-hint">
+          <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground" data-testid="agent-roles-private-hint">
             To limit thread access to only the users listed here, set Availability to Private in Configuration.
           </div>
         ) : null}
+        <div className="max-w-sm">
+          <Input
+            placeholder="Search shared users..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            data-testid="agent-roles-search"
+          />
+        </div>
         {rolesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading roles...</div> : null}
         {rolesQuery.isError ? (
           <div className="text-sm text-destructive" data-testid="agent-roles-load-error">
@@ -204,35 +242,41 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
           </div>
         ) : null}
         {assignments.length === 0 && !rolesQuery.isPending ? (
-          <div className="text-sm text-muted-foreground" data-testid="agent-roles-empty">
+          <div className="rounded-md border border-border py-10 text-center text-sm text-muted-foreground" data-testid="agent-roles-empty">
             No users are explicitly shared on this agent yet.
           </div>
         ) : null}
         {assignments.length > 0 ? (
           <div className="divide-y divide-border rounded-md border border-border" data-testid="agent-roles-list">
-            {assignments.map((assignment) => (
-              <div key={assignment.identityId} className="flex flex-wrap items-center justify-between gap-3 p-3">
-                <div>
-                  <div className="text-sm font-medium text-foreground">{memberLabel(assignment.identityId)}</div>
-                  <div className="text-xs text-muted-foreground">{assignment.identityId}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{formatAgentRole(assignment.role)}</Badge>
-                  <Button variant="outline" size="sm" onClick={() => openEdit(assignment)} data-testid="agent-roles-change">
-                    Change
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeRoleMutation.mutate(assignment.identityId)}
-                    disabled={removeRoleMutation.isPending}
-                    data-testid="agent-roles-remove"
-                  >
-                    Remove
-                  </Button>
-                </div>
+            {filteredAssignments.length === 0 ? (
+              <div className="px-6 py-6 text-sm text-muted-foreground" data-testid="agent-roles-no-results">
+                {hasSearch ? 'No results found.' : 'No users are explicitly shared on this agent yet.'}
               </div>
-            ))}
+            ) : (
+              filteredAssignments.map((assignment) => (
+                <div key={assignment.identityId} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                  <div>
+                    <div className="text-sm font-medium text-foreground">{memberLabel(assignment.identityId)}</div>
+                    <div className="text-xs text-muted-foreground">{assignment.identityId}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{formatAgentRole(assignment.role)}</Badge>
+                    <Button variant="outline" size="sm" onClick={() => openEdit(assignment)} data-testid="agent-roles-change">
+                      Change
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeRoleMutation.mutate(assignment.identityId)}
+                      disabled={removeRoleMutation.isPending}
+                      data-testid="agent-roles-remove"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         ) : null}
       </CardContent>
