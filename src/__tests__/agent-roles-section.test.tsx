@@ -118,14 +118,18 @@ describe('AgentRolesSection', () => {
     batchGetUsers.mockReset();
 
     listAgentRoles.mockResolvedValue({
-      assignments: [buildAssignment('identity-owner', AgentRole.OWNER)],
+      assignments: [
+        buildAssignment('identity-owner', AgentRole.OWNER),
+        buildAssignment('identity-maintainer', AgentRole.MAINTAINER),
+      ],
     });
     mockMembersPages([
-      { memberships: [buildMembership('identity-owner'), buildMembership('identity-new')] },
+      { memberships: [buildMembership('identity-owner'), buildMembership('identity-maintainer'), buildMembership('identity-new')] },
     ]);
     batchGetUsers.mockResolvedValue({
       users: [
         buildUser('identity-owner', 'owner-user', 'Owner User', 'owner@example.com'),
+        buildUser('identity-maintainer', 'maintainer-user', 'Maintainer User', 'maintainer@example.com'),
         buildUser('identity-new', 'new-user', 'New User', 'new@example.com'),
       ],
     });
@@ -143,6 +147,7 @@ describe('AgentRolesSection', () => {
     expect(await screen.findByText('@owner-user')).toBeTruthy();
     expect(screen.getByText('identity-owner')).toBeTruthy();
     expect(screen.getByText('Owner')).toBeTruthy();
+    expect(screen.getByText('@maintainer-user')).toBeTruthy();
   });
 
   it('explains the availability interaction before the agent is private', async () => {
@@ -152,6 +157,22 @@ describe('AgentRolesSection', () => {
     expect(screen.getByText('Available when Private')).toBeTruthy();
     expect(screen.getByTestId('agent-roles-private-hint').textContent).toContain('set Availability to Private');
     expect(await screen.findByText('@owner-user')).toBeTruthy();
+  });
+
+  it('filters role assignments by shared user details', async () => {
+    renderSection();
+
+    expect(await screen.findByText('@owner-user')).toBeTruthy();
+    expect(screen.getByText('@maintainer-user')).toBeTruthy();
+
+    fireEvent.change(screen.getByTestId('agent-roles-search'), { target: { value: 'maintainer' } });
+
+    expect(screen.queryByText('@owner-user')).toBeNull();
+    expect(screen.getByText('@maintainer-user')).toBeTruthy();
+
+    fireEvent.change(screen.getByTestId('agent-roles-search'), { target: { value: 'participant' } });
+
+    expect((await screen.findByTestId('agent-roles-no-results')).textContent).toBe('No results found.');
   });
 
   it('adds a role assignment for an organization member', async () => {
@@ -227,7 +248,7 @@ describe('AgentRolesSection', () => {
   it('changes an existing role assignment', async () => {
     renderSection();
 
-    fireEvent.click(await screen.findByTestId('agent-roles-change'));
+    fireEvent.click((await screen.findAllByTestId('agent-roles-change'))[0]);
     expect(await screen.findByTestId('agent-roles-dialog')).toBeTruthy();
 
     const roleListbox = await openSelect('agent-roles-role');
@@ -246,11 +267,35 @@ describe('AgentRolesSection', () => {
   it('removes a role assignment', async () => {
     renderSection();
 
-    fireEvent.click(await screen.findByTestId('agent-roles-remove'));
+    fireEvent.click((await screen.findAllByTestId('agent-roles-remove'))[0]);
 
     await waitFor(() => {
       expect(removeAgentRole).toHaveBeenCalledWith({ agentId: 'agent-1', identityId: 'identity-owner' });
     });
+  });
+
+  it('shows backend wiring guidance when the gateway role route is missing', async () => {
+    listAgentRoles.mockRejectedValueOnce(new ConnectError('HTTP 404', Code.Unimplemented));
+    renderSection();
+
+    expect((await screen.findByTestId('agent-roles-load-error')).textContent).toContain(
+      '/api/agynio.api.gateway.v1.AgentsGateway/*',
+    );
+    expect(screen.getByTestId('agent-roles-load-error').textContent).toContain('ListAgentRoles');
+  });
+
+  it('preserves legitimate service not-found errors', async () => {
+    listAgentRoles.mockRejectedValueOnce(new ConnectError('agent not found', Code.NotFound));
+    renderSection();
+
+    expect((await screen.findByTestId('agent-roles-load-error')).textContent).toBe('[not_found] agent not found');
+  });
+
+  it('does not treat Connect not-found codes as missing gateway routes', async () => {
+    listAgentRoles.mockRejectedValueOnce(new ConnectError('HTTP 404', Code.NotFound));
+    renderSection();
+
+    expect((await screen.findByTestId('agent-roles-load-error')).textContent).toBe('[not_found] HTTP 404');
   });
 
   it('shows a permission error when role management is denied', async () => {
