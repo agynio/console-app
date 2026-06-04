@@ -33,10 +33,23 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- printf "%s-nginx" (include "service-base.fullname" .) -}}
 {{- end -}}
 
+{{- define "console-app.envValue" -}}
+{{- tpl (toString .value) .context -}}
+{{- end -}}
+
 {{- define "console-app.render" -}}
 {{- $template := .template -}}
 {{- $root := .context -}}
 {{- $values := deepCopy $root.Values -}}
+{{- $env := list -}}
+{{- range $envVar := $values.env | default (list) -}}
+  {{- $renderedEnvVar := deepCopy $envVar -}}
+  {{- if hasKey $renderedEnvVar "value" -}}
+    {{- $_ := set $renderedEnvVar "value" (include "console-app.envValue" (dict "value" (get $renderedEnvVar "value") "context" $root)) -}}
+  {{- end -}}
+  {{- $env = append $env $renderedEnvVar -}}
+{{- end -}}
+{{- $values = set $values "env" $env -}}
 {{- $nginx := $values.nginx | default (dict) -}}
 {{- $config := $nginx.config | default (dict) -}}
 {{- if ($config.enabled | default false) -}}
