@@ -8,6 +8,7 @@ export const userManager = oidcConfig.enabled
       redirect_uri: `${window.location.origin}/callback`,
       post_logout_redirect_uri: window.location.origin,
       scope: oidcConfig.scope,
+      resource: oidcConfig.resource ?? undefined,
       response_type: 'code',
       userStore: new WebStorageStateStore({ store: window.sessionStorage }),
       automaticSilentRenew: true,
