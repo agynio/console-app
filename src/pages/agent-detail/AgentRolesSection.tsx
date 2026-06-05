@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, organizationsClient, usersClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogClose,
@@ -200,90 +200,97 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
   const hasSearch = searchTerm.trim().length > 0;
 
   return (
-    <Card className="border-border" data-testid="agent-roles-card">
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2 text-lg text-foreground">
-          Share with specific users
-          <Badge variant={availability === AgentAvailability.PRIVATE ? 'default' : 'outline'} data-testid="agent-roles-availability">
-            {availability === AgentAvailability.PRIVATE ? 'Private sharing active' : 'Available when Private'}
-          </Badge>
-        </CardTitle>
-        <CardDescription className="max-w-2xl">{sharingDescription}</CardDescription>
-        <CardAction>
-          <Button variant="outline" size="sm" onClick={() => openEdit()} data-testid="agent-roles-add">
-            Share agent
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {availability !== AgentAvailability.PRIVATE ? (
-          <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground" data-testid="agent-roles-private-hint">
-            To limit thread access to only the users listed here, set Availability to Private in Configuration.
-          </div>
-        ) : null}
-        <div className="max-w-sm">
-          <Input
-            placeholder="Search shared users..."
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            data-testid="agent-roles-search"
-          />
+    <div className="space-y-4" data-testid="agent-roles-section">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3
+            className="flex flex-wrap items-center gap-2 text-lg font-semibold text-foreground"
+            data-testid="agent-roles-heading"
+          >
+            Roles
+            <Badge variant={availability === AgentAvailability.PRIVATE ? 'default' : 'outline'} data-testid="agent-roles-availability">
+              {availability === AgentAvailability.PRIVATE ? 'Private sharing active' : 'Available when Private'}
+            </Badge>
+          </h3>
+          <p className="max-w-2xl text-sm text-muted-foreground">{sharingDescription}</p>
         </div>
-        {rolesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading roles...</div> : null}
-        {rolesQuery.isError ? (
-          <div className="text-sm text-destructive" data-testid="agent-roles-load-error">
-            {formatRoleError(rolesQuery.error, 'Failed to load sharing roles.')}
-          </div>
-        ) : null}
-        {membersQuery.isError ? (
-          <div className="text-sm text-destructive" data-testid="agent-roles-members-error">
-            Failed to load organization members for sharing.
-          </div>
-        ) : null}
-        {roleError ? (
-          <div className="text-sm text-destructive" data-testid="agent-roles-error">
-            {roleError}
-          </div>
-        ) : null}
-        {assignments.length === 0 && !rolesQuery.isPending ? (
-          <div className="rounded-md border border-border py-10 text-center text-sm text-muted-foreground" data-testid="agent-roles-empty">
+        <Button variant="outline" size="sm" onClick={() => openEdit()} data-testid="agent-roles-add">
+          Share agent
+        </Button>
+      </div>
+      {availability !== AgentAvailability.PRIVATE ? (
+        <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground" data-testid="agent-roles-private-hint">
+          To limit thread access to only the users listed here, set Availability to Private in Configuration.
+        </div>
+      ) : null}
+      <div className="max-w-sm">
+        <Input
+          placeholder="Search shared users..."
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          data-testid="agent-roles-search"
+        />
+      </div>
+      {rolesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading roles...</div> : null}
+      {rolesQuery.isError ? (
+        <div className="text-sm text-destructive" data-testid="agent-roles-load-error">
+          {formatRoleError(rolesQuery.error, 'Failed to load sharing roles.')}
+        </div>
+      ) : null}
+      {membersQuery.isError ? (
+        <div className="text-sm text-destructive" data-testid="agent-roles-members-error">
+          Failed to load organization members for sharing.
+        </div>
+      ) : null}
+      {roleError ? (
+        <div className="text-sm text-destructive" data-testid="agent-roles-error">
+          {roleError}
+        </div>
+      ) : null}
+      {assignments.length === 0 && !rolesQuery.isPending ? (
+        <Card className="border-border" data-testid="agent-roles-empty">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No users are explicitly shared on this agent yet.
-          </div>
-        ) : null}
-        {assignments.length > 0 ? (
-          <div className="divide-y divide-border rounded-md border border-border" data-testid="agent-roles-list">
-            {filteredAssignments.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-muted-foreground" data-testid="agent-roles-no-results">
-                {hasSearch ? 'No results found.' : 'No users are explicitly shared on this agent yet.'}
-              </div>
-            ) : (
-              filteredAssignments.map((assignment) => (
-                <div key={assignment.identityId} className="flex flex-wrap items-center justify-between gap-3 p-3">
-                  <div>
-                    <div className="text-sm font-medium text-foreground">{memberLabel(assignment.identityId)}</div>
-                    <div className="text-xs text-muted-foreground">{assignment.identityId}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{formatAgentRole(assignment.role)}</Badge>
-                    <Button variant="outline" size="sm" onClick={() => openEdit(assignment)} data-testid="agent-roles-change">
-                      Change
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeRoleMutation.mutate(assignment.identityId)}
-                      disabled={removeRoleMutation.isPending}
-                      data-testid="agent-roles-remove"
-                    >
-                      Remove
-                    </Button>
-                  </div>
+          </CardContent>
+        </Card>
+      ) : null}
+      {assignments.length > 0 ? (
+        <Card className="border-border" data-testid="agent-roles-table">
+          <CardContent className="px-0">
+            <div className="divide-y divide-border" data-testid="agent-roles-list">
+              {filteredAssignments.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground" data-testid="agent-roles-no-results">
+                  {hasSearch ? 'No results found.' : 'No users are explicitly shared on this agent yet.'}
                 </div>
-              ))
-            )}
-          </div>
-        ) : null}
-      </CardContent>
+              ) : (
+                filteredAssignments.map((assignment) => (
+                  <div key={assignment.identityId} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                    <div>
+                      <div className="text-sm font-medium text-foreground">{memberLabel(assignment.identityId)}</div>
+                      <div className="text-xs text-muted-foreground">{assignment.identityId}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{formatAgentRole(assignment.role)}</Badge>
+                      <Button variant="outline" size="sm" onClick={() => openEdit(assignment)} data-testid="agent-roles-change">
+                        Change
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeRoleMutation.mutate(assignment.identityId)}
+                        disabled={removeRoleMutation.isPending}
+                        data-testid="agent-roles-remove"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent data-testid="agent-roles-dialog">
           <DialogHeader>
@@ -343,6 +350,6 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   );
 }

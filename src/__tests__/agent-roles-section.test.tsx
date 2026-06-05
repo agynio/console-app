@@ -140,7 +140,7 @@ describe('AgentRolesSection', () => {
   it('makes specific-user private sharing discoverable', async () => {
     renderSection(AgentAvailability.PRIVATE);
 
-    expect(screen.getByText('Share with specific users')).toBeTruthy();
+    expect(screen.getByTestId('agent-roles-heading').textContent).toContain('Roles');
     expect(screen.getByText('Private sharing active')).toBeTruthy();
     expect(screen.getByText(/Private agents are shared by assigning owner, maintainer, or participant roles/i)).toBeTruthy();
 
@@ -153,10 +153,32 @@ describe('AgentRolesSection', () => {
   it('explains the availability interaction before the agent is private', async () => {
     renderSection(AgentAvailability.INTERNAL);
 
-    expect(screen.getByText('Share with specific users')).toBeTruthy();
+    expect(screen.getByTestId('agent-roles-heading').textContent).toContain('Roles');
     expect(screen.getByText('Available when Private')).toBeTruthy();
     expect(screen.getByTestId('agent-roles-private-hint').textContent).toContain('set Availability to Private');
     expect(await screen.findByText('@owner-user')).toBeTruthy();
+  });
+
+  it('keeps the heading outside the roles table card', async () => {
+    renderSection();
+
+    const heading = screen.getByTestId('agent-roles-heading');
+    expect(heading).toBeTruthy();
+    expect(screen.getByTestId('agent-roles-add')).toBeTruthy();
+    expect(await screen.findByTestId('agent-roles-table')).toBeTruthy();
+    expect(heading.closest('[data-testid="agent-roles-table"]')).toBeNull();
+    expect(heading.closest('[data-testid="agent-roles-empty"]')).toBeNull();
+  });
+
+  it('keeps the heading outside the roles empty-state card', async () => {
+    listAgentRoles.mockResolvedValueOnce({ assignments: [] });
+    renderSection();
+
+    const heading = screen.getByTestId('agent-roles-heading');
+    expect(heading).toBeTruthy();
+    expect(await screen.findByTestId('agent-roles-empty')).toBeTruthy();
+    expect(heading.closest('[data-testid="agent-roles-table"]')).toBeNull();
+    expect(heading.closest('[data-testid="agent-roles-empty"]')).toBeNull();
   });
 
   it('filters role assignments by shared user details', async () => {
