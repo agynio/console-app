@@ -26,6 +26,21 @@ describe('runtime config', () => {
       authority: 'https://auth.example.com',
       clientId: 'console-client',
       scope: 'openid profile',
+      resource: null,
+    });
+  });
+
+  it('reads the OIDC resource when provided', async () => {
+    window.__ENV__ = {
+      OIDC_AUTHORITY: 'https://auth.example.com',
+      OIDC_CLIENT_ID: 'console-client',
+      OIDC_SCOPE: 'openid profile',
+      OIDC_RESOURCE: 'https://api.example.com',
+    };
+    const { oidcConfig } = await import('@/config');
+    expect(oidcConfig).toMatchObject({
+      enabled: true,
+      resource: 'https://api.example.com',
     });
   });
 

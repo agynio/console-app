@@ -3,6 +3,7 @@ type RuntimeEnv = {
   OIDC_AUTHORITY?: string;
   OIDC_CLIENT_ID?: string;
   OIDC_SCOPE?: string;
+  OIDC_RESOURCE?: string;
 };
 
 type OidcConfigEnabled = {
@@ -10,6 +11,7 @@ type OidcConfigEnabled = {
   authority: string;
   clientId: string;
   scope: string;
+  resource: string | null;
 };
 
 type OidcConfigDisabled = {
@@ -45,6 +47,7 @@ const apiBaseUrl = stripTrailingSlash(rawApiBase ?? '/api');
 const authority = readConfigValue('OIDC_AUTHORITY', 'VITE_OIDC_AUTHORITY');
 const clientId = readConfigValue('OIDC_CLIENT_ID', 'VITE_OIDC_CLIENT_ID');
 const scope = readConfigValue('OIDC_SCOPE', 'VITE_OIDC_SCOPE');
+const resource = readConfigValue('OIDC_RESOURCE', 'VITE_OIDC_RESOURCE');
 const oidcConfigured = Boolean(authority || clientId || scope);
 
 export const oidcConfig: OidcConfig = oidcConfigured
@@ -53,6 +56,7 @@ export const oidcConfig: OidcConfig = oidcConfigured
       authority: requireConfig('OIDC_AUTHORITY', authority),
       clientId: requireConfig('OIDC_CLIENT_ID', clientId),
       scope: requireConfig('OIDC_SCOPE', scope),
+      resource,
     }
   : { enabled: false };
 

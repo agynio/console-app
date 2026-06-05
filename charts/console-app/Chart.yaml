@@ -2,8 +2,8 @@ apiVersion: v2
 name: console-app
 description: Helm chart for deploying the agyn Console App.
 type: application
-version: 0.1.0
-appVersion: 0.1.0
+version: 0.10.11
+appVersion: 0.10.11
 home: https://github.com/agynio/console-app
 sources:
   - https://github.com/agynio/console-app
