@@ -12,14 +12,6 @@ export const userManager = oidcConfig.enabled
       response_type: 'code',
       userStore: new WebStorageStateStore({ store: window.sessionStorage }),
       automaticSilentRenew: true,
-      metadata: {
-        issuer: oidcConfig.authority,
-        authorization_endpoint: `${oidcConfig.authority}/authorize`,
-        token_endpoint: `${oidcConfig.authority}/token`,
-        userinfo_endpoint: `${oidcConfig.authority}/userinfo`,
-        end_session_endpoint: `${oidcConfig.authority}/end-session`,
-        jwks_uri: `${oidcConfig.authority}/jwks.json`,
-      },
     })
   : null;
 
