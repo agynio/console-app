@@ -4,6 +4,7 @@ import { authInterceptor } from '@/auth';
 import { config } from '@/config';
 import { AgentsGateway } from '@/gen/agynio/api/gateway/v1/agents_pb';
 import { AppsGateway } from '@/gen/agynio/api/gateway/v1/apps_pb';
+import { EgressRulesGateway } from '@/gen/agynio/api/gateway/v1/egress_pb';
 import { FilesGateway } from '@/gen/agynio/api/gateway/v1/files_pb';
 import { LLMGateway } from '@/gen/agynio/api/gateway/v1/llm_pb';
 import { MeteringGateway } from '@/gen/agynio/api/gateway/v1/metering_pb';
@@ -22,6 +23,7 @@ const transport = createConnectTransport({
 export const usersClient = createClient(UsersGateway, transport);
 export const agentsClient = createClient(AgentsGateway, transport);
 export const appsClient = createClient(AppsGateway, transport);
+export const egressClient = createClient(EgressRulesGateway, transport);
 export const llmClient = createClient(LLMGateway, transport);
 export const meteringClient = createClient(MeteringGateway, transport);
 export const organizationsClient = createClient(OrganizationsGateway, transport);

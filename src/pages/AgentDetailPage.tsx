@@ -13,6 +13,7 @@ import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
 import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
 import { AgentImagePullSecretsTab } from '@/pages/agent-detail/AgentImagePullSecretsTab';
 import { AgentVolumeAttachmentsTab } from '@/pages/agent-detail/AgentVolumeAttachmentsTab';
+import { AgentEgressRuleAttachmentsTab } from '@/pages/agent-detail/AgentEgressRuleAttachmentsTab';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { toast } from 'sonner';
 
@@ -96,6 +97,9 @@ export function AgentDetailPage() {
           </section>
           <section data-testid="agent-detail-section-volumes">
             <AgentVolumeAttachmentsTab agentId={resolvedAgentId} organizationId={organizationId} />
+          </section>
+          <section data-testid="agent-detail-section-egress-rules">
+            <AgentEgressRuleAttachmentsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-image-pull-secrets">
             <AgentImagePullSecretsTab agentId={resolvedAgentId} organizationId={organizationId} />
