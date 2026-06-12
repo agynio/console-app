@@ -22,6 +22,7 @@ import { OrganizationSecretsTab } from '@/pages/OrganizationSecretsTab';
 import { OrganizationThreadDetailPage } from '@/pages/OrganizationThreadDetailPage';
 import { OrganizationThreadsTab } from '@/pages/OrganizationThreadsTab';
 import { OrganizationVolumesTab } from '@/pages/OrganizationVolumesTab';
+import { OrganizationEgressRulesTab } from '@/pages/OrganizationEgressRulesTab';
 import { UsersListPage } from '@/pages/UsersListPage';
 import { UserDetailPage } from '@/pages/UserDetailPage';
 import { RunnersListPage } from '@/pages/RunnersListPage';
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="agents" element={<OrganizationAgentsTab />} />
           <Route path="volumes" element={<OrganizationVolumesTab />} />
           <Route path="volumes/:volumeId" element={<VolumeDetailPage />} />
+          <Route path="egress-rules" element={<OrganizationEgressRulesTab />} />
           <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
           <Route path="models" element={<OrganizationModelsTab />} />
           <Route path="secrets" element={<OrganizationSecretsTab />} />

@@ -11,6 +11,7 @@ import {
   HomeIcon,
   KeyIcon,
   LineChartIcon,
+  NetworkIcon,
   MessageSquareIcon,
   MonitorSmartphoneIcon,
   SettingsIcon,
@@ -291,6 +292,14 @@ export function AppLayout() {
                 >
                   <HardDriveIcon className="h-4 w-4" />
                   Volumes
+                </NavLink>
+                <NavLink
+                  to={organizationRoute('/egress-rules')}
+                  className={navLinkClass}
+                  data-testid="nav-organization-egress-rules"
+                >
+                  <NetworkIcon className="h-4 w-4" />
+                  Egress Rules
                 </NavLink>
                 <NavLink
                   to={organizationRoute('/runners')}
