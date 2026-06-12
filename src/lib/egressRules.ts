@@ -10,6 +10,7 @@ export type HeaderFormValues = {
   scheme: HeaderSchemeSelection;
   source: HeaderCredentialSource;
   value: string;
+  requiresValueReentry?: boolean;
 };
 
 export type EgressRuleFormValues = {
@@ -101,6 +102,7 @@ export const buildFormValuesFromRule = (rule: EgressRule | null): EgressRuleForm
       scheme: schemeFromProto(header.scheme),
       source: header.credential.case === 'secretId' ? 'secretId' : 'value',
       value: header.credential.case === undefined ? '' : header.credential.value,
+      requiresValueReentry: header.credential.case === undefined,
     })),
   };
 };
@@ -122,7 +124,7 @@ export const normalizeRuleFormValues = (values: EgressRuleFormValues): EgressRul
 
 export const parsePorts = (ports: string): number[] => {
   if (!ports) return [];
-  return ports.split(',').map((port) => {
+  const parsedPorts = ports.split(',').map((port) => {
     const trimmed = port.trim();
     const parsed = Number(trimmed);
     if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
@@ -130,15 +132,17 @@ export const parsePorts = (ports: string): number[] => {
     }
     return parsed;
   });
+  return Array.from(new Set(parsedPorts)).sort((left, right) => left - right);
 };
 
 export const parseMethods = (methods: string): string[] => {
   if (!methods) return [];
-  return methods.split(',').map((method) => {
+  const parsedMethods = methods.split(',').map((method) => {
     const normalized = method.trim().toUpperCase();
     if (!normalized) throw new Error('Methods cannot contain empty values.');
     return normalized;
   });
+  return Array.from(new Set(parsedMethods)).sort((left, right) => left.localeCompare(right));
 };
 
 export const validateRuleForm = (
@@ -163,7 +167,9 @@ export const validateRuleForm = (
 
   for (const header of values.headers) {
     if (!header.name || !header.value) {
-      errors.headers = 'Each header requires a name and value or secret ID.';
+      errors.headers = header.requiresValueReentry
+        ? 'Literal header values are not displayed; enter a new value or remove the header.'
+        : 'Each header requires a name and value or secret ID.';
       break;
     }
   }

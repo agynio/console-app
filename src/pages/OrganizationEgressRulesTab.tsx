@@ -233,7 +233,7 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                       <SelectItem value="basic">Basic</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={header.source} onValueChange={(source: HeaderCredentialSource) => updateHeader(index, { source })}>
+                  <Select value={header.source} onValueChange={(source: HeaderCredentialSource) => updateHeader(index, { source, requiresValueReentry: false })}>
                     <SelectTrigger aria-label="Header source" data-testid={`${testIdPrefix}-header-source`}>
                       <SelectValue />
                     </SelectTrigger>
@@ -245,9 +245,9 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                   <Input
                     aria-label={header.source === 'secretId' ? 'Secret ID' : 'Header value'}
                     type={header.source === 'value' ? 'password' : 'text'}
-                    placeholder={header.source === 'secretId' ? 'secret-id' : 'header value'}
+                    placeholder={header.requiresValueReentry ? 'Re-enter literal value' : header.source === 'secretId' ? 'secret-id' : 'header value'}
                     value={header.value}
-                    onChange={(event) => updateHeader(index, { value: event.target.value })}
+                    onChange={(event) => updateHeader(index, { value: event.target.value, requiresValueReentry: false })}
                     data-testid={`${testIdPrefix}-header-value`}
                   />
                   <Button
