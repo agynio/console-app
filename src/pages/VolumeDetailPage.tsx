@@ -6,24 +6,11 @@ import { runnersClient } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { AttachmentKind, type Attachment, VolumeStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
+import { VolumeStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { EMPTY_PLACEHOLDER, formatTimestamp, formatVolumeStatus, truncate } from '@/lib/format';
-
-const ATTACHMENT_KIND_LABELS: Record<AttachmentKind, string> = {
-  [AttachmentKind.UNSPECIFIED]: 'Attachment',
-  [AttachmentKind.AGENT]: 'Agent',
-  [AttachmentKind.MCP]: 'MCP',
-  [AttachmentKind.HOOK]: 'Hook',
-};
-
-const formatAttachmentLabel = (attachment: Attachment) => {
-  const name = attachment.name?.trim() || attachment.id || '';
-  if (!name) return EMPTY_PLACEHOLDER;
-  const kindLabel = ATTACHMENT_KIND_LABELS[attachment.kind] ?? 'Attachment';
-  return kindLabel === 'Attachment' ? name : `${kindLabel} ${name}`;
-};
+import { formatVolumeAttachmentLabel } from '@/lib/volume';
 
 const getStatusVariant = (status: VolumeStatus) => {
   if (status === VolumeStatus.ACTIVE) return 'default';
@@ -196,7 +183,7 @@ export function VolumeDetailPage() {
               ) : (
                 <div className="space-y-3">
                   {attachments.map((attachment) => {
-                    const label = formatAttachmentLabel(attachment);
+                    const label = formatVolumeAttachmentLabel(attachment);
                     return (
                       <div key={`${attachment.kind}-${attachment.id}`} className="text-sm text-foreground">
                         <div className="font-medium">{label}</div>

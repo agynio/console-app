@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import type { ListWorkloadsResponse, Workload } from '@/gen/agynio/api/runners/v1/runners_pb';
+import type { Workload } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { type SortDirection, useListControls } from '@/hooks/useListControls';
 import {
@@ -31,7 +31,7 @@ type WorkloadsTableControls = {
 
 type WorkloadsTableProps = {
   workloads: Workload[];
-  query: UseInfiniteQueryResult<InfiniteData<ListWorkloadsResponse, unknown>, Error>;
+  query: UseInfiniteQueryResult<InfiniteData<{ nextPageToken: string }, unknown>, Error>;
   showRunnerColumn?: boolean;
   showDuration?: boolean;
   showSearch?: boolean;
