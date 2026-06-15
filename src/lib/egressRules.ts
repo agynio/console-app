@@ -169,7 +169,7 @@ export const validateRuleForm = (
     if (!header.name || !header.value) {
       errors.headers = header.requiresValueReentry
         ? 'Literal header values are not displayed; enter a new value or remove the header.'
-        : 'Each header requires a name and value or secret ID.';
+        : 'Each header requires a name and literal value or selected secret.';
       break;
     }
   }

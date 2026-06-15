@@ -32,10 +32,9 @@ describe('egress rule form helpers', () => {
 
     expect(validation.errors.name).toBe('Name is required.');
     expect(validation.errors.domainPattern).toBe('Domain pattern is required.');
-    expect(validation.errors.headers).toBe('Each header requires a name and value or secret ID.');
+    expect(validation.errors.headers).toBe('Each header requires a name and literal value or selected secret.');
     expect(validation.parsed).toBeUndefined();
   });
-
 
   it('requires literal header re-entry when values are not echoed', () => {
     const rule: EgressRule = {
