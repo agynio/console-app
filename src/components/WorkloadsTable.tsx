@@ -45,6 +45,7 @@ type WorkloadsTableProps = {
   rowLinkMode?: 'row' | 'action';
   actionLabel?: string;
   controls?: WorkloadsTableControls;
+  preserveApiOrder?: boolean;
   filterBar?: ReactNode;
   searchPlaceholder?: string;
   hasActiveFilters?: boolean;
@@ -67,6 +68,7 @@ export function WorkloadsTable({
   rowLinkMode = 'action',
   actionLabel,
   controls,
+  preserveApiOrder = false,
   filterBar,
   searchPlaceholder = 'Search workloads...',
   hasActiveFilters,
@@ -128,8 +130,9 @@ export function WorkloadsTable({
   const sortKey = controls?.sortKey ?? (listControls.sortKey as WorkloadSortKey);
   const sortDirection = controls?.sortDirection ?? listControls.sortDirection;
   const handleSort = controls?.onSort ?? listControls.handleSort;
+  const shouldPreserveApiOrder = preserveApiOrder && !controls;
 
-  const visibleWorkloads = controls ? workloads : listControls.filteredItems;
+  const visibleWorkloads = controls || shouldPreserveApiOrder ? workloads : listControls.filteredItems;
   const hasSearch = showSearch && searchTerm.trim().length > 0;
   const hasFilters = controls ? (hasActiveFilters ?? hasSearch) : hasSearch;
   const actionLabelText = actionLabel?.trim() || 'View';
@@ -184,23 +187,31 @@ export function WorkloadsTable({
             style={gridStyle}
             data-testid={`${testIdPrefix}-header`}
           >
-            <SortableHeader
-              label={agentLabel}
-              sortKey="agentId"
-              activeSortKey={sortKey}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
-            {showRunnerColumn ? (
+            {shouldPreserveApiOrder ? (
+              <span>{agentLabel}</span>
+            ) : (
               <SortableHeader
-                label={runnerLabel}
-                sortKey="runnerId"
+                label={agentLabel}
+                sortKey="agentId"
                 activeSortKey={sortKey}
                 sortDirection={sortDirection}
                 onSort={handleSort}
               />
+            )}
+            {showRunnerColumn ? (
+              shouldPreserveApiOrder ? (
+                <span>{runnerLabel}</span>
+              ) : (
+                <SortableHeader
+                  label={runnerLabel}
+                  sortKey="runnerId"
+                  activeSortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+              )
             ) : null}
-            {controls ? (
+            {controls || shouldPreserveApiOrder ? (
               <span>Thread ID</span>
             ) : (
               <SortableHeader
@@ -211,29 +222,41 @@ export function WorkloadsTable({
                 onSort={handleSort}
               />
             )}
-            <SortableHeader
-              label="Status"
-              sortKey="status"
-              activeSortKey={sortKey}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
-            <span>Containers</span>
-            <SortableHeader
-              label="Started"
-              sortKey="started"
-              activeSortKey={sortKey}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
-            {showDuration ? (
+            {shouldPreserveApiOrder ? (
+              <span>Status</span>
+            ) : (
               <SortableHeader
-                label="Duration"
-                sortKey="duration"
+                label="Status"
+                sortKey="status"
                 activeSortKey={sortKey}
                 sortDirection={sortDirection}
                 onSort={handleSort}
               />
+            )}
+            <span>Containers</span>
+            {shouldPreserveApiOrder ? (
+              <span>Started</span>
+            ) : (
+              <SortableHeader
+                label="Started"
+                sortKey="started"
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
+            )}
+            {showDuration ? (
+              shouldPreserveApiOrder ? (
+                <span>Duration</span>
+              ) : (
+                <SortableHeader
+                  label="Duration"
+                  sortKey="duration"
+                  activeSortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+              )
             ) : null}
             {hasAction ? <span className="text-right">Action</span> : null}
           </div>

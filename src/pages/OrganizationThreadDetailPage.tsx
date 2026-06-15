@@ -275,6 +275,7 @@ export function OrganizationThreadDetailPage() {
             showRunnerColumn
             showDuration
             showSearch={false}
+            preserveApiOrder
             rowLinkMode="row"
             getWorkloadLink={(workload) => {
               const linkedWorkloadId = workload.meta?.id;
