@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useParams } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, type InfiniteData, type UseInfiniteQueryResult } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
+import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Container } from '@/gen/agynio/api/runners/v1/runners_pb';
-import { ContainerRole, ContainerStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
+import type { Container, Volume } from '@/gen/agynio/api/runners/v1/runners_pb';
+import { ContainerRole, ContainerStatus, VolumeStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import {
@@ -16,9 +17,12 @@ import {
   formatContainerStatus,
   formatDurationBetween,
   formatTimestamp,
+  formatVolumeStatus,
   formatWorkloadStatus,
   truncate,
 } from '@/lib/format';
+import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
+import { summarizeVolumeAttachments } from '@/lib/volume';
 
 type LogStreamState = 'loading' | 'streaming' | 'ended' | 'unavailable' | 'error';
 
@@ -51,6 +55,13 @@ const resolveContainerVariant = (status: ContainerStatus) => {
   if (status === ContainerStatus.RUNNING) return 'default';
   if (status === ContainerStatus.WAITING) return 'secondary';
   if (status === ContainerStatus.TERMINATED) return 'outline';
+  return 'outline';
+};
+
+const resolveVolumeVariant = (status: VolumeStatus) => {
+  if (status === VolumeStatus.ACTIVE) return 'default';
+  if (status === VolumeStatus.PROVISIONING) return 'secondary';
+  if (status === VolumeStatus.FAILED) return 'destructive';
   return 'outline';
 };
 
@@ -249,6 +260,78 @@ function ContainerPanel({ container, index }: ContainerPanelProps) {
   );
 }
 
+type ThreadStoragePanelProps = {
+  currentPath: string;
+  organizationId: string;
+  volumes: Volume[];
+  volumesQuery: UseInfiniteQueryResult<
+    InfiniteData<Awaited<ReturnType<typeof runnersClient.listVolumesByThread>>, unknown>,
+    Error
+  >;
+};
+
+function ThreadStoragePanel({ currentPath, organizationId, volumes, volumesQuery }: ThreadStoragePanelProps) {
+  return (
+    <Card className="border-border" data-testid="workload-thread-storage-card">
+      <CardContent className="space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">Attached storage</h3>
+          <p className="text-sm text-muted-foreground">Persistent storage associated with this workload's thread.</p>
+        </div>
+        {volumesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading storage volumes...</div> : null}
+        {volumesQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load storage.</div> : null}
+        {volumes.length === 0 && !volumesQuery.isPending && !volumesQuery.isError ? (
+          <div className="text-sm text-muted-foreground">No storage volumes found for this thread.</div>
+        ) : null}
+        {volumes.length > 0 ? (
+          <div className="divide-y divide-border rounded-md border border-border" data-testid="workload-thread-storage-list">
+            {volumes.map((volume) => {
+              const volumeId = volume.volumeId || volume.meta?.id || '';
+              const volumeName = volume.volumeName?.trim() || EMPTY_PLACEHOLDER;
+              const volumeLink = volumeId ? `/organizations/${organizationId}/volumes/${volumeId}` : null;
+              const sizeLabel = volume.sizeGb ? `${volume.sizeGb} GB` : EMPTY_PLACEHOLDER;
+              const attachedLabel = summarizeVolumeAttachments(volume.attachments ?? []);
+              return (
+                <div
+                  key={volume.meta?.id ?? volume.volumeId}
+                  className="grid items-center gap-2 px-4 py-3 text-sm text-foreground md:grid-cols-[2fr_1fr_2fr_140px]"
+                  data-testid="workload-thread-storage-row"
+                >
+                  <div className="font-medium" data-testid="workload-thread-storage-name">
+                    {volumeLink ? (
+                      <NavLink to={volumeLink} state={{ from: currentPath }} className="text-foreground hover:underline">
+                        {truncate(volumeName, 24)}
+                      </NavLink>
+                    ) : (
+                      truncate(volumeName, 24)
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground" data-testid="workload-thread-storage-size">
+                    {sizeLabel}
+                  </span>
+                  <span className="text-xs text-muted-foreground" data-testid="workload-thread-storage-attached">
+                    {attachedLabel}
+                  </span>
+                  <Badge variant={resolveVolumeVariant(volume.status)} data-testid="workload-thread-storage-status">
+                    {formatVolumeStatus(volume.status)}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+        <LoadMoreButton
+          hasMore={Boolean(volumesQuery.hasNextPage)}
+          isLoading={volumesQuery.isFetchingNextPage}
+          onClick={() => {
+            void volumesQuery.fetchNextPage();
+          }}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 export function WorkloadDetailPage() {
   const { id: organizationIdParam, workloadId: workloadIdParam } = useParams();
   const organizationId = organizationIdParam ?? '';
@@ -278,6 +361,28 @@ export function WorkloadDetailPage() {
   });
 
   const workload = workloadQuery.data?.workload ?? null;
+
+  const volumesQuery = useInfiniteQuery({
+    queryKey: ['workloads', workloadId, 'thread-volumes', workload?.threadId ?? ''],
+    queryFn: ({ pageParam }) => {
+      if (!workload) throw new Error('Workload is required before loading thread storage.');
+      return runnersClient.listVolumesByThread({
+        threadId: workload.threadId,
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
+      });
+    },
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: Boolean(workload?.threadId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const volumes = useMemo(
+    () => volumesQuery.data?.pages.flatMap((page) => page.volumes) ?? [],
+    [volumesQuery.data?.pages],
+  );
   const isNotFoundError = workloadQuery.error instanceof ConnectError && workloadQuery.error.code === Code.NotFound;
   const isOrgMismatch = Boolean(workload && organizationId && workload.organizationId !== organizationId);
   const isMissing = !workload && !workloadQuery.isPending && !workloadQuery.isError;
@@ -286,6 +391,20 @@ export function WorkloadDetailPage() {
 
   const workloadTitle = workload?.meta?.id ? `Workload ${truncate(workload.meta.id, 12)}` : 'Workload';
   useDocumentTitle(workloadTitle);
+
+  const volumeNotificationRooms = useMemo(() => {
+    const rooms: string[] = [];
+    if (organizationId) rooms.push(`organization:${organizationId}`);
+    if (workload?.threadId) rooms.push(`thread:${workload.threadId}`);
+    return rooms;
+  }, [organizationId, workload?.threadId]);
+
+  useNotifications({
+    events: ['volume.updated'],
+    invalidateKeys: [['workloads', workloadId, 'thread-volumes', workload?.threadId ?? '']],
+    rooms: volumeNotificationRooms,
+    enabled: Boolean(workload?.threadId) && volumeNotificationRooms.length > 0,
+  });
 
   const containers = workload?.containers ?? [];
   const sortedContainers = [...containers].sort((left, right) => {
@@ -452,6 +571,12 @@ export function WorkloadDetailPage() {
               </div>
             </CardContent>
           </Card>
+          <ThreadStoragePanel
+            currentPath={location.pathname}
+            organizationId={organizationId}
+            volumes={volumes}
+            volumesQuery={volumesQuery}
+          />
           <div className="space-y-3" data-testid="workload-container-section">
             <div>
               <h3 className="text-lg font-semibold text-foreground">Containers</h3>

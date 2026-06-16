@@ -9,12 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  AttachmentKind,
   ListVolumesSortField,
   SortDirection as VolumesSortDirection,
   VolumeAttachmentFilterKind,
   VolumeStatus,
-  type Attachment,
   type Volume,
 } from '@/gen/agynio/api/runners/v1/runners_pb';
 import type { NotificationEnvelope } from '@/gen/agynio/api/notifications/v1/notifications_pb';
@@ -23,8 +21,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { type SortDirection } from '@/hooks/useListControls';
 import { EMPTY_PLACEHOLDER, formatDateOnly, formatVolumeStatus, truncate } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
-
-const UNATTACHED_LABEL = 'Unattached';
+import { summarizeVolumeAttachments } from '@/lib/volume';
 
 type VolumeSortKey = 'name' | 'size' | 'status' | 'created';
 
@@ -43,34 +40,7 @@ const VOLUME_ATTACHMENT_OPTIONS = [
   { value: String(VolumeAttachmentFilterKind.UNATTACHED), label: 'Unattached' },
 ];
 
-const ATTACHMENT_KIND_LABELS: Record<AttachmentKind, string> = {
-  [AttachmentKind.UNSPECIFIED]: 'Attachment',
-  [AttachmentKind.AGENT]: 'Agent',
-  [AttachmentKind.MCP]: 'MCP',
-  [AttachmentKind.HOOK]: 'Hook',
-};
-
 const getVolumeName = (volume: Volume) => volume.volumeName?.trim() || '';
-
-const formatAttachmentLabel = (attachment: Attachment) => {
-  const name = attachment.name?.trim() || attachment.id || '';
-  if (!name) return EMPTY_PLACEHOLDER;
-  const kindLabel = ATTACHMENT_KIND_LABELS[attachment.kind] ?? 'Attachment';
-  return kindLabel === 'Attachment' ? name : `${kindLabel} ${name}`;
-};
-
-const resolveAttachmentSortKey = (attachment: Attachment) => attachment.name?.trim() || attachment.id || '';
-
-const summarizeAttachments = (attachments: Attachment[]) => {
-  if (attachments.length === 0) return UNATTACHED_LABEL;
-  const labels = [...attachments]
-    .sort((left, right) => resolveAttachmentSortKey(left).localeCompare(resolveAttachmentSortKey(right)))
-    .map((attachment) => formatAttachmentLabel(attachment))
-    .filter((label) => label !== EMPTY_PLACEHOLDER);
-  if (labels.length === 0) return UNATTACHED_LABEL;
-  if (labels.length === 1) return labels[0];
-  return `${labels[0]} +${labels.length - 1} more`;
-};
 
 const extractVolumeId = (payload?: NotificationEnvelope['payload']): string | null => {
   if (!payload) return null;
@@ -399,7 +369,7 @@ export function OrganizationActivityStorageTab() {
                 const volumeId = volume.volumeId || volume.meta?.id || '';
                 const volumeLink = volumeId ? `/organizations/${organizationId}/volumes/${volumeId}` : null;
                 const sizeLabel = volume.sizeGb ? `${volume.sizeGb} GB` : EMPTY_PLACEHOLDER;
-                const attachedLabel = summarizeAttachments(volume.attachments ?? []);
+                const attachedLabel = summarizeVolumeAttachments(volume.attachments ?? []);
                 const createdLabel = formatDateOnly(volume.meta?.createdAt);
                 return (
                   <div

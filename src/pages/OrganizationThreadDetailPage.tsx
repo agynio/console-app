@@ -3,14 +3,16 @@ import { NavLink, useParams } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { DurationSchema } from '@bufbuild/protobuf/wkt';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
-import { filesClient, threadsClient } from '@/api/client';
+import { filesClient, runnersClient, threadsClient } from '@/api/client';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
+import { WorkloadsTable } from '@/components/WorkloadsTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageOrder } from '@/gen/agynio/api/threads/v1/threads_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useIdentityHandles } from '@/hooks/useIdentityHandles';
+import { useNotifications } from '@/hooks/useNotifications';
 import {
   EMPTY_PLACEHOLDER,
   formatDateOnly,
@@ -114,12 +116,31 @@ export function OrganizationThreadDetailPage() {
     refetchOnWindowFocus: false,
   });
 
+  const workloadsQuery = useInfiniteQuery({
+    queryKey: ['threads', resolvedThreadId, 'workloads'],
+    queryFn: ({ pageParam }) =>
+      runnersClient.listWorkloadsByThread({
+        threadId: resolvedThreadId,
+        pageSize: DEFAULT_PAGE_SIZE,
+        pageToken: pageParam,
+      }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: Boolean(resolvedThreadId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
   const thread = threadQuery.data?.thread;
   const messages = useMemo(
     () => messagesQuery.data?.pages.flatMap((page) => page.messages) ?? [],
     [messagesQuery.data?.pages],
   );
   const participants = useMemo(() => thread?.participants ?? [], [thread?.participants]);
+  const workloads = useMemo(
+    () => workloadsQuery.data?.pages.flatMap((page) => page.workloads) ?? [],
+    [workloadsQuery.data?.pages],
+  );
 
   const identityIds = useMemo(() => {
     const ids = new Set<string>();
@@ -139,6 +160,20 @@ export function OrganizationThreadDetailPage() {
   const messageCount = thread?.messageCount ?? 0;
   const isThreadLoading = threadQuery.isPending;
   const isThreadError = threadQuery.isError;
+
+  const notificationRooms = useMemo(() => {
+    const rooms: string[] = [];
+    if (organizationId) rooms.push(`organization:${organizationId}`);
+    if (resolvedThreadId) rooms.push(`thread:${resolvedThreadId}`);
+    return rooms;
+  }, [organizationId, resolvedThreadId]);
+
+  useNotifications({
+    events: ['workload.status_changed', 'workload.updated'],
+    invalidateKeys: [['threads', resolvedThreadId, 'workloads']],
+    rooms: notificationRooms,
+    enabled: Boolean(resolvedThreadId) && notificationRooms.length > 0,
+  });
 
   return (
     <div className="space-y-6">
@@ -226,6 +261,35 @@ export function OrganizationThreadDetailPage() {
               </div>
             )
           ) : null}
+        </CardContent>
+      </Card>
+      <Card className="border-border" data-testid="thread-workloads-card">
+        <CardHeader className="pb-0">
+          <CardTitle>Associated workloads</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">Workloads created for this thread.</p>
+          <WorkloadsTable
+            workloads={workloads}
+            query={workloadsQuery}
+            showRunnerColumn
+            showDuration
+            showSearch={false}
+            preserveApiOrder
+            rowLinkMode="row"
+            getWorkloadLink={(workload) => {
+              const linkedWorkloadId = workload.meta?.id;
+              if (!linkedWorkloadId) return null;
+              return `/organizations/${organizationId}/workloads/${linkedWorkloadId}`;
+            }}
+            getAgentLink={(workload) =>
+              workload.agentId ? `/organizations/${organizationId}/agents/${workload.agentId}` : null
+            }
+            getRunnerLink={(workload) =>
+              workload.runnerId ? `/organizations/${organizationId}/runners/${workload.runnerId}` : null
+            }
+            testIdPrefix="thread-workloads"
+          />
         </CardContent>
       </Card>
       <Card className="border-border" data-testid="thread-messages-card">
