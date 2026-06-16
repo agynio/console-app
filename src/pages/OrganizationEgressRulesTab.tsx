@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { egressClient } from '@/api/client';
+import { egressClient, secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { EgressRule, EgressRuleHeader } from '@/gen/agynio/api/egress/v1/egress_pb';
+import type { Secret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
@@ -52,26 +53,41 @@ type EgressRuleDialogProps = {
   initialValues: EgressRuleFormValues;
   onSubmit: (values: SubmitEgressRuleValues) => void;
   isSubmitting: boolean;
+  secrets: Secret[];
 };
 
-function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, isSubmitting }: EgressRuleDialogProps) {
+function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, isSubmitting, secrets }: EgressRuleDialogProps) {
   const [values, setValues] = useState<EgressRuleFormValues>(initialValues);
   const [errors, setErrors] = useState<EgressRuleFormErrors>({});
+  const [secretSearchByHeader, setSecretSearchByHeader] = useState<Record<number, string>>({});
   const resolvedInitialValues = useMemo(() => ({ ...DEFAULT_EGRESS_RULE_FORM_VALUES, ...initialValues }), [initialValues]);
 
   useEffect(() => {
     if (open) {
       setValues(resolvedInitialValues);
       setErrors({});
+      setSecretSearchByHeader({});
       return;
     }
     setValues({ ...DEFAULT_EGRESS_RULE_FORM_VALUES });
     setErrors({});
+    setSecretSearchByHeader({});
   }, [open, resolvedInitialValues]);
 
   const testIdPrefix = mode === 'create' ? 'egress-rules-create' : 'egress-rules-edit';
   const clearError = (field: keyof EgressRuleFormErrors) => {
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
+  };
+
+  const selectableSecrets = useMemo(() => secrets.filter((secret) => Boolean(secret.meta?.id)), [secrets]);
+
+  const filteredSecretsByHeader = (index: number) => {
+    const search = (secretSearchByHeader[index] ?? '').trim().toLowerCase();
+    if (!search) return selectableSecrets;
+    return selectableSecrets.filter((secret) => {
+      const secretId = secret.meta?.id ?? '';
+      return [secret.title, secret.remoteName, secretId].some((value) => value.toLowerCase().includes(search));
+    });
   };
 
   const updateHeader = (index: number, nextHeader: Partial<HeaderFormValues>) => {
@@ -196,7 +212,7 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
           <div className="flex items-center justify-between gap-3">
             <div>
               <h4 className="text-sm font-semibold text-foreground">Injected headers</h4>
-              <p className="text-xs text-muted-foreground">Use literal values or secret IDs.</p>
+              <p className="text-xs text-muted-foreground">Use literal values or organization secrets.</p>
             </div>
             <Button
               type="button"
@@ -239,17 +255,44 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="value">Value</SelectItem>
-                      <SelectItem value="secretId">Secret ID</SelectItem>
+                      <SelectItem value="secretId">Secret</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input
-                    aria-label={header.source === 'secretId' ? 'Secret ID' : 'Header value'}
-                    type={header.source === 'value' ? 'password' : 'text'}
-                    placeholder={header.requiresValueReentry ? 'Re-enter literal value' : header.source === 'secretId' ? 'secret-id' : 'header value'}
-                    value={header.value}
-                    onChange={(event) => updateHeader(index, { value: event.target.value, requiresValueReentry: false })}
-                    data-testid={`${testIdPrefix}-header-value`}
-                  />
+                  {header.source === 'secretId' ? (
+                    <div className="space-y-2">
+                      <Input
+                        aria-label="Search secrets"
+                        placeholder="Search secrets"
+                        value={secretSearchByHeader[index] ?? ''}
+                        onChange={(event) => setSecretSearchByHeader((prev) => ({ ...prev, [index]: event.target.value }))}
+                        data-testid={`${testIdPrefix}-header-secret-search`}
+                      />
+                      <Select value={header.value} onValueChange={(value) => updateHeader(index, { value, requiresValueReentry: false })}>
+                        <SelectTrigger aria-label="Secret" data-testid={`${testIdPrefix}-header-secret`}>
+                          <SelectValue placeholder="Select secret" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredSecretsByHeader(index).map((secret) => {
+                            const secretId = secret.meta?.id ?? '';
+                            return (
+                              <SelectItem key={secretId} value={secretId}>
+                                {secret.title || secret.remoteName || secretId}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <Input
+                      aria-label="Header value"
+                      type="password"
+                      placeholder={header.requiresValueReentry ? 'Re-enter literal value' : 'header value'}
+                      value={header.value}
+                      onChange={(event) => updateHeader(index, { value: event.target.value, requiresValueReentry: false })}
+                      data-testid={`${testIdPrefix}-header-value`}
+                    />
+                  )}
                   <Button
                     type="button"
                     variant="ghost"
@@ -306,7 +349,16 @@ export function OrganizationEgressRulesTab() {
     refetchOnWindowFocus: false,
   });
 
+  const secretsQuery = useQuery({
+    queryKey: ['secrets', organizationId, 'egress-selector'],
+    queryFn: () => secretsClient.listSecrets({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '', secretProviderId: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
   const rules = rulesQuery.data?.egressRules ?? [];
+  const secrets = secretsQuery.data?.secrets ?? [];
   const listControls = useListControls({
     items: rules,
     searchFields: [
@@ -483,6 +535,7 @@ export function OrganizationEgressRulesTab() {
         initialValues={DEFAULT_EGRESS_RULE_FORM_VALUES}
         onSubmit={(values) => createRuleMutation.mutate(values)}
         isSubmitting={createRuleMutation.isPending}
+        secrets={secrets}
       />
       <EgressRuleDialog
         mode="edit"
@@ -500,6 +553,7 @@ export function OrganizationEgressRulesTab() {
           updateRuleMutation.mutate({ ...values, id: ruleId });
         }}
         isSubmitting={updateRuleMutation.isPending}
+        secrets={secrets}
       />
       <ConfirmDialog
         open={Boolean(deleteRule)}
@@ -519,4 +573,3 @@ export function OrganizationEgressRulesTab() {
     </div>
   );
 }
-
