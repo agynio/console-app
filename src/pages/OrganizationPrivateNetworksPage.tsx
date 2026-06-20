@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { agentsClient, appsClient, groupsClient, networksClient, usersClient } from '@/api/client';
+import { agentsClient, appsClient, groupsClient, networksClient, organizationsClient, usersClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import { SortableHeader } from '@/components/SortableHeader';
 import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
 import type { Agent } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { GroupSource } from '@/gen/agynio/api/groups/v1/groups_pb';
+import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import type { User } from '@/gen/agynio/api/users/v1/users_pb';
 import {
   PrivateResourceAccessPrincipalType,
@@ -575,9 +576,12 @@ function NetworkResourcesTab({ organizationId, networkId }: { organizationId: st
     refetchOnWindowFocus: false,
   });
 
-  const grantsQuery = useQuery({
+  const grantsQuery = useInfiniteQuery({
     queryKey: ['private-networks', networkId, 'grants'],
-    queryFn: () => networksClient.listPrivateResourceAccess({ networkId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      networksClient.listPrivateResourceAccess({ networkId, pageSize: MAX_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(networkId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -604,7 +608,10 @@ function NetworkResourcesTab({ organizationId, networkId }: { organizationId: st
   });
 
   const resources = resourcesQuery.data?.privateResources ?? [];
-  const grants = grantsQuery.data?.privateResourceAccess ?? [];
+  const grants = useMemo(
+    () => grantsQuery.data?.pages.flatMap((page) => page.privateResourceAccess) ?? [],
+    [grantsQuery.data?.pages],
+  );
 
   return (
     <Card>
@@ -1015,9 +1022,18 @@ function GrantDialog({
 }
 
 function usePrincipalOptions(organizationId: string) {
-  const usersQuery = useQuery({
-    queryKey: ['users', 'list', 'resource-grant-picker'],
-    queryFn: () => usersClient.listUsers({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+  const organizationMembersQuery = useInfiniteQuery({
+    queryKey: ['organizations', organizationId, 'members', 'resource-grant-picker'],
+    queryFn: ({ pageParam }) =>
+      organizationsClient.listMembers({
+        organizationId,
+        status: MembershipStatus.ACTIVE,
+        pageSize: MAX_PAGE_SIZE,
+        pageToken: pageParam,
+      }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -1044,8 +1060,28 @@ function usePrincipalOptions(organizationId: string) {
     refetchOnWindowFocus: false,
   });
 
+  const organizationMemberIdentityIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (organizationMembersQuery.data?.pages.flatMap((page) => page.memberships) ?? [])
+            .map((membership) => membership.identityId)
+            .filter(Boolean),
+        ),
+      ),
+    [organizationMembersQuery.data?.pages],
+  );
+
+  const organizationUsersQuery = useQuery({
+    queryKey: ['users', 'batch', 'org-members', 'resource-grant-picker', organizationMemberIdentityIds.join(',')],
+    queryFn: () => usersClient.batchGetUsers({ identityIds: organizationMemberIdentityIds }),
+    enabled: organizationMemberIdentityIds.length > 0,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
   const options = useMemo(() => {
-    const userOptions = (usersQuery.data?.users ?? []).flatMap((user): PrincipalOption[] => {
+    const userOptions = (organizationUsersQuery.data?.users ?? []).flatMap((user): PrincipalOption[] => {
       const userId = user.meta?.id;
       if (!userId) return [];
       return [{ type: PrivateResourceAccessPrincipalType.USER, id: userId, label: formatUserPrincipal(user), description: user.email || userId }];
@@ -1066,7 +1102,7 @@ function usePrincipalOptions(organizationId: string) {
       return [{ type: PrivateResourceAccessPrincipalType.GROUP, id: groupId, label: group.name, description: group.description || groupId }];
     });
     return [...userOptions, ...agentOptions, ...appOptions, ...groupOptions].sort((left, right) => left.label.localeCompare(right.label));
-  }, [agentsQuery.data?.agents, appsQuery.data?.apps, groupsQuery.data?.groups, usersQuery.data?.users]);
+  }, [agentsQuery.data?.agents, appsQuery.data?.apps, groupsQuery.data?.groups, organizationUsersQuery.data?.users]);
 
   return { options };
 }

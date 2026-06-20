@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { agentsClient, appsClient, groupsClient, usersClient } from '@/api/client';
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { agentsClient, appsClient, groupsClient, organizationsClient, usersClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { GroupMemberType, GroupSource, type GroupMembership } from '@/gen/agynio/api/groups/v1/groups_pb';
 import { AppVisibility, type App } from '@/gen/agynio/api/apps/v1/apps_pb';
+import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import type { Agent } from '@/gen/agynio/api/agents/v1/agents_pb';
 import type { User } from '@/gen/agynio/api/users/v1/users_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -134,17 +135,29 @@ export function OrganizationGroupDetailPage() {
     refetchOnWindowFocus: false,
   });
 
-  const membersQuery = useQuery({
+  const membersQuery = useInfiniteQuery({
     queryKey: ['groups', resolvedGroupId, 'members'],
-    queryFn: () => groupsClient.listMembers({ groupId: resolvedGroupId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    queryFn: ({ pageParam }) =>
+      groupsClient.listMembers({ groupId: resolvedGroupId, pageSize: MAX_PAGE_SIZE, pageToken: pageParam }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     enabled: Boolean(resolvedGroupId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
-  const usersQuery = useQuery({
-    queryKey: ['users', 'list', 'group-picker'],
-    queryFn: () => usersClient.listUsers({ pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+  const organizationMembersQuery = useInfiniteQuery({
+    queryKey: ['organizations', organizationId, 'members', 'group-picker'],
+    queryFn: ({ pageParam }) =>
+      organizationsClient.listMembers({
+        organizationId,
+        status: MembershipStatus.ACTIVE,
+        pageSize: MAX_PAGE_SIZE,
+        pageToken: pageParam,
+      }),
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+    enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -171,7 +184,10 @@ export function OrganizationGroupDetailPage() {
     refetchOnWindowFocus: false,
   });
 
-  const members = useMemo(() => membersQuery.data?.memberships ?? [], [membersQuery.data?.memberships]);
+  const members = useMemo(
+    () => membersQuery.data?.pages.flatMap((page) => page.memberships) ?? [],
+    [membersQuery.data?.pages],
+  );
   const memberIds = useMemo(() => members.map((membership) => membership.memberId).filter(Boolean), [members]);
   const memberUsersQuery = useQuery({
     queryKey: ['users', 'batch', memberIds.join(',')],
@@ -212,8 +228,28 @@ export function OrganizationGroupDetailPage() {
     [agentMemberships, memberAgentQueries],
   );
 
+  const organizationMemberIdentityIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (organizationMembersQuery.data?.pages.flatMap((page) => page.memberships) ?? [])
+            .map((membership) => membership.identityId)
+            .filter(Boolean),
+        ),
+      ),
+    [organizationMembersQuery.data?.pages],
+  );
+
+  const organizationUsersQuery = useQuery({
+    queryKey: ['users', 'batch', 'org-members', organizationMemberIdentityIds.join(',')],
+    queryFn: () => usersClient.batchGetUsers({ identityIds: organizationMemberIdentityIds }),
+    enabled: organizationMemberIdentityIds.length > 0,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
   const memberOptions = useMemo(() => {
-    const userOptions: MemberOption[] = (usersQuery.data?.users ?? []).flatMap((user) => {
+    const userOptions: MemberOption[] = (organizationUsersQuery.data?.users ?? []).flatMap((user) => {
       const userId = user.meta?.id;
       if (!userId) return [];
       return [{ type: GroupMemberType.USER, id: userId, label: formatUserLabel(user), description: user.email || userId }];
@@ -229,7 +265,7 @@ export function OrganizationGroupDetailPage() {
       return [{ type: GroupMemberType.APP, id: appId, label: app.name || app.slug || appId, description: app.slug || appId }];
     });
     return [...userOptions, ...agentOptions, ...appOptions].sort((left, right) => left.label.localeCompare(right.label));
-  }, [agentsQuery.data?.agents, appsQuery.data?.apps, usersQuery.data?.users]);
+  }, [agentsQuery.data?.agents, appsQuery.data?.apps, organizationUsersQuery.data?.users]);
 
   const addMemberMutation = useMutation({
     mutationFn: (option: MemberOption) =>
