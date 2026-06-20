@@ -44,6 +44,7 @@ type MemberPickerDialogProps = {
 };
 
 const groupNamePattern = /^[a-z0-9_-]{1,64}$/;
+const userBatchSize = 100;
 const memberTypeLabels = new Map<GroupMemberType, string>([
   [GroupMemberType.USER, 'User'],
   [GroupMemberType.AGENT, 'Agent'],
@@ -201,12 +202,15 @@ export function OrganizationGroupDetailPage() {
     [membersQuery.data?.pages],
   );
   const memberIds = useMemo(() => members.map((membership) => membership.memberId).filter(Boolean), [members]);
-  const memberUsersQuery = useQuery({
-    queryKey: ['users', 'batch', memberIds.join(',')],
-    queryFn: () => usersClient.batchGetUsers({ identityIds: memberIds }),
-    enabled: memberIds.length > 0,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
+  const memberUserIdChunks = useMemo(() => chunkStrings(memberIds, userBatchSize), [memberIds]);
+  const memberUsersQueries = useQueries({
+    queries: memberUserIdChunks.map((identityIds) => ({
+      queryKey: ['users', 'batch', identityIds.join(',')],
+      queryFn: () => usersClient.batchGetUsers({ identityIds }),
+      enabled: identityIds.length > 0,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    })),
   });
   const agentMemberships = useMemo(
     () => members.filter((membership) => membership.memberType === GroupMemberType.AGENT),
@@ -224,9 +228,9 @@ export function OrganizationGroupDetailPage() {
   });
 
   const memberUserMap = useMemo(() => {
-    const users = memberUsersQuery.data?.users ?? [];
+    const users = memberUsersQueries.flatMap((query) => query.data?.users ?? []);
     return new Map(users.flatMap((user) => (user.meta?.id ? ([[user.meta.id, user]] as const) : [])));
-  }, [memberUsersQuery.data?.users]);
+  }, [memberUsersQueries]);
 
   const memberAgentMap = useMemo(
     () =>
@@ -252,16 +256,23 @@ export function OrganizationGroupDetailPage() {
     [organizationMembersQuery.data?.pages],
   );
 
-  const organizationUsersQuery = useQuery({
-    queryKey: ['users', 'batch', 'org-members', organizationMemberIdentityIds.join(',')],
-    queryFn: () => usersClient.batchGetUsers({ identityIds: organizationMemberIdentityIds }),
-    enabled: organizationMemberIdentityIds.length > 0,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
+  const organizationUserIdChunks = useMemo(
+    () => chunkStrings(organizationMemberIdentityIds, userBatchSize),
+    [organizationMemberIdentityIds],
+  );
+  const organizationUsersQueries = useQueries({
+    queries: organizationUserIdChunks.map((identityIds) => ({
+      queryKey: ['users', 'batch', 'org-members', identityIds.join(',')],
+      queryFn: () => usersClient.batchGetUsers({ identityIds }),
+      enabled: identityIds.length > 0,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    })),
   });
 
   const memberOptions = useMemo(() => {
-    const userOptions: MemberOption[] = (organizationUsersQuery.data?.users ?? []).flatMap((user) => {
+    const organizationUsers = organizationUsersQueries.flatMap((query) => query.data?.users ?? []);
+    const userOptions: MemberOption[] = organizationUsers.flatMap((user) => {
       const userId = user.meta?.id;
       if (!userId) return [];
       return [{ type: GroupMemberType.USER, id: userId, label: formatUserLabel(user), description: user.email || userId }];
@@ -277,7 +288,7 @@ export function OrganizationGroupDetailPage() {
       return [{ type: GroupMemberType.APP, id: appId, label: app.name || app.slug || appId, description: app.slug || appId }];
     });
     return [...userOptions, ...agentOptions, ...appOptions].sort((left, right) => left.label.localeCompare(right.label));
-  }, [agentsQuery.data?.agents, appsQuery.data?.apps, organizationUsersQuery.data?.users]);
+  }, [agentsQuery.data?.agents, appsQuery.data?.apps, organizationUsersQueries]);
 
   const addMemberMutation = useMutation({
     mutationFn: (option: MemberOption) =>
@@ -570,4 +581,12 @@ function formatMembershipLabel(
     return app?.name || app?.slug || membership.memberId;
   }
   return membership.memberId;
+}
+
+function chunkStrings(values: string[], size: number) {
+  const chunks: string[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
 }

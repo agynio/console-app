@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, appsClient, groupsClient, networksClient, organizationsClient, usersClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -62,6 +62,8 @@ type PrincipalOption = {
   label: string;
   description: string;
 };
+
+const userBatchSize = 100;
 
 function NetworkDialog({
   open,
@@ -1084,16 +1086,23 @@ function usePrincipalOptions(organizationId: string) {
     [organizationMembersQuery.data?.pages],
   );
 
-  const organizationUsersQuery = useQuery({
-    queryKey: ['users', 'batch', 'org-members', 'resource-grant-picker', organizationMemberIdentityIds.join(',')],
-    queryFn: () => usersClient.batchGetUsers({ identityIds: organizationMemberIdentityIds }),
-    enabled: organizationMemberIdentityIds.length > 0,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
+  const organizationUserIdChunks = useMemo(
+    () => chunkStrings(organizationMemberIdentityIds, userBatchSize),
+    [organizationMemberIdentityIds],
+  );
+  const organizationUsersQueries = useQueries({
+    queries: organizationUserIdChunks.map((identityIds) => ({
+      queryKey: ['users', 'batch', 'org-members', 'resource-grant-picker', identityIds.join(',')],
+      queryFn: () => usersClient.batchGetUsers({ identityIds }),
+      enabled: identityIds.length > 0,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    })),
   });
 
   const options = useMemo(() => {
-    const userOptions = (organizationUsersQuery.data?.users ?? []).flatMap((user): PrincipalOption[] => {
+    const organizationUsers = organizationUsersQueries.flatMap((query) => query.data?.users ?? []);
+    const userOptions = organizationUsers.flatMap((user): PrincipalOption[] => {
       const userId = user.meta?.id;
       if (!userId) return [];
       return [{ type: PrivateResourceAccessPrincipalType.USER, id: userId, label: formatUserPrincipal(user), description: user.email || userId }];
@@ -1114,7 +1123,7 @@ function usePrincipalOptions(organizationId: string) {
       return [{ type: PrivateResourceAccessPrincipalType.GROUP, id: groupId, label: group.name, description: group.description || groupId }];
     });
     return [...userOptions, ...agentOptions, ...appOptions, ...groupOptions].sort((left, right) => left.label.localeCompare(right.label));
-  }, [agentsQuery.data?.agents, appsQuery.data?.apps, groupsQuery.data?.groups, organizationUsersQuery.data?.users]);
+  }, [agentsQuery.data?.agents, appsQuery.data?.apps, groupsQuery.data?.groups, organizationUsersQueries]);
 
   return { options };
 }
@@ -1234,4 +1243,12 @@ function copyText(value: string, successMessage: string) {
     () => toast.success(successMessage),
     () => toast.error('Failed to copy to clipboard.'),
   );
+}
+
+function chunkStrings(values: string[], size: number) {
+  const chunks: string[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
 }
