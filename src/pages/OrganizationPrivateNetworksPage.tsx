@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, appsClient, groupsClient, networksClient, organizationsClient, usersClient } from '@/api/client';
@@ -587,6 +587,12 @@ function NetworkResourcesTab({ organizationId, networkId }: { organizationId: st
     refetchOnWindowFocus: false,
   });
 
+  useEffect(() => {
+    if (grantsQuery.hasNextPage && !grantsQuery.isFetchingNextPage) {
+      void grantsQuery.fetchNextPage();
+    }
+  }, [grantsQuery]);
+
   const createMutation = useMutation({
     mutationFn: (values: ResourceDialogValues) => networksClient.createPrivateResource({ networkId, ...values }),
     onSuccess: () => {
@@ -1037,6 +1043,12 @@ function usePrincipalOptions(organizationId: string) {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (organizationMembersQuery.hasNextPage && !organizationMembersQuery.isFetchingNextPage) {
+      void organizationMembersQuery.fetchNextPage();
+    }
+  }, [organizationMembersQuery]);
   const agentsQuery = useQuery({
     queryKey: ['agents', organizationId, 'resource-grant-picker'],
     queryFn: () => agentsClient.listAgents({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),

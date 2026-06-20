@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, appsClient, groupsClient, organizationsClient, usersClient } from '@/api/client';
@@ -161,6 +161,18 @@ export function OrganizationGroupDetailPage() {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (membersQuery.hasNextPage && !membersQuery.isFetchingNextPage) {
+      void membersQuery.fetchNextPage();
+    }
+  }, [membersQuery]);
+
+  useEffect(() => {
+    if (organizationMembersQuery.hasNextPage && !organizationMembersQuery.isFetchingNextPage) {
+      void organizationMembersQuery.fetchNextPage();
+    }
+  }, [organizationMembersQuery]);
 
   const agentsQuery = useQuery({
     queryKey: ['agents', organizationId, 'group-picker'],
