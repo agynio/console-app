@@ -7,6 +7,7 @@ import {
   BrainIcon,
   ChevronDownIcon,
   BuildingIcon,
+  CableIcon,
   HardDriveIcon,
   HomeIcon,
   KeyIcon,
@@ -302,6 +303,14 @@ export function AppLayout() {
                   Egress Rules
                 </NavLink>
                 <NavLink
+                  to={organizationRoute('/private-networks')}
+                  className={navLinkClass}
+                  data-testid="nav-organization-private-networks"
+                >
+                  <CableIcon className="h-4 w-4" />
+                  Private Networks
+                </NavLink>
+                <NavLink
                   to={organizationRoute('/runners')}
                   className={navLinkClass}
                   data-testid="nav-organization-runners"
@@ -366,6 +375,19 @@ export function AppLayout() {
                 >
                   <KeyIcon className="h-4 w-4" />
                   Image Pull Secrets
+                </NavLink>
+              </nav>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Org Settings</p>
+              <nav className="mt-3 flex flex-col gap-1">
+                <NavLink
+                  to={organizationRoute('/groups')}
+                  className={navLinkClass}
+                  data-testid="nav-organization-groups"
+                >
+                  <UsersIcon className="h-4 w-4" />
+                  Groups
                 </NavLink>
               </nav>
             </div>
