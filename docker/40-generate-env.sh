@@ -11,6 +11,7 @@ api_base_url=$(escape_js "${API_BASE_URL:-}")
 oidc_authority=$(escape_js "${OIDC_AUTHORITY:-}")
 oidc_client_id=$(escape_js "${OIDC_CLIENT_ID:-}")
 oidc_scope=$(escape_js "${OIDC_SCOPE:-}")
+oidc_resource=$(escape_js "${OIDC_RESOURCE:-}")
 
 cat > "$CONFIG_PATH" <<EOF
 window.__ENV__ = {
@@ -18,5 +19,6 @@ window.__ENV__ = {
   OIDC_AUTHORITY: "${oidc_authority}",
   OIDC_CLIENT_ID: "${oidc_client_id}",
   OIDC_SCOPE: "${oidc_scope}",
+  OIDC_RESOURCE: "${oidc_resource}",
 };
 EOF
