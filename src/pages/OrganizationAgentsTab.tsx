@@ -63,13 +63,11 @@ export function OrganizationAgentsTab() {
       (agent) => agent.role || '',
       (agent) => formatAgentAvailability(agent.availability),
       (agent) => getModelLabel(agent),
-      () => 'TBD',
     ],
     sortOptions: {
       name: (agent) => agent.name,
       role: (agent) => agent.role || '',
       availability: (agent) => formatAgentAvailability(agent.availability),
-      status: () => 'TBD',
       model: (agent) => getModelLabel(agent),
       created: (agent) => timestampToMillis(agent.meta?.createdAt),
     },
@@ -107,7 +105,7 @@ export function OrganizationAgentsTab() {
         <Card className="border-border" data-testid="organization-agents-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
               data-testid="organization-agents-header"
             >
               <SortableHeader
@@ -127,13 +125,6 @@ export function OrganizationAgentsTab() {
               <SortableHeader
                 label="Availability"
                 sortKey="availability"
-                activeSortKey={listControls.sortKey}
-                sortDirection={listControls.sortDirection}
-                onSort={listControls.handleSort}
-              />
-              <SortableHeader
-                label="Status"
-                sortKey="status"
                 activeSortKey={listControls.sortKey}
                 sortDirection={listControls.sortDirection}
                 onSort={listControls.handleSort}
@@ -178,15 +169,6 @@ export function OrganizationAgentsTab() {
                       <Badge variant="outline" data-testid="organization-agent-availability">
                         {formatAgentAvailability(agent.availability)}
                       </Badge>
-                      {/* TODO: replace with live agent status when available. */}
-                      <Badge
-                        variant="secondary"
-                        className="text-muted-foreground"
-                        title="Status is not yet available."
-                        data-testid="organization-agent-status"
-                      >
-                        TBD
-                      </Badge>
                       <span className="text-xs text-muted-foreground" data-testid="organization-agent-model">
                         {model?.name ?? (agent.model || '—')}
                       </span>
@@ -200,7 +182,7 @@ export function OrganizationAgentsTab() {
                     <NavLink
                       key={agentId}
                       to={`/organizations/${organizationId}/agents/${agentId}`}
-                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       data-testid="organization-agent-row"
                     >
                       {rowContent}
@@ -208,7 +190,7 @@ export function OrganizationAgentsTab() {
                   ) : (
                     <div
                       key={agent.name}
-                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr]"
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
                       data-testid="organization-agent-row"
                     >
                       {rowContent}
