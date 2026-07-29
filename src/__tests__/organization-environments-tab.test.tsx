@@ -6,7 +6,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PageTitleProvider } from '@/context/PageTitleContext';
 import { EntityMetaSchema, EnvironmentSchema } from '@/gen/agynio/api/agents/v1/agents_pb';
 import {
+  ComputeResourcesSchema,
   EntityMetaSchema as RunnerEntityMetaSchema,
+  FlavorSchema,
   RunnerSchema,
   RunnerStatus,
 } from '@/gen/agynio/api/runners/v1/runners_pb';
@@ -20,8 +22,9 @@ const { listEnvironments, createEnvironment, updateEnvironment, deleteEnvironmen
   deleteEnvironment: vi.fn(),
 }));
 
-const { listRunners } = vi.hoisted(() => ({
+const { listRunners, listFlavors } = vi.hoisted(() => ({
   listRunners: vi.fn(),
+  listFlavors: vi.fn(),
 }));
 
 vi.mock('@/api/client', () => ({
@@ -33,6 +36,7 @@ vi.mock('@/api/client', () => ({
   },
   runnersClient: {
     listRunners,
+    listFlavors,
   },
 }));
 
@@ -104,6 +108,7 @@ describe('OrganizationEnvironmentsTab', () => {
     updateEnvironment.mockReset();
     deleteEnvironment.mockReset();
     listRunners.mockReset();
+    listFlavors.mockReset();
 
     listEnvironments.mockResolvedValue({
       environments: [
@@ -131,6 +136,28 @@ describe('OrganizationEnvironmentsTab', () => {
           meta: create(RunnerEntityMetaSchema, { id: 'runner-1' }),
           name: 'org-runner',
           status: RunnerStatus.ENROLLED,
+        }),
+      ],
+      nextPageToken: '',
+    });
+
+    listFlavors.mockResolvedValue({
+      flavors: [
+        create(FlavorSchema, {
+          runnerId: 'runner-1',
+          name: 'ram-2gb',
+          default: true,
+          resources: create(ComputeResourcesSchema, { requestsCpu: '500m', requestsMemory: '2Gi' }),
+        }),
+        create(FlavorSchema, {
+          runnerId: 'runner-1',
+          name: 'ram-4gb',
+          resources: create(ComputeResourcesSchema, { requestsCpu: '1', requestsMemory: '4Gi' }),
+        }),
+        create(FlavorSchema, {
+          runnerId: 'runner-1',
+          name: 'retired',
+          deprecated: true,
         }),
       ],
       nextPageToken: '',
@@ -208,6 +235,85 @@ describe('OrganizationEnvironmentsTab', () => {
         image: 'ghcr.io/agynio/sandbox:builder',
         runnerId: 'runner-1',
         flavor: 'large',
+      });
+    });
+  });
+
+  // The list is a convenience over a free-text field: it must offer the
+  // runner's reported flavors without becoming the only accepted input.
+  it('offers the selected runner\'s flavors and fills the field when one is picked', async () => {
+    createEnvironment.mockResolvedValue({
+      environment: buildEnvironment({ id: 'env-4', name: 'picked', runnerId: 'runner-1', flavor: 'ram-4gb' }),
+    });
+
+    renderEnvironmentsTab();
+    expect(await screen.findByText('default')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('organization-environments-create'));
+    expect(await screen.findByTestId('organization-environments-create-dialog')).toBeTruthy();
+
+    fireEvent.change(screen.getByTestId('organization-environments-create-name'), {
+      target: { value: 'picked' },
+    });
+    fireEvent.change(screen.getByTestId('organization-environments-create-image'), {
+      target: { value: 'ghcr.io/agynio/sandbox:latest' },
+    });
+    const runnerListbox = await openSelect('organization-environments-create-runner');
+    fireEvent.click(within(runnerListbox).getByText('org-runner'));
+
+    fireEvent.click(screen.getByTestId('organization-environments-create-flavor-toggle'));
+
+    // Reported entries are offered; a deprecated one is not.
+    expect(await screen.findByTestId('organization-environments-create-flavor-option-ram-4gb')).toBeTruthy();
+    expect(screen.getByTestId('organization-environments-create-flavor-option-ram-2gb')).toBeTruthy();
+    expect(screen.queryByTestId('organization-environments-create-flavor-option-retired')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('organization-environments-create-flavor-option-ram-4gb'));
+
+    fireEvent.click(screen.getByTestId('organization-environments-create-submit'));
+    await waitFor(() => {
+      expect(createEnvironment).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        name: 'picked',
+        image: 'ghcr.io/agynio/sandbox:latest',
+        runnerId: 'runner-1',
+        flavor: 'ram-4gb',
+      });
+    });
+  });
+
+  it('still accepts a flavor the runner never reported', async () => {
+    createEnvironment.mockResolvedValue({
+      environment: buildEnvironment({ id: 'env-5', name: 'custom', runnerId: 'runner-1', flavor: 'not-in-catalog' }),
+    });
+
+    renderEnvironmentsTab();
+    expect(await screen.findByText('default')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('organization-environments-create'));
+    expect(await screen.findByTestId('organization-environments-create-dialog')).toBeTruthy();
+
+    fireEvent.change(screen.getByTestId('organization-environments-create-name'), {
+      target: { value: 'custom' },
+    });
+    fireEvent.change(screen.getByTestId('organization-environments-create-image'), {
+      target: { value: 'ghcr.io/agynio/sandbox:latest' },
+    });
+    const listbox = await openSelect('organization-environments-create-runner');
+    fireEvent.click(within(listbox).getByText('org-runner'));
+
+    fireEvent.change(screen.getByTestId('organization-environments-create-flavor'), {
+      target: { value: 'not-in-catalog' },
+    });
+
+    fireEvent.click(screen.getByTestId('organization-environments-create-submit'));
+    await waitFor(() => {
+      expect(createEnvironment).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        name: 'custom',
+        image: 'ghcr.io/agynio/sandbox:latest',
+        runnerId: 'runner-1',
+        flavor: 'not-in-catalog',
       });
     });
   });

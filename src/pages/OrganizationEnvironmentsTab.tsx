@@ -5,6 +5,7 @@ import { agentsClient, runnersClient } from '@/api/client';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { SortableHeader } from '@/components/SortableHeader';
+import { ComboboxInput, type ComboboxOption } from '@/components/ComboboxInput';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -49,12 +50,23 @@ type EnvironmentDialogProps = {
   pendingLabel: string;
   initialValues: EnvironmentValues;
   runnerOptions: RunnerOption[];
+  // Keyed by runner: a flavor name only means anything against the runner that
+  // reported it, so the list has to follow the runner chosen in this dialog.
+  flavorsByRunner: Map<string, ComboboxOption[]>;
   isSubmitting: boolean;
   onSubmit: (values: EnvironmentValues) => void;
   testIdPrefix: string;
 };
 
 const emptyEnvironmentValues: EnvironmentValues = { name: '', image: '', runnerId: '', flavor: '' };
+
+// Requests are what scheduling reserves, so they are the useful number when
+// choosing between flavors; limits are the ceiling and are left out.
+function describeResources(resources?: { requestsCpu: string; requestsMemory: string }): string | undefined {
+  if (!resources) return undefined;
+  const parts = [resources.requestsCpu, resources.requestsMemory].filter(Boolean);
+  return parts.length > 0 ? parts.join(' / ') : undefined;
+}
 
 function EnvironmentDialog({
   open,
@@ -65,6 +77,7 @@ function EnvironmentDialog({
   pendingLabel,
   initialValues,
   runnerOptions,
+  flavorsByRunner,
   isSubmitting,
   onSubmit,
   testIdPrefix,
@@ -79,6 +92,8 @@ function EnvironmentDialog({
       setErrors({});
     }
   };
+
+  const flavorOptions = flavorsByRunner.get(values.runnerId) ?? [];
 
   const updateValue = (field: keyof EnvironmentValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -155,11 +170,15 @@ function EnvironmentDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-flavor`}>Flavor</Label>
-            <Input
+            <ComboboxInput
               id={`${testIdPrefix}-flavor`}
               value={values.flavor}
-              onChange={(event) => updateValue('flavor', event.target.value)}
+              onValueChange={(value) => updateValue('flavor', value)}
+              options={flavorOptions}
               placeholder="small"
+              emptyMessage={
+                values.runnerId ? 'This runner reports no flavors' : 'Select a runner first'
+              }
               data-testid={`${testIdPrefix}-flavor`}
             />
             <p className="text-xs text-muted-foreground">
@@ -210,6 +229,33 @@ export function OrganizationEnvironmentsTab() {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  // Every flavor in the organization, grouped by runner. One request rather
+  // than a refetch each time the dialog's runner changes; catalogs are small
+  // and the runner list is fetched the same way.
+  const flavorsQuery = useQuery({
+    queryKey: ['runners', organizationId, 'flavors', 'options'],
+    queryFn: () => runnersClient.listFlavors({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const flavorsByRunner = useMemo(() => {
+    const grouped = new Map<string, ComboboxOption[]>();
+    for (const flavor of flavorsQuery.data?.flavors ?? []) {
+      // A deprecated entry still resolves, but offering it invites new use.
+      if (flavor.deprecated) continue;
+      const options = grouped.get(flavor.runnerId) ?? [];
+      options.push({
+        value: flavor.name,
+        label: flavor.name,
+        description: flavor.default ? 'Runner default' : describeResources(flavor.resources),
+      });
+      grouped.set(flavor.runnerId, options);
+    }
+    return grouped;
+  }, [flavorsQuery.data]);
 
   const createMutation = useMutation({
     mutationFn: (values: EnvironmentValues) => agentsClient.createEnvironment({ organizationId, ...values }),
@@ -456,6 +502,7 @@ export function OrganizationEnvironmentsTab() {
         pendingLabel="Adding..."
         initialValues={emptyEnvironmentValues}
         runnerOptions={runnerOptions}
+          flavorsByRunner={flavorsByRunner}
         isSubmitting={createMutation.isPending}
         onSubmit={(values) => createMutation.mutate(values)}
         testIdPrefix="organization-environments-create"
@@ -478,6 +525,7 @@ export function OrganizationEnvironmentsTab() {
             flavor: editTarget.flavor,
           }}
           runnerOptions={runnerOptions}
+          flavorsByRunner={flavorsByRunner}
           isSubmitting={updateMutation.isPending}
           onSubmit={(values) => {
             const environmentId = editTarget.meta?.id;
