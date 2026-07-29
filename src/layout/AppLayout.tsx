@@ -48,6 +48,10 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
       : 'text-sidebar-foreground hover:bg-sidebar-accent'
   }`;
 
+// Indented variant for an entry that belongs to the one above it.
+const navSubLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `${navLinkClass({ isActive })} pl-9`;
+
 type NoAccessScreenProps = {
   onSignOut: () => void;
   userMenu: ReactNode;
@@ -275,6 +279,14 @@ export function AppLayout() {
                   <UsersIcon className="h-4 w-4" />
                   Members
                 </NavLink>
+                <NavLink
+                  to={organizationRoute('/groups')}
+                  className={navSubLinkClass}
+                  data-testid="nav-organization-groups"
+                >
+                  <ShieldIcon className="h-4 w-4" />
+                  Groups
+                </NavLink>
               </nav>
             </div>
             <div>
@@ -393,19 +405,6 @@ export function AppLayout() {
                 >
                   <KeyIcon className="h-4 w-4" />
                   Image Pull Secrets
-                </NavLink>
-              </nav>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Org Settings</p>
-              <nav className="mt-3 flex flex-col gap-1">
-                <NavLink
-                  to={organizationRoute('/groups')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-groups"
-                >
-                  <UsersIcon className="h-4 w-4" />
-                  Groups
                 </NavLink>
               </nav>
             </div>
