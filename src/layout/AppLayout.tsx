@@ -48,12 +48,6 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
       : 'text-sidebar-foreground hover:bg-sidebar-accent'
   }`;
 
-// Indented variant for an entry that belongs to the one above it. The margin
-// shifts the whole row, so the highlight lines up with the text rather than
-// leaving a gap in front of it.
-const navSubLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `${navLinkClass({ isActive })} ml-4`;
-
 type NoAccessScreenProps = {
   onSignOut: () => void;
   userMenu: ReactNode;
@@ -283,7 +277,7 @@ export function AppLayout() {
                 </NavLink>
                 <NavLink
                   to={organizationRoute('/groups')}
-                  className={navSubLinkClass}
+                  className={navLinkClass}
                   data-testid="nav-organization-groups"
                 >
                   <ShieldIcon className="h-4 w-4" />
