@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   BuildingIcon,
   CableIcon,
+  ContainerIcon,
   HardDriveIcon,
   HomeIcon,
   KeyIcon,
@@ -18,6 +19,7 @@ import {
   SettingsIcon,
   ShieldIcon,
   ServerIcon,
+  TerminalIcon,
   UsersIcon,
 } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
@@ -309,6 +311,22 @@ export function AppLayout() {
                 >
                   <CableIcon className="h-4 w-4" />
                   Private Networks
+                </NavLink>
+                <NavLink
+                  to={organizationRoute('/environments')}
+                  className={navLinkClass}
+                  data-testid="nav-organization-environments"
+                >
+                  <ContainerIcon className="h-4 w-4" />
+                  Environments
+                </NavLink>
+                <NavLink
+                  to={organizationRoute('/sandboxes')}
+                  className={navLinkClass}
+                  data-testid="nav-organization-sandboxes"
+                >
+                  <TerminalIcon className="h-4 w-4" />
+                  Sandboxes
                 </NavLink>
                 <NavLink
                   to={organizationRoute('/runners')}

@@ -15,6 +15,8 @@ import { OrganizationActivityStorageTab } from '@/pages/OrganizationActivityStor
 import { OrganizationActivityWorkloadsTab } from '@/pages/OrganizationActivityWorkloadsTab';
 import { OrganizationOverviewTab } from '@/pages/OrganizationOverviewTab';
 import { OrganizationRunnersTab } from '@/pages/OrganizationRunnersTab';
+import { OrganizationSandboxesTab } from '@/pages/OrganizationSandboxesTab';
+import { SandboxDetailPage } from '@/pages/SandboxDetailPage';
 import { OrganizationUsageTab } from '@/pages/OrganizationUsageTab';
 import { OrganizationImagePullSecretsTab } from '@/pages/OrganizationImagePullSecretsTab';
 import { OrganizationSecretProvidersTab } from '@/pages/OrganizationSecretProvidersTab';
@@ -23,6 +25,7 @@ import { OrganizationThreadDetailPage } from '@/pages/OrganizationThreadDetailPa
 import { OrganizationThreadsTab } from '@/pages/OrganizationThreadsTab';
 import { OrganizationVolumesTab } from '@/pages/OrganizationVolumesTab';
 import { OrganizationEgressRulesTab } from '@/pages/OrganizationEgressRulesTab';
+import { OrganizationEnvironmentsTab } from '@/pages/OrganizationEnvironmentsTab';
 import { OrganizationGroupsPage } from '@/pages/OrganizationGroupsPage';
 import { OrganizationGroupDetailPage } from '@/pages/OrganizationGroupDetailPage';
 import {
@@ -70,6 +73,7 @@ export default function App() {
           <Route path="agents" element={<OrganizationAgentsTab />} />
           <Route path="volumes" element={<OrganizationVolumesTab />} />
           <Route path="volumes/:volumeId" element={<VolumeDetailPage />} />
+          <Route path="environments" element={<OrganizationEnvironmentsTab />} />
           <Route path="egress-rules" element={<OrganizationEgressRulesTab />} />
           <Route path="private-networks" element={<OrganizationPrivateNetworksPage />} />
           <Route path="private-networks/:networkId" element={<OrganizationPrivateNetworkDetailPage />} />
@@ -82,6 +86,8 @@ export default function App() {
           <Route path="secret-providers" element={<OrganizationSecretProvidersTab />} />
           <Route path="runners" element={<OrganizationRunnersTab />} />
           <Route path="runners/:runnerId" element={<RunnerDetailPage />} />
+          <Route path="sandboxes" element={<OrganizationSandboxesTab />} />
+          <Route path="sandboxes/:sandboxId" element={<SandboxDetailPage />} />
           <Route path="apps" element={<OrganizationAppsTab />} />
           <Route path="apps/installations/:installationId" element={<InstallationDetailPage />} />
           <Route path="apps/:appId" element={<AppDetailPage />} />

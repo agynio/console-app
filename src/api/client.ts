@@ -14,6 +14,7 @@ import { NotificationsGateway } from '@/gen/agynio/api/gateway/v1/notifications_
 import { OrganizationsGateway } from '@/gen/agynio/api/gateway/v1/organizations_pb';
 import { RunnersGateway } from '@/gen/agynio/api/gateway/v1/runners_pb';
 import { SecretsGateway } from '@/gen/agynio/api/gateway/v1/secrets_pb';
+import { TerminalGateway } from '@/gen/agynio/api/gateway/v1/terminal_pb';
 import { ThreadsGateway } from '@/gen/agynio/api/gateway/v1/threads_pb';
 import { UsersGateway } from '@/gen/agynio/api/gateway/v1/users_pb';
 
@@ -33,6 +34,7 @@ export const networksClient = createClient(NetworksGateway, transport);
 export const organizationsClient = createClient(OrganizationsGateway, transport);
 export const runnersClient = createClient(RunnersGateway, transport);
 export const secretsClient = createClient(SecretsGateway, transport);
+export const terminalClient = createClient(TerminalGateway, transport);
 export const notificationsClient = createClient(NotificationsGateway, transport);
 export const threadsClient = createClient(ThreadsGateway, transport);
 export const filesClient = createClient(FilesGateway, transport);
