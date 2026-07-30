@@ -37,6 +37,7 @@ describe('formatUsageUnit', () => {
     expect(formatUsageUnit(Unit.TOKENS)).toBe('Tokens');
     expect(formatUsageUnit(Unit.CORE_SECONDS)).toBe('Core seconds');
     expect(formatUsageUnit(Unit.GB_SECONDS)).toBe('GB seconds');
+    expect(formatUsageUnit(Unit.FLAVOR_SECONDS)).toBe('Flavor seconds');
     expect(formatUsageUnit(Unit.COUNT)).toBe('Count');
   });
 });

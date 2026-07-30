@@ -42,6 +42,7 @@ export function formatUsageUnit(unit: Unit): string {
   if (unit === Unit.TOKENS) return 'Tokens';
   if (unit === Unit.CORE_SECONDS) return 'Core seconds';
   if (unit === Unit.GB_SECONDS) return 'GB seconds';
+  if (unit === Unit.FLAVOR_SECONDS) return 'Flavor seconds';
   if (unit === Unit.COUNT) return 'Count';
   return 'Unspecified';
 }
