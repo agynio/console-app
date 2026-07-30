@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AgentAvailability, type ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { NO_MODEL } from '@/lib/constants';
+import { NO_ENVIRONMENT, NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
 import { NICKNAME_MAX_LENGTH, getNicknameValidationError } from '@/lib/nickname';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -32,6 +32,7 @@ export function AgentCreatePage() {
   const [modelId, setModelId] = useState(NO_MODEL);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+  const [environmentId, setEnvironmentId] = useState(NO_ENVIRONMENT);
   const [initImage, setInitImage] = useState('');
   const [configuration, setConfiguration] = useState('');
   const [configurationError, setConfigurationError] = useState('');
@@ -50,6 +51,19 @@ export function AgentCreatePage() {
 
   const models = useMemo(() => modelsQuery.data?.models ?? [], [modelsQuery.data?.models]);
 
+  const environmentsQuery = useQuery({
+    queryKey: ['environments', organizationId, 'all'],
+    queryFn: () => agentsClient.listEnvironments({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const environments = useMemo(
+    () => environmentsQuery.data?.environments ?? [],
+    [environmentsQuery.data?.environments],
+  );
+
   const createAgentMutation = useMutation({
     mutationFn: (payload: {
       name: string;
@@ -59,6 +73,7 @@ export function AgentCreatePage() {
       description: string;
       configuration: string;
       image: string;
+      environmentId: string;
       initImage: string;
       organizationId: string;
       idleTimeout?: string;
@@ -127,6 +142,7 @@ export function AgentCreatePage() {
       description: description.trim(),
       configuration: trimmedConfig,
       image: image.trim(),
+      environmentId: environmentId === NO_ENVIRONMENT ? '' : environmentId,
       initImage: initImage.trim(),
       organizationId,
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
@@ -220,6 +236,28 @@ export function AgentCreatePage() {
               onChange={(event) => setDescription(event.target.value)}
               data-testid="agent-create-description"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-environment">Environment</Label>
+            <Select value={environmentId} onValueChange={setEnvironmentId}>
+              <SelectTrigger id="agent-create-environment" data-testid="agent-create-environment">
+                <SelectValue
+                  placeholder={environmentsQuery.isPending ? 'Loading environments...' : 'Select environment'}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ENVIRONMENT}>None</SelectItem>
+                {environments.map((environment) => (
+                  <SelectItem key={environment.meta?.id} value={environment.meta?.id ?? ''}>
+                    {environment.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Supplies the image and compute this agent runs with, and the ENVs, egress rules and image pull
+              secrets attached to it.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="agent-create-image">Image</Label>

@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AgentAvailability, type Agent, type ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { NO_MODEL } from '@/lib/constants';
+import { NO_ENVIRONMENT, NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
 import { formatAgentAvailability, formatComputeResources } from '@/lib/format';
 import { NICKNAME_MAX_LENGTH, getNicknameValidationError } from '@/lib/nickname';
@@ -47,6 +47,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [modelId, setModelId] = useState(NO_MODEL);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+  const [environmentId, setEnvironmentId] = useState(NO_ENVIRONMENT);
   const [initImage, setInitImage] = useState('');
   const [configuration, setConfiguration] = useState('');
   const [configurationError, setConfigurationError] = useState('');
@@ -54,6 +55,23 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [idleTimeoutError, setIdleTimeoutError] = useState('');
   const [availability, setAvailability] = useState<AgentAvailability>(AgentAvailability.INTERNAL);
   const [resources, setResources] = useState<ComputeResources | undefined>(undefined);
+
+  const environmentsQuery = useQuery({
+    queryKey: ['environments', organizationId, 'all'],
+    queryFn: () => agentsClient.listEnvironments({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const environments = useMemo(
+    () => environmentsQuery.data?.environments ?? [],
+    [environmentsQuery.data?.environments],
+  );
+
+  // The agent stores an id; the read view shows what a person recognises.
+  const environmentName = (id: string) =>
+    id ? (environments.find((environment) => environment.meta?.id === id)?.name ?? id) : '';
 
   const modelsQuery = useQuery({
     queryKey: ['llm', organizationId, 'models', 'all'],
@@ -93,6 +111,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       description?: string;
       configuration?: string;
       image?: string;
+      environmentId?: string;
       initImage?: string;
       nickname?: string;
       idleTimeout?: string;
@@ -120,6 +139,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setModelId(agent.model || NO_MODEL);
       setDescription(agent.description);
       setImage(agent.image);
+      setEnvironmentId(agent.environmentId || NO_ENVIRONMENT);
       setInitImage(agent.initImage);
       setConfiguration(agent.configuration);
       setIdleTimeout(agent.idleTimeout ?? '');
@@ -182,6 +202,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       description: description.trim(),
       configuration: trimmedConfig,
       image: image.trim(),
+      environmentId: environmentId === NO_ENVIRONMENT ? '' : environmentId,
       initImage: initImage.trim(),
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
       availability,
@@ -231,6 +252,12 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Description</div>
               <div className="text-sm text-foreground">{agent.description || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Environment</div>
+              <div className="text-sm text-foreground" data-testid="agent-configuration-environment-value">
+                {environmentName(agent.environmentId) || '—'}
+              </div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Image</div>
@@ -347,6 +374,22 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                 onChange={(event) => setDescription(event.target.value)}
                 data-testid="agent-configuration-description"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-environment">Environment</Label>
+              <Select value={environmentId} onValueChange={setEnvironmentId}>
+                <SelectTrigger id="agent-configuration-environment" data-testid="agent-configuration-environment">
+                  <SelectValue placeholder="Select environment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_ENVIRONMENT}>None</SelectItem>
+                  {environments.map((environment) => (
+                    <SelectItem key={environment.meta?.id} value={environment.meta?.id ?? ''}>
+                      {environment.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="agent-configuration-image">Image</Label>
