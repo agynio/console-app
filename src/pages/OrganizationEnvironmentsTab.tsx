@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, runnersClient } from '@/api/client';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -440,7 +440,17 @@ export function OrganizationEnvironmentsTab() {
                   >
                     <div>
                       <div className="font-medium" data-testid="organization-environment-name">
-                        {environment.name}
+                        {environment.meta?.id ? (
+                          <NavLink
+                            to={`/organizations/${organizationId}/environments/${environment.meta.id}`}
+                            className="hover:underline"
+                            data-testid="organization-environment-view"
+                          >
+                            {environment.name}
+                          </NavLink>
+                        ) : (
+                          environment.name
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground" data-testid="organization-environment-id">
                         {environment.meta?.id ?? '—'}

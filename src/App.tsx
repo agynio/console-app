@@ -26,6 +26,7 @@ import { OrganizationThreadsTab } from '@/pages/OrganizationThreadsTab';
 import { OrganizationVolumesTab } from '@/pages/OrganizationVolumesTab';
 import { OrganizationEgressRulesTab } from '@/pages/OrganizationEgressRulesTab';
 import { OrganizationEnvironmentsTab } from '@/pages/OrganizationEnvironmentsTab';
+import { EnvironmentDetailPage } from '@/pages/EnvironmentDetailPage';
 import { OrganizationGroupsPage } from '@/pages/OrganizationGroupsPage';
 import { OrganizationGroupDetailPage } from '@/pages/OrganizationGroupDetailPage';
 import {
@@ -74,6 +75,7 @@ export default function App() {
           <Route path="volumes" element={<OrganizationVolumesTab />} />
           <Route path="volumes/:volumeId" element={<VolumeDetailPage />} />
           <Route path="environments" element={<OrganizationEnvironmentsTab />} />
+          <Route path="environments/:environmentId" element={<EnvironmentDetailPage />} />
           <Route path="egress-rules" element={<OrganizationEgressRulesTab />} />
           <Route path="private-networks" element={<OrganizationPrivateNetworksPage />} />
           <Route path="private-networks/:networkId" element={<OrganizationPrivateNetworkDetailPage />} />

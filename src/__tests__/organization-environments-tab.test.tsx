@@ -194,6 +194,17 @@ describe('OrganizationEnvironmentsTab', () => {
     });
   });
 
+  it('links the environment name to its detail page', async () => {
+    renderEnvironmentsTab();
+
+    expect(await screen.findByText('default')).toBeTruthy();
+
+    const [firstRow] = screen.getAllByTestId('organization-environment-row');
+    const link = within(firstRow).getByTestId('organization-environment-view');
+    expect(link.getAttribute('href')).toBe('/organizations/org-1/environments/env-1');
+    expect(link.textContent).toBe('default');
+  });
+
   it('creates an environment with the selected runner and flavor', async () => {
     createEnvironment.mockResolvedValue({
       environment: buildEnvironment({
