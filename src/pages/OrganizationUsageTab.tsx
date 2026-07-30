@@ -71,11 +71,6 @@ type TopGroup = TopGroupBase & {
   value: number;
 };
 
-type TopGroupSeries = TopGroupBase & {
-  cpu: number;
-  ram: number;
-};
-
 const rangeOptions: Array<{ value: RangeOption; label: string }> = [
   { value: '24h', label: 'Last 24 hours' },
   { value: '7d', label: 'Last 7 days' },
@@ -129,37 +124,23 @@ const usageQueryConfigs: UsageQueryConfig[] = [
     labelFilters: { kind: 'output' },
     groupBy: 'resource_id',
   },
-  { key: 'compute-cpu-total', unit: Unit.CORE_SECONDS, granularity: Granularity.TOTAL },
+  { key: 'compute-flavor-total', unit: Unit.FLAVOR_SECONDS, granularity: Granularity.TOTAL },
   {
-    key: 'compute-ram-total',
-    unit: Unit.GB_SECONDS,
-    granularity: Granularity.TOTAL,
-    labelFilters: { kind: 'ram' },
-  },
-  {
-    key: 'compute-cpu-daily',
-    unit: Unit.CORE_SECONDS,
+    key: 'compute-flavor-daily',
+    unit: Unit.FLAVOR_SECONDS,
     granularity: Granularity.DAY,
     useRangeGranularity: true,
   },
   {
-    key: 'compute-ram-daily',
-    unit: Unit.GB_SECONDS,
-    granularity: Granularity.DAY,
-    useRangeGranularity: true,
-    labelFilters: { kind: 'ram' },
+    key: 'compute-flavor-tiers-total',
+    unit: Unit.FLAVOR_SECONDS,
+    granularity: Granularity.TOTAL,
+    groupBy: 'flavor',
   },
   {
-    key: 'compute-consumers-cpu-total',
-    unit: Unit.CORE_SECONDS,
+    key: 'compute-consumers-flavor-total',
+    unit: Unit.FLAVOR_SECONDS,
     granularity: Granularity.TOTAL,
-    groupBy: 'identity_id',
-  },
-  {
-    key: 'compute-consumers-ram-total',
-    unit: Unit.GB_SECONDS,
-    granularity: Granularity.TOTAL,
-    labelFilters: { kind: 'ram' },
     groupBy: 'identity_id',
   },
   {
@@ -377,21 +358,6 @@ function buildTopGroups(
     }))
     .sort((a, b) => b.value - a.value)
     .slice(0, limit);
-}
-
-function buildTopGroupSeries(
-  ids: string[],
-  totals: { cpu: Map<string, number>; ram: Map<string, number> },
-  options: { labelResolver?: (id: string) => string; detailResolver?: (id: string) => string } = {},
-): TopGroupSeries[] {
-  const { labelResolver = (id: string) => id, detailResolver } = options;
-  return ids.map((id) => ({
-    id,
-    label: labelResolver(id),
-    detail: detailResolver?.(id),
-    cpu: totals.cpu.get(id) ?? 0,
-    ram: totals.ram.get(id) ?? 0,
-  }));
 }
 
 function formatBucketLabel(timestamp: Timestamp, granularity: Granularity): string {
@@ -644,12 +610,10 @@ export function OrganizationUsageTab() {
   const llmModelsInputQuery = queriesByKey['llm-models-input-total'];
   const llmModelsOutputQuery = queriesByKey['llm-models-output-total'];
 
-  const computeCpuQuery = queriesByKey['compute-cpu-total'];
-  const computeRamQuery = queriesByKey['compute-ram-total'];
-  const computeCpuDailyQuery = queriesByKey['compute-cpu-daily'];
-  const computeRamDailyQuery = queriesByKey['compute-ram-daily'];
-  const computeConsumersCpuQuery = queriesByKey['compute-consumers-cpu-total'];
-  const computeConsumersRamQuery = queriesByKey['compute-consumers-ram-total'];
+  const computeFlavorQuery = queriesByKey['compute-flavor-total'];
+  const computeFlavorDailyQuery = queriesByKey['compute-flavor-daily'];
+  const computeFlavorTiersQuery = queriesByKey['compute-flavor-tiers-total'];
+  const computeConsumersFlavorQuery = queriesByKey['compute-consumers-flavor-total'];
 
   const storageTotalQuery = queriesByKey['storage-total'];
   const storageDailyQuery = queriesByKey['storage-daily'];
@@ -702,13 +666,13 @@ export function OrganizationUsageTab() {
     return mapTotalsToNumbers(mergeTotalsMaps(inputTotals, outputTotals), microsToNumber);
   }, [llmModelsInputQuery.data?.buckets, llmModelsOutputQuery.data?.buckets]);
 
-  const computeConsumerCpuTotals = useMemo(
-    () => mapTotalsToNumbers(groupTotalsByValue(computeConsumersCpuQuery.data?.buckets ?? []), microsToHours),
-    [computeConsumersCpuQuery.data?.buckets],
+  const computeConsumerFlavorTotals = useMemo(
+    () => mapTotalsToNumbers(groupTotalsByValue(computeConsumersFlavorQuery.data?.buckets ?? []), microsToHours),
+    [computeConsumersFlavorQuery.data?.buckets],
   );
-  const computeConsumerRamTotals = useMemo(
-    () => mapTotalsToNumbers(groupTotalsByValue(computeConsumersRamQuery.data?.buckets ?? []), microsToHours),
-    [computeConsumersRamQuery.data?.buckets],
+  const computeFlavorTierTotals = useMemo(
+    () => mapTotalsToNumbers(groupTotalsByValue(computeFlavorTiersQuery.data?.buckets ?? []), microsToHours),
+    [computeFlavorTiersQuery.data?.buckets],
   );
 
   const storageConsumerTotals = useMemo(
@@ -717,19 +681,10 @@ export function OrganizationUsageTab() {
   );
 
   const topLlmConsumerIds = useMemo(() => buildTopGroupIds(llmConsumerTotals), [llmConsumerTotals]);
-  const topComputeConsumerIds = useMemo(() => {
-    const cpuLeaders = buildTopGroupIds(computeConsumerCpuTotals);
-    const ramLeaders = buildTopGroupIds(computeConsumerRamTotals);
-    const candidates = Array.from(new Set([...cpuLeaders, ...ramLeaders]));
-    return candidates
-      .map((id) => ({
-        id,
-        rank: Math.max(computeConsumerCpuTotals.get(id) ?? 0, computeConsumerRamTotals.get(id) ?? 0),
-      }))
-      .sort((a, b) => b.rank - a.rank)
-      .slice(0, 5)
-      .map(({ id }) => id);
-  }, [computeConsumerCpuTotals, computeConsumerRamTotals]);
+  const topComputeConsumerIds = useMemo(
+    () => buildTopGroupIds(computeConsumerFlavorTotals),
+    [computeConsumerFlavorTotals],
+  );
   const topStorageConsumerIds = useMemo(() => buildTopGroupIds(storageConsumerTotals), [storageConsumerTotals]);
 
   const identityIds = useMemo(
@@ -755,28 +710,27 @@ export function OrganizationUsageTab() {
   const computeDailySeries = useMemo(
     () =>
       mergeTimeSeries({
-        cpu: buildTimeSeriesMap(computeCpuDailyQuery.data?.buckets ?? [], rangeGranularity, microsToHours),
-        ram: buildTimeSeriesMap(computeRamDailyQuery.data?.buckets ?? [], rangeGranularity, microsToHours),
+        flavor: buildTimeSeriesMap(
+          computeFlavorDailyQuery.data?.buckets ?? [],
+          rangeGranularity,
+          microsToHours,
+        ),
       }),
-    [computeCpuDailyQuery.data?.buckets, computeRamDailyQuery.data?.buckets, rangeGranularity],
+    [computeFlavorDailyQuery.data?.buckets, rangeGranularity],
+  );
+  // A bucket with no flavor cannot happen for FLAVOR_SECONDS — the orchestrator
+  // does not emit the unit without one — so the group value needs no fallback.
+  const computeFlavorTierSeries = useMemo(
+    () => buildTopGroups(computeFlavorTierTotals),
+    [computeFlavorTierTotals],
   );
   const computeConsumersSeries = useMemo(
     () =>
-      buildTopGroupSeries(
-        topComputeConsumerIds,
-        { cpu: computeConsumerCpuTotals, ram: computeConsumerRamTotals },
-        {
-          labelResolver: (id) => formatHandleLabel(id),
-          detailResolver: (id) => formatHandleTooltip(id),
-        },
-      ),
-    [
-      computeConsumerCpuTotals,
-      computeConsumerRamTotals,
-      formatHandleLabel,
-      formatHandleTooltip,
-      topComputeConsumerIds,
-    ],
+      buildTopGroups(computeConsumerFlavorTotals, {
+        labelResolver: (id) => formatHandleLabel(id),
+        detailResolver: (id) => formatHandleTooltip(id),
+      }),
+    [computeConsumerFlavorTotals, formatHandleLabel, formatHandleTooltip],
   );
 
   const storageDailySeries = useMemo(
@@ -818,8 +772,7 @@ export function OrganizationUsageTab() {
     return `of ${formatUsageValue(llmInputTotal)} input`;
   }, [llmInputQuery.isPending, llmInputQuery.isError, llmInputTotal]);
 
-  const computeCpuTotal = sumUsageBuckets(computeCpuQuery.data?.buckets ?? []);
-  const computeRamTotal = sumUsageBuckets(computeRamQuery.data?.buckets ?? []);
+  const computeFlavorTotal = sumUsageBuckets(computeFlavorQuery.data?.buckets ?? []);
 
   const storageTotal = sumUsageBuckets(storageTotalQuery.data?.buckets ?? []);
   const platformThreadsTotal = sumUsageBuckets(platformThreadsQuery.data?.buckets ?? []);
@@ -1004,29 +957,22 @@ export function OrganizationUsageTab() {
           <section className="space-y-4" data-testid="organization-usage-compute-section">
             <div>
               <h3 className="text-base font-semibold text-foreground">Compute usage</h3>
-              <p className="text-sm text-muted-foreground">CPU and RAM consumption over time.</p>
+              <p className="text-sm text-muted-foreground">Flavor-hours consumed over time.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2" data-testid="organization-usage-compute-metrics">
               <UsageMetricCard
-                label="CPU-core-hours"
-                value={formatUsageHours(computeCpuTotal)}
-                isLoading={computeCpuQuery.isPending}
-                isError={computeCpuQuery.isError}
-                testId="organization-usage-compute-cpu"
-              />
-              <UsageMetricCard
-                label="RAM-GB-hours"
-                value={formatUsageHours(computeRamTotal)}
-                isLoading={computeRamQuery.isPending}
-                isError={computeRamQuery.isError}
-                testId="organization-usage-compute-ram"
+                label="Flavor-hours"
+                value={formatUsageHours(computeFlavorTotal)}
+                isLoading={computeFlavorQuery.isPending}
+                isError={computeFlavorQuery.isError}
+                testId="organization-usage-compute-flavor"
               />
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <UsageChartCard
                 title="Usage over time"
-                isLoading={computeCpuDailyQuery.isPending || computeRamDailyQuery.isPending}
-                isError={computeCpuDailyQuery.isError || computeRamDailyQuery.isError}
+                isLoading={computeFlavorDailyQuery.isPending}
+                isError={computeFlavorDailyQuery.isError}
                 isEmpty={computeDailySeries.length === 0}
                 testId="organization-usage-compute-daily-chart"
               >
@@ -1037,15 +983,36 @@ export function OrganizationUsageTab() {
                     <YAxis tickFormatter={(value) => formatUsageHoursNumber(value)} />
                     <Tooltip formatter={(value) => formatUsageHoursNumber(Number(value))} />
                     <Legend />
-                    <Bar dataKey="cpu" name="CPU-core-hours" fill="var(--color-chart-1)" />
-                    <Bar dataKey="ram" name="RAM-GB-hours" fill="var(--color-chart-4)" />
+                    <Bar dataKey="flavor" name="Flavor-hours" fill="var(--color-chart-1)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </UsageChartCard>
+              <UsageChartCard
+                title="Usage by flavor"
+                isLoading={computeFlavorTiersQuery.isPending}
+                isError={computeFlavorTiersQuery.isError}
+                isEmpty={computeFlavorTierSeries.length === 0}
+                testId="organization-usage-compute-flavors-chart"
+              >
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={computeFlavorTierSeries} layout="vertical" margin={{ left: 16 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" tickFormatter={(value) => formatUsageHoursNumber(value)} />
+                    <YAxis
+                      type="category"
+                      dataKey="label"
+                      width={120}
+                      tickFormatter={(value) => truncate(value, 18)}
+                    />
+                    <Tooltip formatter={(value) => formatUsageHoursNumber(Number(value))} />
+                    <Bar dataKey="value" name="Flavor-hours" fill="var(--color-chart-1)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
               <UsageChartCard
                 title="Top agents"
-                isLoading={computeConsumersCpuQuery.isPending || computeConsumersRamQuery.isPending}
-                isError={computeConsumersCpuQuery.isError || computeConsumersRamQuery.isError}
+                isLoading={computeConsumersFlavorQuery.isPending}
+                isError={computeConsumersFlavorQuery.isError}
                 isEmpty={computeConsumersSeries.length === 0}
                 testId="organization-usage-compute-consumers-chart"
               >
@@ -1059,13 +1026,11 @@ export function OrganizationUsageTab() {
                       width={120}
                       tickFormatter={(value) => truncate(value, 18)}
                     />
-                    <Legend />
                     <Tooltip
                       formatter={(value) => formatUsageHoursNumber(Number(value))}
                       labelFormatter={formatTopGroupTooltipLabel}
                     />
-                    <Bar dataKey="cpu" name="CPU-core-hours" fill="var(--color-chart-1)" />
-                    <Bar dataKey="ram" name="RAM-GB-hours" fill="var(--color-chart-4)" />
+                    <Bar dataKey="value" name="Flavor-hours" fill="var(--color-chart-1)" />
                   </BarChart>
                 </ResponsiveContainer>
               </UsageChartCard>
