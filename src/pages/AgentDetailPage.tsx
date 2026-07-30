@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AgentConfigurationTab } from '@/pages/agent-detail/AgentConfigurationTab';
 import { AgentRolesSection } from '@/pages/agent-detail/AgentRolesSection';
-import { AgentEnvsTab } from '@/pages/agent-detail/AgentEnvsTab';
 import { AgentHooksTab } from '@/pages/agent-detail/AgentHooksTab';
 import { AgentInitScriptsTab } from '@/pages/agent-detail/AgentInitScriptsTab';
 import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
 import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
-import { AgentImagePullSecretsTab } from '@/pages/agent-detail/AgentImagePullSecretsTab';
 import { AgentVolumeAttachmentsTab } from '@/pages/agent-detail/AgentVolumeAttachmentsTab';
-import { AgentEgressRuleAttachmentsTab } from '@/pages/agent-detail/AgentEgressRuleAttachmentsTab';
+import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
+import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
+import { ImagePullSecretsTab } from '@/pages/detail-tabs/ImagePullSecretsTab';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { toast } from 'sonner';
 
@@ -90,7 +90,7 @@ export function AgentDetailPage() {
             <AgentHooksTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-envs">
-            <AgentEnvsTab agentId={resolvedAgentId} organizationId={organizationId} />
+            <EnvsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-init-scripts">
             <AgentInitScriptsTab agentId={resolvedAgentId} />
@@ -99,10 +99,10 @@ export function AgentDetailPage() {
             <AgentVolumeAttachmentsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-egress-rules">
-            <AgentEgressRuleAttachmentsTab agentId={resolvedAgentId} organizationId={organizationId} />
+            <EgressRuleAttachmentsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-image-pull-secrets">
-            <AgentImagePullSecretsTab agentId={resolvedAgentId} organizationId={organizationId} />
+            <ImagePullSecretsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </section>
         </div>
       ) : null}

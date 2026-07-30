@@ -19,19 +19,46 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Env } from '@/gen/agynio/api/agents/v1/agents_pb';
 import type { Secret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
+import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
-type AgentEnvsTabProps = {
-  agentId: string;
+type EnvsTabProps = {
+  target: DetailTarget;
   organizationId: string;
 };
 
 type SourceType = 'value' | 'secret';
 
-export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
+const COPY = {
+  agent: {
+    heading: 'Agent environment variables.',
+    create: 'Define agent-level environment variables.',
+    edit: 'Update agent-level environment variables.',
+  },
+  environment: {
+    heading: 'Variables every sandbox in this environment starts with.',
+    create: 'Define a variable for this environment.',
+    edit: 'Update this environment variable.',
+  },
+} as const;
+
+// Narrows the list to the target; organization_id stays required either way.
+function listFilter(target: DetailTarget) {
+  return target.kind === 'agent' ? { agentId: target.id } : { environmentId: target.id };
+}
+
+function createTarget(target: DetailTarget) {
+  return target.kind === 'agent'
+    ? ({ case: 'agentId', value: target.id } as const)
+    : ({ case: 'environmentId', value: target.id } as const);
+}
+
+export function EnvsTab({ target, organizationId }: EnvsTabProps) {
+  const prefix = target.kind;
+  const copy = COPY[target.kind];
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
@@ -52,10 +79,18 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
   const [editSourceError, setEditSourceError] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
+  const envsQueryKey = ['envs', organizationId, target.kind, target.id, 'list'];
+
   const envsQuery = useQuery({
-    queryKey: ['envs', agentId, 'list'],
-    queryFn: () => agentsClient.listEnvs({ agentId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    enabled: Boolean(agentId),
+    queryKey: envsQueryKey,
+    queryFn: () =>
+      agentsClient.listEnvs({
+        organizationId,
+        ...listFilter(target),
+        pageSize: MAX_PAGE_SIZE,
+        pageToken: '',
+      }),
+    enabled: Boolean(organizationId && target.id),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -86,16 +121,20 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
 
   const envs = envsQuery.data?.envs ?? [];
 
+  const invalidateEnvs = () => {
+    void queryClient.invalidateQueries({ queryKey: envsQueryKey });
+  };
+
   const createEnvMutation = useMutation({
     mutationFn: (payload: {
       name: string;
       description: string;
-      target: { case: 'agentId'; value: string };
+      target: ReturnType<typeof createTarget>;
       source: { case: 'value'; value: string } | { case: 'secretId'; value: string };
     }) => agentsClient.createEnv(payload),
     onSuccess: () => {
       toast.success('Environment variable created.');
-      void queryClient.invalidateQueries({ queryKey: ['envs', agentId, 'list'] });
+      invalidateEnvs();
       setCreateOpen(false);
       setName('');
       setDescription('');
@@ -115,7 +154,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
       agentsClient.updateEnv(payload),
     onSuccess: () => {
       toast.success('Environment variable updated.');
-      void queryClient.invalidateQueries({ queryKey: ['envs', agentId, 'list'] });
+      invalidateEnvs();
       setEditOpen(false);
       setEditEnvId(null);
     },
@@ -128,7 +167,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
     mutationFn: (envId: string) => agentsClient.deleteEnv({ id: envId }),
     onSuccess: () => {
       toast.success('Environment variable deleted.');
-      void queryClient.invalidateQueries({ queryKey: ['envs', agentId, 'list'] });
+      invalidateEnvs();
       setDeleteTargetId(null);
     },
     onError: (error) => {
@@ -189,7 +228,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
     createEnvMutation.mutate({
       name: trimmedName,
       description: description.trim(),
-      target: { case: 'agentId', value: agentId },
+      target: createTarget(target),
       source,
     });
   };
@@ -254,9 +293,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
       id: editEnvId,
       name: trimmedName,
       description: editDescription.trim(),
-      ...(editSourceType === 'value'
-        ? { value: editPlainValue.trim() }
-        : { secretId: editSecretId }),
+      ...(editSourceType === 'value' ? { value: editPlainValue.trim() } : { secretId: editSecretId }),
     });
   };
 
@@ -287,12 +324,12 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-envs-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid={`${prefix}-envs-heading`}>
             ENVs
           </h3>
-          <p className="text-sm text-muted-foreground">Agent environment variables.</p>
+          <p className="text-sm text-muted-foreground">{copy.heading}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="agent-envs-create">
+        <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid={`${prefix}-envs-create`}>
           Add ENV
         </Button>
       </div>
@@ -307,18 +344,18 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
       {envsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading envs...</div> : null}
       {envsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load envs.</div> : null}
       {envs.length === 0 && !envsQuery.isPending ? (
-        <Card className="border-border" data-testid="agent-envs-empty">
+        <Card className="border-border" data-testid={`${prefix}-envs-empty`}>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No environment variables configured.
           </CardContent>
         </Card>
       ) : null}
       {envs.length > 0 ? (
-        <Card className="border-border" data-testid="agent-envs-table">
+        <Card className="border-border" data-testid={`${prefix}-envs-table`}>
           <CardContent className="px-0">
             <div
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_2fr_1fr_140px]"
-              data-testid="agent-envs-header"
+              data-testid={`${prefix}-envs-header`}
             >
               <SortableHeader
                 label="Name"
@@ -344,85 +381,83 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               <span className="text-right">Actions</span>
             </div>
             <div className="divide-y divide-border">
-            {visibleEnvs.length === 0 ? (
-              <div className="px-6 py-6 text-sm text-muted-foreground">
-                {hasSearch ? 'No results found.' : 'No environment variables configured.'}
-              </div>
-            ) : (
-              visibleEnvs.map((env) => (
-                <div
-                  key={env.meta?.id ?? env.name}
-                  className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_2fr_1fr_140px]"
-                  data-testid="agent-env-row"
-                >
-                  <div>
-                    <div className="font-medium" data-testid="agent-env-name">
-                      {env.name}
-                    </div>
-                    <div className="text-xs text-muted-foreground" data-testid="agent-env-description">
-                      {env.description || '—'}
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground" data-testid="agent-env-source">
-                    {resolveSource(env, secretMap)}
-                  </span>
-                  <span className="text-xs text-muted-foreground" data-testid="agent-env-created">
-                    {formatDateOnly(env.meta?.createdAt)}
-                  </span>
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditOpen(env)}
-                      data-testid="agent-env-edit"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteOpen(env)}
-                      data-testid="agent-env-delete"
-                    >
-                      Delete
-                    </Button>
-                  </div>
+              {visibleEnvs.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No environment variables configured.'}
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                visibleEnvs.map((env) => (
+                  <div
+                    key={env.meta?.id ?? env.name}
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_2fr_1fr_140px]"
+                    data-testid={`${prefix}-env-row`}
+                  >
+                    <div>
+                      <div className="font-medium" data-testid={`${prefix}-env-name`}>
+                        {env.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground" data-testid={`${prefix}-env-description`}>
+                        {env.description || '—'}
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground" data-testid={`${prefix}-env-source`}>
+                      {resolveSource(env, secretMap)}
+                    </span>
+                    <span className="text-xs text-muted-foreground" data-testid={`${prefix}-env-created`}>
+                      {formatDateOnly(env.meta?.createdAt)}
+                    </span>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditOpen(env)}
+                        data-testid={`${prefix}-env-edit`}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteOpen(env)}
+                        data-testid={`${prefix}-env-delete`}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : null}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent data-testid="agent-envs-create-dialog">
+        <DialogContent data-testid={`${prefix}-envs-create-dialog`}>
           <DialogHeader>
-            <DialogTitle data-testid="agent-envs-create-title">Add environment variable</DialogTitle>
-            <DialogDescription data-testid="agent-envs-create-description">
-              Define agent-level environment variables.
-            </DialogDescription>
+            <DialogTitle data-testid={`${prefix}-envs-create-title`}>Add environment variable</DialogTitle>
+            <DialogDescription data-testid={`${prefix}-envs-create-description`}>{copy.create}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="agent-envs-create-name">Name</Label>
+              <Label htmlFor={`${prefix}-envs-create-name`}>Name</Label>
               <Input
-                id="agent-envs-create-name"
+                id={`${prefix}-envs-create-name`}
                 value={name}
                 onChange={(event) => {
                   setName(event.target.value);
                   if (nameError) setNameError('');
                 }}
-                data-testid="agent-envs-create-name"
+                data-testid={`${prefix}-envs-create-name`}
               />
               {nameError && <p className="text-sm text-destructive">{nameError}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-envs-create-description-input">Description</Label>
+              <Label htmlFor={`${prefix}-envs-create-description-input`}>Description</Label>
               <Input
-                id="agent-envs-create-description-input"
+                id={`${prefix}-envs-create-description-input`}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                data-testid="agent-envs-create-description-input"
+                data-testid={`${prefix}-envs-create-description-input`}
               />
             </div>
             <div className="space-y-2">
@@ -431,7 +466,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                 <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
-                    name="agent-env-source"
+                    name={`${prefix}-env-source`}
                     value="value"
                     checked={sourceType === 'value'}
                     onChange={() => handleSourceChange('value')}
@@ -441,7 +476,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                 <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
-                    name="agent-env-source"
+                    name={`${prefix}-env-source`}
                     value="secret"
                     checked={sourceType === 'secret'}
                     onChange={() => handleSourceChange('secret')}
@@ -452,21 +487,21 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
             </div>
             {sourceType === 'value' ? (
               <div className="space-y-2">
-                <Label htmlFor="agent-envs-create-value">Value</Label>
+                <Label htmlFor={`${prefix}-envs-create-value`}>Value</Label>
                 <Input
-                  id="agent-envs-create-value"
+                  id={`${prefix}-envs-create-value`}
                   value={plainValue}
                   onChange={(event) => {
                     setPlainValue(event.target.value);
                     if (sourceError) setSourceError('');
                   }}
-                  data-testid="agent-envs-create-value"
+                  data-testid={`${prefix}-envs-create-value`}
                 />
                 {sourceError && <p className="text-sm text-destructive">{sourceError}</p>}
               </div>
             ) : (
               <div className="space-y-2">
-                <Label htmlFor="agent-envs-create-secret">Secret</Label>
+                <Label htmlFor={`${prefix}-envs-create-secret`}>Secret</Label>
                 <Select
                   value={secretId}
                   onValueChange={(value) => {
@@ -474,7 +509,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                     if (sourceError) setSourceError('');
                   }}
                 >
-                  <SelectTrigger id="agent-envs-create-secret" data-testid="agent-envs-create-secret">
+                  <SelectTrigger id={`${prefix}-envs-create-secret`} data-testid={`${prefix}-envs-create-secret`}>
                     <SelectValue placeholder="Select secret" />
                   </SelectTrigger>
                   <SelectContent>
@@ -495,7 +530,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="agent-envs-create-cancel">
+              <Button variant="outline" size="sm" data-testid={`${prefix}-envs-create-cancel`}>
                 Cancel
               </Button>
             </DialogClose>
@@ -503,7 +538,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               size="sm"
               onClick={handleCreate}
               disabled={createEnvMutation.isPending}
-              data-testid="agent-envs-create-submit"
+              data-testid={`${prefix}-envs-create-submit`}
             >
               {createEnvMutation.isPending ? 'Adding...' : 'Add ENV'}
             </Button>
@@ -511,34 +546,32 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
         </DialogContent>
       </Dialog>
       <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
-        <DialogContent data-testid="agent-envs-edit-dialog">
+        <DialogContent data-testid={`${prefix}-envs-edit-dialog`}>
           <DialogHeader>
-            <DialogTitle data-testid="agent-envs-edit-title">Edit environment variable</DialogTitle>
-            <DialogDescription data-testid="agent-envs-edit-description">
-              Update agent-level environment variables.
-            </DialogDescription>
+            <DialogTitle data-testid={`${prefix}-envs-edit-title`}>Edit environment variable</DialogTitle>
+            <DialogDescription data-testid={`${prefix}-envs-edit-description`}>{copy.edit}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="agent-envs-edit-name">Name</Label>
+              <Label htmlFor={`${prefix}-envs-edit-name`}>Name</Label>
               <Input
-                id="agent-envs-edit-name"
+                id={`${prefix}-envs-edit-name`}
                 value={editName}
                 onChange={(event) => {
                   setEditName(event.target.value);
                   if (editNameError) setEditNameError('');
                 }}
-                data-testid="agent-envs-edit-name"
+                data-testid={`${prefix}-envs-edit-name`}
               />
               {editNameError && <p className="text-sm text-destructive">{editNameError}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-envs-edit-description-input">Description</Label>
+              <Label htmlFor={`${prefix}-envs-edit-description-input`}>Description</Label>
               <Input
-                id="agent-envs-edit-description-input"
+                id={`${prefix}-envs-edit-description-input`}
                 value={editDescription}
                 onChange={(event) => setEditDescription(event.target.value)}
-                data-testid="agent-envs-edit-description-input"
+                data-testid={`${prefix}-envs-edit-description-input`}
               />
             </div>
             <div className="space-y-2">
@@ -547,7 +580,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                 <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
-                    name="agent-env-edit-source"
+                    name={`${prefix}-env-edit-source`}
                     value="value"
                     checked={editSourceType === 'value'}
                     onChange={() => handleEditSourceChange('value')}
@@ -557,7 +590,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                 <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="radio"
-                    name="agent-env-edit-source"
+                    name={`${prefix}-env-edit-source`}
                     value="secret"
                     checked={editSourceType === 'secret'}
                     onChange={() => handleEditSourceChange('secret')}
@@ -568,21 +601,21 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
             </div>
             {editSourceType === 'value' ? (
               <div className="space-y-2">
-                <Label htmlFor="agent-envs-edit-value">Value</Label>
+                <Label htmlFor={`${prefix}-envs-edit-value`}>Value</Label>
                 <Input
-                  id="agent-envs-edit-value"
+                  id={`${prefix}-envs-edit-value`}
                   value={editPlainValue}
                   onChange={(event) => {
                     setEditPlainValue(event.target.value);
                     if (editSourceError) setEditSourceError('');
                   }}
-                  data-testid="agent-envs-edit-value"
+                  data-testid={`${prefix}-envs-edit-value`}
                 />
                 {editSourceError && <p className="text-sm text-destructive">{editSourceError}</p>}
               </div>
             ) : (
               <div className="space-y-2">
-                <Label htmlFor="agent-envs-edit-secret">Secret</Label>
+                <Label htmlFor={`${prefix}-envs-edit-secret`}>Secret</Label>
                 <Select
                   value={editSecretId}
                   onValueChange={(value) => {
@@ -590,7 +623,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
                     if (editSourceError) setEditSourceError('');
                   }}
                 >
-                  <SelectTrigger id="agent-envs-edit-secret" data-testid="agent-envs-edit-secret">
+                  <SelectTrigger id={`${prefix}-envs-edit-secret`} data-testid={`${prefix}-envs-edit-secret`}>
                     <SelectValue placeholder="Select secret" />
                   </SelectTrigger>
                   <SelectContent>
@@ -611,7 +644,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="agent-envs-edit-cancel">
+              <Button variant="outline" size="sm" data-testid={`${prefix}-envs-edit-cancel`}>
                 Cancel
               </Button>
             </DialogClose>
@@ -619,7 +652,7 @@ export function AgentEnvsTab({ agentId, organizationId }: AgentEnvsTabProps) {
               size="sm"
               onClick={handleEditSave}
               disabled={updateEnvMutation.isPending}
-              data-testid="agent-envs-edit-submit"
+              data-testid={`${prefix}-envs-edit-submit`}
             >
               {updateEnvMutation.isPending ? 'Saving...' : 'Save changes'}
             </Button>
