@@ -18,27 +18,64 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { EgressRule, EgressRuleAttachment } from '@/gen/agynio/api/egress/v1/egress_pb';
+import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
-type AgentEgressRuleAttachmentsTabProps = {
-  agentId: string;
+type EgressRuleAttachmentsTabProps = {
+  target: DetailTarget;
   organizationId: string;
 };
 
-export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: AgentEgressRuleAttachmentsTabProps) {
+const COPY = {
+  agent: {
+    heading: 'Outbound traffic policies attached to this agent.',
+    attach: 'Select an egress rule to attach to this agent.',
+    detach: 'This will remove the egress rule from the agent.',
+  },
+  environment: {
+    heading: 'Outbound traffic policies attached to this environment.',
+    attach: 'Select an egress rule to attach to this environment.',
+    detach: 'This will remove the egress rule from the environment.',
+  },
+} as const;
+
+// The attachment target moved into a oneof and `agent_id` is deprecated, but it
+// is still what the agent page has always sent; migrating that path is a
+// separate change, so only the environment path uses the current fields.
+function listFilter(target: DetailTarget) {
+  return target.kind === 'agent' ? { agentId: target.id } : { environmentId: target.id };
+}
+
+function attachTarget(target: DetailTarget) {
+  return target.kind === 'agent'
+    ? { agentId: target.id }
+    : { target: { case: 'environmentId', value: target.id } as const };
+}
+
+export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleAttachmentsTabProps) {
+  const prefix = target.kind;
+  const copy = COPY[target.kind];
   const queryClient = useQueryClient();
   const [attachOpen, setAttachOpen] = useState(false);
   const [selectedRuleId, setSelectedRuleId] = useState('');
   const [selectedRuleError, setSelectedRuleError] = useState('');
   const [detachTargetId, setDetachTargetId] = useState<string | null>(null);
 
+  const attachmentsQueryKey = ['egressRuleAttachments', organizationId, target.kind, target.id, 'list'];
+
   const attachmentsQuery = useQuery({
-    queryKey: ['egressRuleAttachments', organizationId, agentId, 'list'],
-    queryFn: () => egressClient.listEgressRuleAttachments({ organizationId, agentId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    enabled: Boolean(organizationId && agentId),
+    queryKey: attachmentsQueryKey,
+    queryFn: () =>
+      egressClient.listEgressRuleAttachments({
+        organizationId,
+        ...listFilter(target),
+        pageSize: MAX_PAGE_SIZE,
+        pageToken: '',
+      }),
+    enabled: Boolean(organizationId && target.id),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -69,7 +106,8 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
   });
 
   const getRuleName = (attachment: EgressRuleAttachment) => ruleMap.get(attachment.ruleId)?.name || attachment.ruleId;
-  const getRuleDomain = (attachment: EgressRuleAttachment) => ruleMap.get(attachment.ruleId)?.matcher?.domainPattern || '';
+  const getRuleDomain = (attachment: EgressRuleAttachment) =>
+    ruleMap.get(attachment.ruleId)?.matcher?.domainPattern || '';
   const listControls = useListControls({
     items: attachments,
     searchFields: [
@@ -87,11 +125,11 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
   });
 
   const invalidateAttachments = () => {
-    void queryClient.invalidateQueries({ queryKey: ['egressRuleAttachments', organizationId, agentId, 'list'] });
+    void queryClient.invalidateQueries({ queryKey: attachmentsQueryKey });
   };
 
   const createAttachmentMutation = useMutation({
-    mutationFn: (ruleId: string) => egressClient.createEgressRuleAttachment({ ruleId, agentId }),
+    mutationFn: (ruleId: string) => egressClient.createEgressRuleAttachment({ ruleId, ...attachTarget(target) }),
     onSuccess: () => {
       toast.success('Egress rule attached.');
       invalidateAttachments();
@@ -137,10 +175,10 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
     const rule = rules.get(attachment.ruleId);
     return (
       <div>
-        <div className="font-medium" data-testid="agent-egress-rule-attachment-name">
+        <div className="font-medium" data-testid={`${prefix}-egress-rule-attachment-name`}>
           {rule?.name || attachment.ruleId}
         </div>
-        <div className="text-xs text-muted-foreground" data-testid="agent-egress-rule-attachment-domain">
+        <div className="text-xs text-muted-foreground" data-testid={`${prefix}-egress-rule-attachment-domain`}>
           Domain: {rule?.matcher?.domainPattern || '-'}
         </div>
       </div>
@@ -154,16 +192,16 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-egress-rule-attachments-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid={`${prefix}-egress-rule-attachments-heading`}>
             Egress Rules
           </h3>
-          <p className="text-sm text-muted-foreground">Outbound traffic policies attached to this agent.</p>
+          <p className="text-sm text-muted-foreground">{copy.heading}</p>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setAttachOpen(true)}
-          data-testid="agent-egress-rule-attachments-attach"
+          data-testid={`${prefix}-egress-rule-attachments-attach`}
         >
           Attach egress rule
         </Button>
@@ -183,19 +221,37 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
         <div className="text-sm text-muted-foreground">Failed to load egress rule attachments.</div>
       ) : null}
       {attachments.length === 0 && !attachmentsQuery.isPending ? (
-        <Card className="border-border" data-testid="agent-egress-rule-attachments-empty">
+        <Card className="border-border" data-testid={`${prefix}-egress-rule-attachments-empty`}>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No egress rules attached.
           </CardContent>
         </Card>
       ) : null}
       {attachments.length > 0 ? (
-        <Card className="border-border" data-testid="agent-egress-rule-attachments-table">
+        <Card className="border-border" data-testid={`${prefix}-egress-rule-attachments-table`}>
           <CardContent className="px-0">
             <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_120px]">
-              <SortableHeader label="Rule" sortKey="rule" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
-              <SortableHeader label="Domain" sortKey="domain" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
-              <SortableHeader label="Created" sortKey="created" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
+              <SortableHeader
+                label="Rule"
+                sortKey="rule"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Domain"
+                sortKey="domain"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
               <span className="text-right">Action</span>
             </div>
             <div className="divide-y divide-border">
@@ -205,14 +261,26 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
                 </div>
               ) : (
                 visibleAttachments.map((attachment) => (
-                  <div key={attachment.meta?.id ?? attachment.ruleId} className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]" data-testid="agent-egress-rule-attachment-row">
+                  <div
+                    key={attachment.meta?.id ?? attachment.ruleId}
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
+                    data-testid={`${prefix}-egress-rule-attachment-row`}
+                  >
                     {renderRuleSummary(attachment, ruleMap)}
                     <span className="text-xs text-muted-foreground">{getRuleDomain(attachment) || '-'}</span>
-                    <span className="text-xs text-muted-foreground" data-testid="agent-egress-rule-attachment-created">
+                    <span
+                      className="text-xs text-muted-foreground"
+                      data-testid={`${prefix}-egress-rule-attachment-created`}
+                    >
                       {formatDateOnly(attachment.meta?.createdAt)}
                     </span>
                     <div className="text-right">
-                      <Button variant="destructive" size="sm" onClick={() => handleDetachOpen(attachment)} data-testid="agent-egress-rule-attachment-detach">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDetachOpen(attachment)}
+                        data-testid={`${prefix}-egress-rule-attachment-detach`}
+                      >
                         Detach
                       </Button>
                     </div>
@@ -224,15 +292,15 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
         </Card>
       ) : null}
       <Dialog open={attachOpen} onOpenChange={setAttachOpen}>
-        <DialogContent data-testid="agent-egress-rule-attachments-attach-dialog">
+        <DialogContent data-testid={`${prefix}-egress-rule-attachments-attach-dialog`}>
           <DialogHeader>
-            <DialogTitle data-testid="agent-egress-rule-attachments-attach-title">Attach egress rule</DialogTitle>
-            <DialogDescription data-testid="agent-egress-rule-attachments-attach-description">
-              Select an egress rule to attach to this agent.
+            <DialogTitle data-testid={`${prefix}-egress-rule-attachments-attach-title`}>Attach egress rule</DialogTitle>
+            <DialogDescription data-testid={`${prefix}-egress-rule-attachments-attach-description`}>
+              {copy.attach}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="agent-egress-rule-attachments-attach-select">Egress rule</Label>
+            <Label htmlFor={`${prefix}-egress-rule-attachments-attach-select`}>Egress rule</Label>
             <Select
               value={selectedRuleId}
               onValueChange={(value) => {
@@ -240,7 +308,10 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
                 if (selectedRuleError) setSelectedRuleError('');
               }}
             >
-              <SelectTrigger id="agent-egress-rule-attachments-attach-select" data-testid="agent-egress-rule-attachments-attach-select">
+              <SelectTrigger
+                id={`${prefix}-egress-rule-attachments-attach-select`}
+                data-testid={`${prefix}-egress-rule-attachments-attach-select`}
+              >
                 <SelectValue placeholder="Select egress rule" />
               </SelectTrigger>
               <SelectContent>
@@ -259,11 +330,16 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="agent-egress-rule-attachments-attach-cancel">
+              <Button variant="outline" size="sm" data-testid={`${prefix}-egress-rule-attachments-attach-cancel`}>
                 Cancel
               </Button>
             </DialogClose>
-            <Button size="sm" onClick={handleAttach} disabled={createAttachmentMutation.isPending} data-testid="agent-egress-rule-attachments-attach-submit">
+            <Button
+              size="sm"
+              onClick={handleAttach}
+              disabled={createAttachmentMutation.isPending}
+              data-testid={`${prefix}-egress-rule-attachments-attach-submit`}
+            >
               {createAttachmentMutation.isPending ? 'Attaching...' : 'Attach egress rule'}
             </Button>
           </DialogFooter>
@@ -275,7 +351,7 @@ export function AgentEgressRuleAttachmentsTab({ agentId, organizationId }: Agent
           if (!open) setDetachTargetId(null);
         }}
         title="Detach egress rule"
-        description="This will remove the egress rule from the agent."
+        description={copy.detach}
         confirmLabel="Detach egress rule"
         variant="danger"
         onConfirm={() => {

@@ -19,35 +19,60 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ImagePullSecretAttachment } from '@/gen/agynio/api/agents/v1/agents_pb';
 import type { ImagePullSecret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
+import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
-type AgentImagePullSecretsTabProps = {
-  agentId: string;
+type ImagePullSecretsTabProps = {
+  target: DetailTarget;
   organizationId: string;
 };
 
-export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImagePullSecretsTabProps) {
+const COPY = {
+  agent: {
+    heading: 'Attach registry credentials to this agent.',
+    detach: 'This will remove the secret from the agent.',
+  },
+  environment: {
+    heading: 'Attach registry credentials to this environment.',
+    detach: 'This will remove the secret from the environment.',
+  },
+} as const;
+
+// Narrows the list to the target; organization_id stays required either way.
+function listFilter(target: DetailTarget) {
+  return target.kind === 'agent' ? { agentId: target.id } : { environmentId: target.id };
+}
+
+function attachTarget(target: DetailTarget) {
+  return target.kind === 'agent'
+    ? ({ case: 'agentId', value: target.id } as const)
+    : ({ case: 'environmentId', value: target.id } as const);
+}
+
+export function ImagePullSecretsTab({ target, organizationId }: ImagePullSecretsTabProps) {
+  const prefix = target.kind;
+  const copy = COPY[target.kind];
   const queryClient = useQueryClient();
   const [attachOpen, setAttachOpen] = useState(false);
   const [selectedSecretId, setSelectedSecretId] = useState('');
   const [selectedSecretError, setSelectedSecretError] = useState('');
   const [detachTargetId, setDetachTargetId] = useState<string | null>(null);
 
+  const attachmentsQueryKey = ['imagePullSecretAttachments', organizationId, target.kind, target.id, 'list'];
+
   const attachmentsQuery = useQuery({
-    queryKey: ['imagePullSecretAttachments', agentId, 'list'],
+    queryKey: attachmentsQueryKey,
     queryFn: () =>
       agentsClient.listImagePullSecretAttachments({
+        organizationId,
+        ...listFilter(target),
         pageSize: MAX_PAGE_SIZE,
         pageToken: '',
-        imagePullSecretId: '',
-        agentId,
-        mcpId: '',
-        hookId: '',
       }),
-    enabled: Boolean(agentId),
+    enabled: Boolean(organizationId && target.id),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -98,12 +123,16 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
   const visibleAttachments = listControls.filteredItems;
   const hasSearch = listControls.searchTerm.trim().length > 0;
 
+  const invalidateAttachments = () => {
+    void queryClient.invalidateQueries({ queryKey: attachmentsQueryKey });
+  };
+
   const createAttachmentMutation = useMutation({
-    mutationFn: (payload: { imagePullSecretId: string; target: { case: 'agentId'; value: string } }) =>
+    mutationFn: (payload: { imagePullSecretId: string; target: ReturnType<typeof attachTarget> }) =>
       agentsClient.createImagePullSecretAttachment(payload),
     onSuccess: () => {
       toast.success('Image pull secret attached.');
-      void queryClient.invalidateQueries({ queryKey: ['imagePullSecretAttachments', agentId, 'list'] });
+      invalidateAttachments();
       setAttachOpen(false);
       setSelectedSecretId('');
       setSelectedSecretError('');
@@ -117,7 +146,7 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
     mutationFn: (attachmentId: string) => agentsClient.deleteImagePullSecretAttachment({ id: attachmentId }),
     onSuccess: () => {
       toast.success('Image pull secret detached.');
-      void queryClient.invalidateQueries({ queryKey: ['imagePullSecretAttachments', agentId, 'list'] });
+      invalidateAttachments();
       setDetachTargetId(null);
     },
     onError: (error) => {
@@ -132,7 +161,7 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
     }
     createAttachmentMutation.mutate({
       imagePullSecretId: selectedSecretId,
-      target: { case: 'agentId', value: agentId },
+      target: attachTarget(target),
     });
   };
 
@@ -151,10 +180,10 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
     const description = secret?.description || 'Image pull secret';
     return (
       <div>
-        <div className="font-medium" data-testid="agent-image-pull-secret-registry">
+        <div className="font-medium" data-testid={`${prefix}-image-pull-secret-registry`}>
           {registry}
         </div>
-        <div className="text-xs text-muted-foreground" data-testid="agent-image-pull-secret-description">
+        <div className="text-xs text-muted-foreground" data-testid={`${prefix}-image-pull-secret-description`}>
           {description}
         </div>
       </div>
@@ -165,16 +194,16 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-image-pull-secrets-heading">
+          <h3 className="text-lg font-semibold text-foreground" data-testid={`${prefix}-image-pull-secrets-heading`}>
             Image Pull Secrets
           </h3>
-          <p className="text-sm text-muted-foreground">Attach registry credentials to this agent.</p>
+          <p className="text-sm text-muted-foreground">{copy.heading}</p>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setAttachOpen(true)}
-          data-testid="agent-image-pull-secrets-attach"
+          data-testid={`${prefix}-image-pull-secrets-attach`}
         >
           Attach secret
         </Button>
@@ -194,18 +223,18 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
         <div className="text-sm text-muted-foreground">Failed to load image pull secrets.</div>
       ) : null}
       {attachments.length === 0 && !attachmentsQuery.isPending ? (
-        <Card className="border-border" data-testid="agent-image-pull-secrets-empty">
+        <Card className="border-border" data-testid={`${prefix}-image-pull-secrets-empty`}>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No image pull secrets attached.
           </CardContent>
         </Card>
       ) : null}
       {attachments.length > 0 ? (
-        <Card className="border-border" data-testid="agent-image-pull-secrets-table">
+        <Card className="border-border" data-testid={`${prefix}-image-pull-secrets-table`}>
           <CardContent className="px-0">
             <div
               className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
-              data-testid="agent-image-pull-secrets-header"
+              data-testid={`${prefix}-image-pull-secrets-header`}
             >
               <SortableHeader
                 label="Registry"
@@ -240,13 +269,13 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
                   <div
                     key={attachment.meta?.id ?? attachment.imagePullSecretId}
                     className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
-                    data-testid="agent-image-pull-secret-row"
+                    data-testid={`${prefix}-image-pull-secret-row`}
                   >
                     {renderSecretSummary(attachment, secretMap)}
-                    <span className="text-xs text-muted-foreground" data-testid="agent-image-pull-secret-username">
+                    <span className="text-xs text-muted-foreground" data-testid={`${prefix}-image-pull-secret-username`}>
                       {getSecretUsername(attachment) || '—'}
                     </span>
-                    <span className="text-xs text-muted-foreground" data-testid="agent-image-pull-secret-created">
+                    <span className="text-xs text-muted-foreground" data-testid={`${prefix}-image-pull-secret-created`}>
                       {formatDateOnly(attachment.meta?.createdAt)}
                     </span>
                     <div className="text-right">
@@ -254,7 +283,7 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
                         variant="destructive"
                         size="sm"
                         onClick={() => handleDetachOpen(attachment)}
-                        data-testid="agent-image-pull-secret-detach"
+                        data-testid={`${prefix}-image-pull-secret-detach`}
                       >
                         Detach
                       </Button>
@@ -267,15 +296,15 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
         </Card>
       ) : null}
       <Dialog open={attachOpen} onOpenChange={setAttachOpen}>
-        <DialogContent data-testid="agent-image-pull-secrets-attach-dialog">
+        <DialogContent data-testid={`${prefix}-image-pull-secrets-attach-dialog`}>
           <DialogHeader>
-            <DialogTitle data-testid="agent-image-pull-secrets-attach-title">Attach secret</DialogTitle>
-            <DialogDescription data-testid="agent-image-pull-secrets-attach-description">
+            <DialogTitle data-testid={`${prefix}-image-pull-secrets-attach-title`}>Attach secret</DialogTitle>
+            <DialogDescription data-testid={`${prefix}-image-pull-secrets-attach-description`}>
               Select an image pull secret to attach.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="agent-image-pull-secrets-attach-select">Image Pull Secret</Label>
+            <Label htmlFor={`${prefix}-image-pull-secrets-attach-select`}>Image Pull Secret</Label>
             <Select
               value={selectedSecretId}
               onValueChange={(value) => {
@@ -284,8 +313,8 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
               }}
             >
               <SelectTrigger
-                id="agent-image-pull-secrets-attach-select"
-                data-testid="agent-image-pull-secrets-attach-select"
+                id={`${prefix}-image-pull-secrets-attach-select`}
+                data-testid={`${prefix}-image-pull-secrets-attach-select`}
               >
                 <SelectValue placeholder="Select secret" />
               </SelectTrigger>
@@ -302,14 +331,14 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
               </SelectContent>
             </Select>
             {selectedSecretError ? (
-              <p className="text-sm text-destructive" data-testid="agent-image-pull-secrets-attach-error">
+              <p className="text-sm text-destructive" data-testid={`${prefix}-image-pull-secrets-attach-error`}>
                 {selectedSecretError}
               </p>
             ) : null}
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" size="sm" data-testid="agent-image-pull-secrets-attach-cancel">
+              <Button variant="outline" size="sm" data-testid={`${prefix}-image-pull-secrets-attach-cancel`}>
                 Cancel
               </Button>
             </DialogClose>
@@ -317,7 +346,7 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
               size="sm"
               onClick={handleAttach}
               disabled={createAttachmentMutation.isPending}
-              data-testid="agent-image-pull-secrets-attach-submit"
+              data-testid={`${prefix}-image-pull-secrets-attach-submit`}
             >
               {createAttachmentMutation.isPending ? 'Attaching...' : 'Attach secret'}
             </Button>
@@ -332,7 +361,7 @@ export function AgentImagePullSecretsTab({ agentId, organizationId }: AgentImage
           }
         }}
         title="Detach secret"
-        description="This will remove the secret from the agent."
+        description={copy.detach}
         confirmLabel="Detach secret"
         variant="danger"
         onConfirm={() => {

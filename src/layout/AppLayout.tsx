@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   BuildingIcon,
   CableIcon,
+  ContainerIcon,
   HardDriveIcon,
   HomeIcon,
   KeyIcon,
@@ -18,6 +19,7 @@ import {
   SettingsIcon,
   ShieldIcon,
   ServerIcon,
+  TerminalIcon,
   UsersIcon,
 } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
@@ -273,6 +275,14 @@ export function AppLayout() {
                   <UsersIcon className="h-4 w-4" />
                   Members
                 </NavLink>
+                <NavLink
+                  to={organizationRoute('/groups')}
+                  className={navLinkClass}
+                  data-testid="nav-organization-groups"
+                >
+                  <ShieldIcon className="h-4 w-4" />
+                  Groups
+                </NavLink>
               </nav>
             </div>
             <div>
@@ -309,6 +319,22 @@ export function AppLayout() {
                 >
                   <CableIcon className="h-4 w-4" />
                   Private Networks
+                </NavLink>
+                <NavLink
+                  to={organizationRoute('/environments')}
+                  className={navLinkClass}
+                  data-testid="nav-organization-environments"
+                >
+                  <ContainerIcon className="h-4 w-4" />
+                  Environments
+                </NavLink>
+                <NavLink
+                  to={organizationRoute('/sandboxes')}
+                  className={navLinkClass}
+                  data-testid="nav-organization-sandboxes"
+                >
+                  <TerminalIcon className="h-4 w-4" />
+                  Sandboxes
                 </NavLink>
                 <NavLink
                   to={organizationRoute('/runners')}
@@ -375,19 +401,6 @@ export function AppLayout() {
                 >
                   <KeyIcon className="h-4 w-4" />
                   Image Pull Secrets
-                </NavLink>
-              </nav>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Org Settings</p>
-              <nav className="mt-3 flex flex-col gap-1">
-                <NavLink
-                  to={organizationRoute('/groups')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-groups"
-                >
-                  <UsersIcon className="h-4 w-4" />
-                  Groups
                 </NavLink>
               </nav>
             </div>

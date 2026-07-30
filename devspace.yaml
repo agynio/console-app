@@ -91,5 +91,3 @@ dev:
         logs:
           enabled: true
           lastLines: 200
-    ports:
-      - port: "3000"
