@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, llmClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
-import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { JsonEditor } from '@/components/JsonEditor';
@@ -17,10 +16,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AgentAvailability, type Agent, type ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { NO_ENVIRONMENT, NO_MODEL } from '@/lib/constants';
+import { AgentAvailability, type Agent } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
-import { formatAgentAvailability, formatComputeResources } from '@/lib/format';
+import { formatAgentAvailability } from '@/lib/format';
 import { NICKNAME_MAX_LENGTH, getNicknameValidationError } from '@/lib/nickname';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
@@ -46,15 +45,14 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [role, setRole] = useState('');
   const [modelId, setModelId] = useState(NO_MODEL);
   const [description, setDescription] = useState('');
-  const [image, setImage] = useState('');
-  const [environmentId, setEnvironmentId] = useState(NO_ENVIRONMENT);
+  const [environmentId, setEnvironmentId] = useState('');
+  const [environmentError, setEnvironmentError] = useState('');
   const [initImage, setInitImage] = useState('');
   const [configuration, setConfiguration] = useState('');
   const [configurationError, setConfigurationError] = useState('');
   const [idleTimeout, setIdleTimeout] = useState('');
   const [idleTimeoutError, setIdleTimeoutError] = useState('');
   const [availability, setAvailability] = useState<AgentAvailability>(AgentAvailability.INTERNAL);
-  const [resources, setResources] = useState<ComputeResources | undefined>(undefined);
 
   const environmentsQuery = useQuery({
     queryKey: ['environments', organizationId, 'all'],
@@ -110,13 +108,11 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       model?: string;
       description?: string;
       configuration?: string;
-      image?: string;
       environmentId?: string;
       initImage?: string;
       nickname?: string;
       idleTimeout?: string;
       availability?: AgentAvailability;
-      resources?: ComputeResources;
     }) => agentsClient.updateAgent(payload),
     onSuccess: () => {
       toast.success('Agent updated.');
@@ -138,14 +134,13 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setRole(agent.role);
       setModelId(agent.model || NO_MODEL);
       setDescription(agent.description);
-      setImage(agent.image);
-      setEnvironmentId(agent.environmentId || NO_ENVIRONMENT);
+      setEnvironmentId(agent.environmentId);
       setInitImage(agent.initImage);
       setConfiguration(agent.configuration);
       setIdleTimeout(agent.idleTimeout ?? '');
       setAvailability(agent.availability || AgentAvailability.INTERNAL);
-      setResources(agent.resources ?? undefined);
       setNameError('');
+      setEnvironmentError('');
       setConfigurationError('');
       setIdleTimeoutError('');
       setNicknameError('');
@@ -161,6 +156,12 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setNameError('Name is required.');
       return;
     }
+
+    if (!environmentId) {
+      setEnvironmentError('Environment is required. It supplies the image and compute this agent runs with.');
+      return;
+    }
+    setEnvironmentError('');
 
     const trimmedNickname = nickname.trim();
     const nicknameValidationError = getNicknameValidationError(trimmedNickname);
@@ -201,12 +202,10 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       model: modelId === NO_MODEL ? '' : modelId,
       description: description.trim(),
       configuration: trimmedConfig,
-      image: image.trim(),
-      environmentId: environmentId === NO_ENVIRONMENT ? '' : environmentId,
+      environmentId,
       initImage: initImage.trim(),
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
       availability,
-      resources,
     });
   };
 
@@ -255,13 +254,14 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Environment</div>
-              <div className="text-sm text-foreground" data-testid="agent-configuration-environment-value">
-                {environmentName(agent.environmentId) || '—'}
+              {/* An agent predating environments has none, so it resolves to no
+                  flavor and no runner. Say so rather than showing an em dash. */}
+              <div
+                className={agent.environmentId ? 'text-sm text-foreground' : 'text-sm text-destructive'}
+                data-testid="agent-configuration-environment-value"
+              >
+                {environmentName(agent.environmentId) || 'Not set'}
               </div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Image</div>
-              <div className="text-sm text-foreground">{agent.image || '—'}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Init Image</div>
@@ -274,12 +274,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Availability</div>
               <div className="text-sm text-foreground">{formatAgentAvailability(agent.availability)}</div>
-            </div>
-            <div className="md:col-span-2">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compute Resources</div>
-              <div className="text-sm text-foreground">
-                {formatComputeResources(agent.resources)}
-              </div>
             </div>
           </div>
           <div>
@@ -301,7 +295,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
           <DialogHeader>
             <DialogTitle data-testid="agent-configuration-dialog-title">Edit configuration</DialogTitle>
             <DialogDescription data-testid="agent-configuration-dialog-description">
-              Update agent settings and resources.
+              Update agent settings.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -377,12 +371,17 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             </div>
             <div className="space-y-2">
               <Label htmlFor="agent-configuration-environment">Environment</Label>
-              <Select value={environmentId} onValueChange={setEnvironmentId}>
+              <Select
+                value={environmentId}
+                onValueChange={(value) => {
+                  setEnvironmentId(value);
+                  if (environmentError) setEnvironmentError('');
+                }}
+              >
                 <SelectTrigger id="agent-configuration-environment" data-testid="agent-configuration-environment">
                   <SelectValue placeholder="Select environment" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_ENVIRONMENT}>None</SelectItem>
                   {environments.map((environment) => (
                     <SelectItem key={environment.meta?.id} value={environment.meta?.id ?? ''}>
                       {environment.name}
@@ -390,15 +389,11 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-configuration-image">Image</Label>
-              <Input
-                id="agent-configuration-image"
-                value={image}
-                onChange={(event) => setImage(event.target.value)}
-                data-testid="agent-configuration-image"
-              />
+              {environmentError ? (
+                <p className="text-sm text-destructive" data-testid="agent-configuration-environment-error">
+                  {environmentError}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="agent-configuration-init-image">Init Image</Label>
@@ -450,14 +445,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
               error={configurationError}
               testId="agent-configuration-config"
             />
-            <div className="space-y-2">
-              <Label>Compute Resources</Label>
-              <ComputeResourcesEditor
-                value={resources}
-                onChange={setResources}
-                testIdPrefix="agent-configuration"
-              />
-            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>

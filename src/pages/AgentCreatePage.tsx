@@ -3,15 +3,14 @@ import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient, llmClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
-import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { Input } from '@/components/ui/input';
 import { JsonEditor } from '@/components/JsonEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AgentAvailability, type ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { NO_ENVIRONMENT, NO_MODEL } from '@/lib/constants';
+import { NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
 import { NICKNAME_MAX_LENGTH, getNicknameValidationError } from '@/lib/nickname';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -31,15 +30,14 @@ export function AgentCreatePage() {
   const [role, setRole] = useState('');
   const [modelId, setModelId] = useState(NO_MODEL);
   const [description, setDescription] = useState('');
-  const [image, setImage] = useState('');
-  const [environmentId, setEnvironmentId] = useState(NO_ENVIRONMENT);
+  const [environmentId, setEnvironmentId] = useState('');
+  const [environmentError, setEnvironmentError] = useState('');
   const [initImage, setInitImage] = useState('');
   const [configuration, setConfiguration] = useState('');
   const [configurationError, setConfigurationError] = useState('');
   const [idleTimeout, setIdleTimeout] = useState('');
   const [idleTimeoutError, setIdleTimeoutError] = useState('');
   const [availability, setAvailability] = useState<AgentAvailability>(AgentAvailability.INTERNAL);
-  const [resources, setResources] = useState<ComputeResources | undefined>(undefined);
 
   const modelsQuery = useQuery({
     queryKey: ['llm', organizationId, 'models', 'all'],
@@ -72,13 +70,11 @@ export function AgentCreatePage() {
       model: string;
       description: string;
       configuration: string;
-      image: string;
       environmentId: string;
       initImage: string;
       organizationId: string;
       idleTimeout?: string;
       availability: AgentAvailability;
-      resources?: ComputeResources;
     }) => agentsClient.createAgent(payload),
     onSuccess: (response) => {
       const agentId = response.agent?.meta?.id;
@@ -105,6 +101,12 @@ export function AgentCreatePage() {
       toast.error('Organization is missing.');
       return;
     }
+
+    if (!environmentId) {
+      setEnvironmentError('Environment is required. It supplies the image and compute this agent runs with.');
+      return;
+    }
+    setEnvironmentError('');
 
     const trimmedNickname = nickname.trim();
     const nicknameValidationError = getNicknameValidationError(trimmedNickname);
@@ -141,13 +143,11 @@ export function AgentCreatePage() {
       model: modelId === NO_MODEL ? '' : modelId,
       description: description.trim(),
       configuration: trimmedConfig,
-      image: image.trim(),
-      environmentId: environmentId === NO_ENVIRONMENT ? '' : environmentId,
+      environmentId,
       initImage: initImage.trim(),
       organizationId,
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
       availability,
-      resources,
     });
   };
 
@@ -239,14 +239,19 @@ export function AgentCreatePage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="agent-create-environment">Environment</Label>
-            <Select value={environmentId} onValueChange={setEnvironmentId}>
+            <Select
+              value={environmentId}
+              onValueChange={(value) => {
+                setEnvironmentId(value);
+                if (environmentError) setEnvironmentError('');
+              }}
+            >
               <SelectTrigger id="agent-create-environment" data-testid="agent-create-environment">
                 <SelectValue
                   placeholder={environmentsQuery.isPending ? 'Loading environments...' : 'Select environment'}
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_ENVIRONMENT}>None</SelectItem>
                 {environments.map((environment) => (
                   <SelectItem key={environment.meta?.id} value={environment.meta?.id ?? ''}>
                     {environment.name}
@@ -254,20 +259,28 @@ export function AgentCreatePage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              Supplies the image and compute this agent runs with, and the ENVs, egress rules and image pull
-              secrets attached to it.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="agent-create-image">Image</Label>
-            <Input
-              id="agent-create-image"
-              placeholder="ghcr.io/org/agent:latest"
-              value={image}
-              onChange={(event) => setImage(event.target.value)}
-              data-testid="agent-create-image"
-            />
+            {environmentError ? (
+              <p className="text-sm text-destructive" data-testid="agent-create-environment-error">
+                {environmentError}
+              </p>
+            ) : null}
+            {environments.length === 0 && !environmentsQuery.isPending ? (
+              <p className="text-xs text-muted-foreground" data-testid="agent-create-environment-empty">
+                No environments in this organization.{' '}
+                <NavLink
+                  to={`/organizations/${organizationId}/environments`}
+                  className="text-primary hover:underline"
+                >
+                  Create one
+                </NavLink>{' '}
+                before creating an agent.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Supplies the image and compute this agent runs with, and the ENVs, egress rules and image pull
+                secrets attached to it.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="agent-create-init-image">Init Image</Label>
@@ -323,14 +336,6 @@ export function AgentCreatePage() {
             error={configurationError}
             testId="agent-create-configuration"
           />
-          <div className="space-y-2" data-testid="agent-create-resources">
-            <Label>Compute Resources</Label>
-            <ComputeResourcesEditor
-              value={resources}
-              onChange={setResources}
-              testIdPrefix="agent-create"
-            />
-          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" asChild data-testid="agent-create-cancel">
               <NavLink to={`/organizations/${organizationId}/agents`}>Cancel</NavLink>
