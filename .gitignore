@@ -13,6 +13,7 @@ dist-ssr
 src/gen/
 *.local
 .pnpm-store/
+.devspace/
 
 # Editor directories and files
 .vscode/*

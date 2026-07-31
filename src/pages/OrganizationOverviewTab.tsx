@@ -1,12 +1,16 @@
 import { useMemo } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { CopyIcon } from 'lucide-react';
 import { agentsClient, appsClient, organizationsClient, runnersClient, secretsClient } from '@/api/client';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useOrganizationContext } from '@/context/OrganizationContext';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
+import { copyText } from '@/lib/clipboard';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function OrganizationOverviewTab() {
@@ -14,6 +18,10 @@ export function OrganizationOverviewTab() {
 
   const { id } = useParams();
   const organizationId = id ?? '';
+  // RequireOrganization has already resolved the URL id against the caller's
+  // organizations, so this lookup needs no request of its own.
+  const { organizations } = useOrganizationContext();
+  const organizationName = organizations.find((organization) => organization.id === organizationId)?.name ?? '';
   const notificationRooms = useMemo(
     () => (organizationId ? [`organization:${organizationId}`] : []),
     [organizationId],
@@ -108,12 +116,44 @@ export function OrganizationOverviewTab() {
     { label: 'Secret providers', value: providersQuery.data?.secretProviders.length ?? 0, to: `${base}/secret-providers` },
     { label: 'Secrets', value: secretsQuery.data?.secrets.length ?? 0, to: `${base}/secrets` },
     { label: 'Runners', value: runnersQuery.data?.runners.length ?? 0, to: `${base}/runners` },
-    { label: 'Active workloads', value: workloadsQuery.data?.workloads.length ?? 0, to: `${base}/activity/workloads` },
+    { label: 'Active workloads', value: workloadsQuery.data?.workloads.length ?? 0, to: `${base}/workloads` },
     { label: 'App installations', value: installationsQuery.data?.installations.length ?? 0, to: `${base}/apps` },
   ];
 
   return (
     <div className="space-y-4">
+      <Card className="border-border" data-testid="organization-overview-identity">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {organizationName || 'Organization'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Organization ID</div>
+              <div
+                className="mt-1 font-mono text-sm break-all text-foreground"
+                data-testid="organization-overview-id"
+              >
+                {organizationId}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The <code className="font-mono">organization_id</code> required by the Terraform provider and the API.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => copyText(organizationId, 'Organization ID copied.')}
+              data-testid="organization-overview-id-copy"
+            >
+              <CopyIcon className="h-4 w-4" />
+              Copy ID
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid gap-4 md:grid-cols-2" data-testid="organization-overview-summary">
         {summary.map((item) => (
           <NavLink

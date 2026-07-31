@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AppLayout } from '@/layout/AppLayout';
 import { RequireClusterAdmin, RequireOrganization } from '@/components/RouteGuards';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -33,6 +33,10 @@ import {
   OrganizationPrivateNetworkDetailPage,
   OrganizationPrivateNetworksPage,
 } from '@/pages/OrganizationPrivateNetworksPage';
+import { OrganizationPrivateResourcesPage } from '@/pages/OrganizationPrivateResourcesPage';
+import { PrivateResourceDetailPage } from '@/pages/PrivateResourceDetailPage';
+import { OrganizationInstancesPage } from '@/pages/OrganizationInstancesPage';
+import { InstanceDetailPage } from '@/pages/InstanceDetailPage';
 import { UsersListPage } from '@/pages/UsersListPage';
 import { UserDetailPage } from '@/pages/UserDetailPage';
 import { RunnersListPage } from '@/pages/RunnersListPage';
@@ -45,6 +49,17 @@ import { ApiTokensPage } from '@/pages/ApiTokensPage';
 import { AppDetailPage } from '@/pages/AppDetailPage';
 import { DevicesPage } from '@/pages/DevicesPage';
 import { InstallationDetailPage } from '@/pages/InstallationDetailPage';
+
+/** Redirects a superseded organization-scoped path to its canonical one. */
+function OrganizationRedirect({ to }: { to: string }) {
+  const { id } = useParams();
+  return <Navigate to={`/organizations/${id}${to}`} replace />;
+}
+
+function ActivityThreadRedirect() {
+  const { id, threadId } = useParams();
+  return <Navigate to={`/organizations/${id}/threads/${threadId}`} replace />;
+}
 
 export default function App() {
   return (
@@ -79,6 +94,8 @@ export default function App() {
           <Route path="egress-rules" element={<OrganizationEgressRulesTab />} />
           <Route path="private-networks" element={<OrganizationPrivateNetworksPage />} />
           <Route path="private-networks/:networkId" element={<OrganizationPrivateNetworkDetailPage />} />
+          <Route path="private-resources" element={<OrganizationPrivateResourcesPage />} />
+          <Route path="private-resources/:resourceId" element={<PrivateResourceDetailPage />} />
           <Route path="groups" element={<OrganizationGroupsPage />} />
           <Route path="groups/:groupId" element={<OrganizationGroupDetailPage />} />
           <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
@@ -93,17 +110,23 @@ export default function App() {
           <Route path="apps" element={<OrganizationAppsTab />} />
           <Route path="apps/installations/:installationId" element={<InstallationDetailPage />} />
           <Route path="apps/:appId" element={<AppDetailPage />} />
-          <Route path="activity" element={<Navigate to="workloads" replace />} />
-          <Route path="activity/workloads" element={<OrganizationActivityWorkloadsTab />} />
-          <Route path="activity/storage" element={<OrganizationActivityStorageTab />} />
-          <Route path="activity/threads" element={<OrganizationThreadsTab />} />
-          <Route path="activity/threads/:threadId" element={<OrganizationThreadDetailPage />} />
-          <Route path="activity/usage" element={<OrganizationUsageTab />} />
+          <Route path="instances" element={<OrganizationInstancesPage />} />
+          <Route path="instances/:instanceId" element={<InstanceDetailPage />} />
+          {/* Operations sections each resolve at one flat canonical path; the
+              group is no longer a path prefix. */}
           <Route path="threads" element={<OrganizationThreadsTab />} />
           <Route path="threads/:threadId" element={<OrganizationThreadDetailPage />} />
+          <Route path="workloads" element={<OrganizationActivityWorkloadsTab />} />
           <Route path="workloads/:workloadId" element={<WorkloadDetailPage />} />
-          <Route path="monitoring" element={<Navigate to="activity/workloads" replace />} />
+          <Route path="storage" element={<OrganizationActivityStorageTab />} />
           <Route path="usage" element={<OrganizationUsageTab />} />
+          <Route path="activity" element={<OrganizationRedirect to="/workloads" />} />
+          <Route path="activity/workloads" element={<OrganizationRedirect to="/workloads" />} />
+          <Route path="activity/storage" element={<OrganizationRedirect to="/storage" />} />
+          <Route path="activity/threads" element={<OrganizationRedirect to="/threads" />} />
+          <Route path="activity/threads/:threadId" element={<ActivityThreadRedirect />} />
+          <Route path="activity/usage" element={<OrganizationRedirect to="/usage" />} />
+          <Route path="monitoring" element={<OrganizationRedirect to="/workloads" />} />
         </Route>
         <Route
           path="users"

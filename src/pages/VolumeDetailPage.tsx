@@ -64,9 +64,9 @@ export function VolumeDetailPage() {
     typeof (location.state as { from?: unknown }).from === 'string'
       ? (location.state as { from: string }).from
       : undefined;
-  const fallbackBack = organizationId ? `/organizations/${organizationId}/activity/storage` : '/organizations';
+  const fallbackBack = organizationId ? `/organizations/${organizationId}/storage` : '/organizations';
   const backHref = fromState || fallbackBack;
-  const backLabel = fromState ? '← Back' : organizationId ? '← Back to Storage' : '← Back';
+  const backLabel = fromState ? '← Back' : organizationId ? '← Back to Provisioned Storage' : '← Back';
 
   const volumeName = volume?.volumeName || volume?.volumeId || volume?.meta?.id || EMPTY_PLACEHOLDER;
   const volumeIdLabel = volume?.volumeId || volume?.meta?.id || EMPTY_PLACEHOLDER;

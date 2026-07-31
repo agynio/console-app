@@ -4,9 +4,9 @@ import { create } from '@bufbuild/protobuf';
 import { TimestampSchema, type Timestamp } from '@bufbuild/protobuf/wkt';
 import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { agentsClient, runnersClient } from '@/api/client';
+import { DateRangeFilter, FilterBar } from '@/components/FilterBar';
 import { MultiSelectFilter } from '@/components/MultiSelectFilter';
 import { WorkloadsTable, type WorkloadSortKey } from '@/components/WorkloadsTable';
-import { Input } from '@/components/ui/input';
 import {
   ListWorkloadsSortField,
   SortDirection as WorkloadsSortDirection,
@@ -266,6 +266,13 @@ export function OrganizationActivityWorkloadsTab() {
     startedAfter.length > 0 ||
     startedBefore.length > 0;
   const hasActiveControls = hasActiveFilters || sortKey !== 'started' || sortDirection !== 'desc';
+  const clearFilters = () => {
+    setAgentIdFilter([]);
+    setRunnerIdFilter([]);
+    setStatusFilter([]);
+    setStartedAfter('');
+    setStartedBefore('');
+  };
 
   useNotifications({
     events: ['workload.updated'],
@@ -347,55 +354,38 @@ export function OrganizationActivityWorkloadsTab() {
           onSort: handleSort,
         }}
         filterBar={
-          <>
-            <div className="min-w-[180px]">
-              <MultiSelectFilter
-                label="Agent"
-                options={agentOptions}
-                selectedValues={agentIdFilter}
-                onChange={setAgentIdFilter}
-                testId="organization-workloads-agent-filter"
-              />
-            </div>
-            <div className="min-w-[180px]">
-              <MultiSelectFilter
-                label="Runner"
-                options={runnerOptions}
-                selectedValues={runnerIdFilter}
-                onChange={setRunnerIdFilter}
-                testId="organization-workloads-runner-filter"
-              />
-            </div>
-            <div className="min-w-[180px]">
-              <MultiSelectFilter
-                label="Status"
-                options={statusOptions}
-                selectedValues={statusFilter}
-                onChange={setStatusFilter}
-                testId="organization-workloads-status-filter"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Started after</span>
-                <Input
-                  type="date"
-                  value={startedAfter}
-                  onChange={(event) => setStartedAfter(event.target.value)}
-                  data-testid="organization-workloads-started-after"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Started before</span>
-                <Input
-                  type="date"
-                  value={startedBefore}
-                  onChange={(event) => setStartedBefore(event.target.value)}
-                  data-testid="organization-workloads-started-before"
-                />
-              </div>
-            </div>
-          </>
+          <FilterBar isActive={hasActiveFilters} onClear={clearFilters} testId="organization-workloads-filters">
+            <MultiSelectFilter
+              label="Agent"
+              options={agentOptions}
+              selectedValues={agentIdFilter}
+              onChange={setAgentIdFilter}
+              testId="organization-workloads-agent-filter"
+            />
+            <MultiSelectFilter
+              label="Runner"
+              options={runnerOptions}
+              selectedValues={runnerIdFilter}
+              onChange={setRunnerIdFilter}
+              testId="organization-workloads-runner-filter"
+            />
+            <MultiSelectFilter
+              label="Status"
+              options={statusOptions}
+              selectedValues={statusFilter}
+              onChange={setStatusFilter}
+              testId="organization-workloads-status-filter"
+            />
+            <DateRangeFilter
+              label="Started"
+              fromValue={startedAfter}
+              toValue={startedBefore}
+              onFromChange={setStartedAfter}
+              onToChange={setStartedBefore}
+              fromTestId="organization-workloads-started-after"
+              toTestId="organization-workloads-started-before"
+            />
+          </FilterBar>
         }
         hasActiveFilters={hasActiveFilters}
         testIdPrefix="organization-workloads"

@@ -15,7 +15,7 @@ import { formatAppVisibility, formatDateOnly, timestampToMillis } from '@/lib/fo
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 
 export function AppsPage() {
-  useDocumentTitle('Apps');
+  useDocumentTitle('App Catalog');
 
   const [registerOpen, setRegisterOpen] = useState(false);
 

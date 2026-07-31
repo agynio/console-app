@@ -1,26 +1,11 @@
 import type { ReactNode } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  ActivityIcon,
-  BotIcon,
-  BoxesIcon,
-  BrainIcon,
   ChevronDownIcon,
-  BuildingIcon,
-  CableIcon,
-  ContainerIcon,
-  HardDriveIcon,
-  HomeIcon,
+  ChevronRightIcon,
   KeyIcon,
-  LineChartIcon,
-  NetworkIcon,
-  MessageSquareIcon,
   MonitorSmartphoneIcon,
   SettingsIcon,
-  ShieldIcon,
-  ServerIcon,
-  TerminalIcon,
-  UsersIcon,
 } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
@@ -31,7 +16,9 @@ import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
 import { OrganizationSwitcher } from '@/components/OrganizationSwitcher';
 import { useCreateOrganization } from '@/hooks/useCreateOrganization';
+import { useSidebarGroups } from '@/hooks/useSidebarGroups';
 import { usePageTitle } from '@/context/PageTitleContext';
+import { CLUSTER_NAV_GROUPS, ORGANIZATION_NAV_GROUPS, type NavGroup } from '@/layout/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +34,59 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
       ? 'bg-sidebar-accent text-sidebar-accent-foreground'
       : 'text-sidebar-foreground hover:bg-sidebar-accent'
   }`;
+
+type SidebarNavProps = {
+  groups: NavGroup[];
+  /** Prefixed to every section path; sections carry only the suffix. */
+  basePath: string;
+};
+
+function SidebarNav({ groups, basePath }: SidebarNavProps) {
+  const { isCollapsed, toggleGroup } = useSidebarGroups();
+
+  return (
+    <div className="mb-6 space-y-4">
+      {groups.map((group) => {
+        const collapsed = isCollapsed(group.id);
+        const ChevronIcon = collapsed ? ChevronRightIcon : ChevronDownIcon;
+
+        return (
+          <div key={group.id}>
+            <button
+              type="button"
+              onClick={() => toggleGroup(group.id)}
+              aria-expanded={!collapsed}
+              className="flex w-full items-center gap-1 rounded-md px-1 py-1 text-xs uppercase tracking-wide text-muted-foreground transition hover:text-sidebar-foreground"
+              data-testid={group.testId}
+            >
+              <ChevronIcon className="h-3.5 w-3.5" />
+              {group.label}
+            </button>
+            {collapsed ? null : (
+              <nav className="mt-2 flex flex-col gap-1">
+                {group.sections.map((section) => {
+                  const Icon = section.icon;
+                  return (
+                    <NavLink
+                      key={section.testId}
+                      to={`${basePath}${section.path}`}
+                      end={section.end}
+                      className={navLinkClass}
+                      data-testid={section.testId}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {section.label}
+                    </NavLink>
+                  );
+                })}
+              </nav>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 type NoAccessScreenProps = {
   onSignOut: () => void;
@@ -215,7 +255,6 @@ export function AppLayout() {
   }
 
   const organizationBase = selectedOrganization ? `/organizations/${selectedOrganization.id}` : '/organizations';
-  const organizationRoute = (path: string) => `${organizationBase}${path}`;
 
   const isClusterContext = contextMode?.mode === 'cluster';
   const isOrganizationContext = contextMode?.mode === 'organization' && selectedOrganization;
@@ -226,223 +265,8 @@ export function AppLayout() {
         className="sticky top-0 flex h-screen w-64 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-4 py-6 text-sidebar-foreground"
         data-testid="console-sidebar"
       >
-        {isClusterContext ? (
-          <div className="mb-6">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Platform</p>
-            <nav className="mt-3 flex flex-col gap-1">
-              <NavLink to="/" end className={navLinkClass} data-testid="nav-dashboard">
-                <HomeIcon className="h-4 w-4" />
-                Dashboard
-              </NavLink>
-              <NavLink to="/users" className={navLinkClass} data-testid="nav-users">
-                <UsersIcon className="h-4 w-4" />
-                Users
-              </NavLink>
-              <NavLink to="/organizations" className={navLinkClass} data-testid="nav-organizations">
-                <BuildingIcon className="h-4 w-4" />
-                Organizations
-              </NavLink>
-              <NavLink to="/runners" className={navLinkClass} data-testid="nav-cluster-runners">
-                <ServerIcon className="h-4 w-4" />
-                Cluster Runners
-              </NavLink>
-              <NavLink to="/apps" className={navLinkClass} data-testid="nav-apps">
-                <BoxesIcon className="h-4 w-4" />
-                Apps
-              </NavLink>
-            </nav>
-          </div>
-        ) : null}
-        {isOrganizationContext ? (
-          <div className="mb-6 space-y-6">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Organization</p>
-              <nav className="mt-3 flex flex-col gap-1">
-                <NavLink
-                  to={organizationBase}
-                  end
-                  className={navLinkClass}
-                  data-testid="nav-organization-overview"
-                >
-                  <BuildingIcon className="h-4 w-4" />
-                  Overview
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/members')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-members"
-                >
-                  <UsersIcon className="h-4 w-4" />
-                  Members
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/groups')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-groups"
-                >
-                  <ShieldIcon className="h-4 w-4" />
-                  Groups
-                </NavLink>
-              </nav>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Agents</p>
-              <nav className="mt-3 flex flex-col gap-1">
-                <NavLink
-                  to={organizationRoute('/agents')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-agents"
-                >
-                  <BotIcon className="h-4 w-4" />
-                  Agents
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/volumes')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-volumes"
-                >
-                  <HardDriveIcon className="h-4 w-4" />
-                  Volumes
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/egress-rules')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-egress-rules"
-                >
-                  <NetworkIcon className="h-4 w-4" />
-                  Egress Rules
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/private-networks')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-private-networks"
-                >
-                  <CableIcon className="h-4 w-4" />
-                  Private Networks
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/environments')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-environments"
-                >
-                  <ContainerIcon className="h-4 w-4" />
-                  Environments
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/sandboxes')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-sandboxes"
-                >
-                  <TerminalIcon className="h-4 w-4" />
-                  Sandboxes
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/runners')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-runners"
-                >
-                  <ServerIcon className="h-4 w-4" />
-                  Runners
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/apps')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-apps"
-                >
-                  <BoxesIcon className="h-4 w-4" />
-                  Apps
-                </NavLink>
-              </nav>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Models</p>
-              <nav className="mt-3 flex flex-col gap-1">
-                <NavLink
-                  to={organizationRoute('/llm-providers')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-llm-providers"
-                >
-                  <BrainIcon className="h-4 w-4" />
-                  LLM Providers
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/models')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-models"
-                >
-                  <BoxesIcon className="h-4 w-4" />
-                  Models
-                </NavLink>
-              </nav>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Secrets</p>
-              <nav className="mt-3 flex flex-col gap-1">
-                <NavLink
-                  to={organizationRoute('/secret-providers')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-secret-providers"
-                >
-                  <KeyIcon className="h-4 w-4" />
-                  Secret Providers
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/secrets')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-secrets"
-                >
-                  <ShieldIcon className="h-4 w-4" />
-                  Secrets
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/image-pull-secrets')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-image-pull-secrets"
-                >
-                  <KeyIcon className="h-4 w-4" />
-                  Image Pull Secrets
-                </NavLink>
-              </nav>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Activity</p>
-              <nav className="mt-3 flex flex-col gap-1">
-                <NavLink
-                  to={organizationRoute('/activity/workloads')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-workloads"
-                >
-                  <ActivityIcon className="h-4 w-4" />
-                  Workloads
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/activity/storage')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-storage"
-                >
-                  <HardDriveIcon className="h-4 w-4" />
-                  Storage
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/threads')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-threads"
-                >
-                  <MessageSquareIcon className="h-4 w-4" />
-                  Threads
-                </NavLink>
-                <NavLink
-                  to={organizationRoute('/usage')}
-                  className={navLinkClass}
-                  data-testid="nav-organization-usage"
-                >
-                  <LineChartIcon className="h-4 w-4" />
-                  Usage
-                </NavLink>
-              </nav>
-            </div>
-          </div>
-        ) : null}
+        {isClusterContext ? <SidebarNav groups={CLUSTER_NAV_GROUPS} basePath="" /> : null}
+        {isOrganizationContext ? <SidebarNav groups={ORGANIZATION_NAV_GROUPS} basePath={organizationBase} /> : null}
       </aside>
       <main className="flex flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-6 py-4">

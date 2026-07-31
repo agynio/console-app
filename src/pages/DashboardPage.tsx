@@ -5,7 +5,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
 export function DashboardPage() {
-  useDocumentTitle('Dashboard');
+  useDocumentTitle('Overview');
 
   const usersQuery = useQuery({
     queryKey: ['users', 'list', 'dashboard'],
