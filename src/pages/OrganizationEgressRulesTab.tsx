@@ -450,25 +450,24 @@ export function OrganizationEgressRulesTab() {
   const hasSearch = listControls.searchTerm.trim().length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground" data-testid="egress-rules-heading">
-            Egress Rules
-          </h2>
-          <p className="text-sm text-muted-foreground">Manage outbound traffic policy and header injection.</p>
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search egress rules..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)} data-testid="egress-rules-create-button">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCreateOpen(true)}
+          data-testid="egress-rules-create-button"
+        >
           Create rule
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search egress rules..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {rulesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading egress rules...</div> : null}
       {rulesQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load egress rules.</div> : null}
@@ -482,7 +481,7 @@ export function OrganizationEgressRulesTab() {
       {rules.length > 0 ? (
         <Card className="border-border" data-testid="egress-rules-table">
           <CardContent className="px-0">
-            <div className="grid gap-3 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_140px]">
+            <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_140px]">
               <SortableHeader label="Name" sortKey="name" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
               <SortableHeader label="Domain" sortKey="domain" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
               <span>Match</span>
@@ -499,7 +498,7 @@ export function OrganizationEgressRulesTab() {
                 visibleRules.map((rule) => {
                   const ruleId = rule.meta?.id ?? '';
                   return (
-                    <div key={ruleId} className="grid items-center gap-3 px-6 py-4 text-sm text-foreground md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_140px]" data-testid="egress-rule-row">
+                    <div key={ruleId} className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_140px]" data-testid="egress-rule-row">
                       <div>
                         <div className="font-medium" data-testid="egress-rule-name">{rule.name}</div>
                         {rule.description ? <div className="text-xs text-muted-foreground">{rule.description}</div> : null}

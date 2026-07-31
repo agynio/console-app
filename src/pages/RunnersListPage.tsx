@@ -15,7 +15,7 @@ import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
 import { useListControls } from '@/hooks/useListControls';
 
 export function RunnersListPage() {
-  useDocumentTitle('Cluster Runners');
+  useDocumentTitle('Runners');
 
   const [enrollOpen, setEnrollOpen] = useState(false);
 

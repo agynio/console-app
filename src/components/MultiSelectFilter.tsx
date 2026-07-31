@@ -1,12 +1,13 @@
+import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 export type MultiSelectOption = {
   value: string;
@@ -33,55 +34,83 @@ export function MultiSelectFilter({
 }: MultiSelectFilterProps) {
   const selected = new Set(selectedValues);
   const selectedCount = selectedValues.length;
-  const triggerLabel = selectedCount > 0 ? `${label} (${selectedCount})` : label;
+  const isActive = selectedCount > 0;
+
+  // Naming the first selection beats a bare count: the common case is one
+  // value, and "Status Active" reads without a second click.
+  const firstSelectedLabel = options.find((option) => option.value === selectedValues[0])?.label;
+  const summary = isActive
+    ? selectedCount === 1
+      ? (firstSelectedLabel ?? '1 selected')
+      : `${firstSelectedLabel ?? selectedValues[0]} +${selectedCount - 1}`
+    : '';
 
   const applySelection = (nextSelected: Set<string>) => {
     const ordered = options.filter((option) => nextSelected.has(option.value)).map((option) => option.value);
     onChange(ordered);
   };
 
+  const toggle = (value: string) => {
+    const nextSelected = new Set(selected);
+    if (nextSelected.has(value)) {
+      nextSelected.delete(value);
+    } else {
+      nextSelected.add(value);
+    }
+    applySelection(nextSelected);
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" data-testid={testId}>
-          {triggerLabel}
+        <Button
+          variant="outline"
+          className={cn(
+            'h-9 min-w-[9rem] justify-between gap-2 font-normal',
+            isActive && 'border-primary/50 bg-primary/5',
+          )}
+          data-testid={testId}
+          data-active={isActive || undefined}
+        >
+          <span className="truncate">
+            <span className={cn(!isActive && 'text-muted-foreground')}>{label}</span>
+            {summary ? <span className="ml-1.5 text-foreground">{summary}</span> : null}
+          </span>
+          <ChevronDownIcon className="size-4 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64 max-h-72 overflow-y-auto">
+      <DropdownMenuContent align="start" className="max-h-72 w-64 overflow-y-auto">
         {options.length === 0 ? (
           <DropdownMenuItem disabled>{emptyLabel}</DropdownMenuItem>
         ) : (
-          options.map((option) => (
-            <DropdownMenuCheckboxItem
-              key={option.value}
-              checked={selected.has(option.value)}
-              onCheckedChange={(checked) => {
-                const nextSelected = new Set(selected);
-                if (checked) {
-                  nextSelected.add(option.value);
-                } else {
-                  nextSelected.delete(option.value);
-                }
-                applySelection(nextSelected);
-              }}
-            >
-              <div className="flex flex-col">
-                <span>{option.label}</span>
-                {option.secondary ? <span className="text-xs text-muted-foreground">{option.secondary}</span> : null}
-              </div>
-            </DropdownMenuCheckboxItem>
-          ))
+          options.map((option) => {
+            const isSelected = selected.has(option.value);
+            return (
+              // Selecting keeps the menu open on purpose: picking several values
+              // is the point, and dismissing costs a click per extra value.
+              <DropdownMenuItem
+                key={option.value}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  toggle(option.value);
+                }}
+                className="gap-2"
+              >
+                <CheckIcon className={cn('size-4 shrink-0', isSelected ? 'opacity-100' : 'opacity-0')} />
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate">{option.label}</span>
+                  {option.secondary ? (
+                    <span className="truncate text-xs text-muted-foreground">{option.secondary}</span>
+                  ) : null}
+                </div>
+              </DropdownMenuItem>
+            );
+          })
         )}
-        {selectedCount > 0 ? (
+        {isActive ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => {
-                onChange([]);
-              }}
-            >
-              Clear selections
-            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onChange([])}>Clear {label.toLowerCase()}</DropdownMenuItem>
           </>
         ) : null}
       </DropdownMenuContent>

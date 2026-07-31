@@ -77,9 +77,10 @@ hooks:
 dev:
   console-app:
     namespace: ${APP_NAMESPACE}
+    # Matched on name alone: the instance label carries the Helm release name,
+    # which is the umbrella release (agyn-platform) rather than console-app.
     labelSelector:
       app.kubernetes.io/name: console-app
-      app.kubernetes.io/instance: console-app
     containers:
       console-app:
         sync:

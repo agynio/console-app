@@ -5,12 +5,12 @@ import { create } from '@bufbuild/protobuf';
 import { TimestampSchema, type Timestamp } from '@bufbuild/protobuf/wkt';
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { threadsClient } from '@/api/client';
+import { DateRangeFilter, FilterBar } from '@/components/FilterBar';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { MultiSelectFilter } from '@/components/MultiSelectFilter';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
   ListOrganizationThreadsSortField,
   SortDirection as ThreadsSortDirection,
@@ -237,6 +237,12 @@ export function OrganizationThreadsTab() {
     createdAfter.length > 0 ||
     createdBefore.length > 0;
   const hasActiveControls = hasActiveFilters || sortKey !== 'created' || sortDirection !== 'desc';
+  const clearFilters = () => {
+    setParticipantFilter([]);
+    setStatusFilter([]);
+    setCreatedAfter('');
+    setCreatedBefore('');
+  };
   const handleSort = (key: ThreadSortKey) => {
     if (key === sortKey) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -284,46 +290,31 @@ export function OrganizationThreadsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-[200px]">
-          <MultiSelectFilter
-            label="Participant"
-            options={participantOptions}
-            selectedValues={participantFilter}
-            onChange={setParticipantFilter}
-            testId="organization-threads-participant-filter"
-          />
-        </div>
-        <div className="min-w-[180px]">
-          <MultiSelectFilter
-            label="Status"
-            options={statusOptions}
-            selectedValues={statusFilter}
-            onChange={setStatusFilter}
-            testId="organization-threads-status-filter"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Created after</span>
-            <Input
-              type="date"
-              value={createdAfter}
-              onChange={(event) => setCreatedAfter(event.target.value)}
-              data-testid="organization-threads-created-after"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Created before</span>
-            <Input
-              type="date"
-              value={createdBefore}
-              onChange={(event) => setCreatedBefore(event.target.value)}
-              data-testid="organization-threads-created-before"
-            />
-          </div>
-        </div>
-      </div>
+      <FilterBar isActive={hasActiveFilters} onClear={clearFilters} testId="organization-threads-filters">
+        <MultiSelectFilter
+          label="Participant"
+          options={participantOptions}
+          selectedValues={participantFilter}
+          onChange={setParticipantFilter}
+          testId="organization-threads-participant-filter"
+        />
+        <MultiSelectFilter
+          label="Status"
+          options={statusOptions}
+          selectedValues={statusFilter}
+          onChange={setStatusFilter}
+          testId="organization-threads-status-filter"
+        />
+        <DateRangeFilter
+          label="Created"
+          fromValue={createdAfter}
+          toValue={createdBefore}
+          onFromChange={setCreatedAfter}
+          onToChange={setCreatedBefore}
+          fromTestId="organization-threads-created-after"
+          toTestId="organization-threads-created-before"
+        />
+      </FilterBar>
       {rangeError ? <div className="text-sm text-destructive">{rangeError}</div> : null}
       {isLoading ? <div className="text-sm text-muted-foreground">Loading threads...</div> : null}
       {isError ? (

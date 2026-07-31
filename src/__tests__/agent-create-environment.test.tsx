@@ -92,17 +92,51 @@ describe('AgentCreatePage environment', () => {
     });
   });
 
-  // An agent without an environment keeps the inline image it already carries,
-  // so "none" has to reach the server as an empty id rather than the sentinel.
-  it('submits an empty environment when none is chosen', async () => {
+  // Image and compute come from the environment, so the request must not carry
+  // the deprecated inline copies.
+  it('sends no inline image or resources', async () => {
     renderCreatePage();
+
+    await waitFor(() => expect(listEnvironments).toHaveBeenCalled());
+    const listbox = await openSelect('agent-create-environment');
+    fireEvent.click(await within(listbox).findByText('sandbox-env'));
 
     fireEvent.change(screen.getByTestId('agent-create-name'), { target: { value: 'builder' } });
     fireEvent.click(screen.getByTestId('agent-create-submit'));
 
-    await waitFor(() => {
-      expect(createAgent).toHaveBeenCalled();
-    });
-    expect(createAgent.mock.calls[0][0].environmentId).toBe('');
+    await waitFor(() => expect(createAgent).toHaveBeenCalled());
+    expect(createAgent.mock.calls[0][0]).not.toHaveProperty('image');
+    expect(createAgent.mock.calls[0][0]).not.toHaveProperty('resources');
+  });
+
+  it('has no image or compute resources inputs', async () => {
+    renderCreatePage();
+
+    await waitFor(() => expect(listEnvironments).toHaveBeenCalled());
+    expect(screen.queryByTestId('agent-create-image')).toBeNull();
+    expect(screen.queryByTestId('agent-create-resources')).toBeNull();
+    // The init image is the agent's own and stays.
+    expect(screen.getByTestId('agent-create-init-image')).toBeTruthy();
+  });
+
+  // An agent with no environment resolves to no flavor and no runner, so the
+  // form refuses rather than letting the server accept the deprecated shape.
+  it('blocks submit when no environment is chosen', async () => {
+    renderCreatePage();
+
+    await waitFor(() => expect(listEnvironments).toHaveBeenCalled());
+    fireEvent.change(screen.getByTestId('agent-create-name'), { target: { value: 'builder' } });
+    fireEvent.click(screen.getByTestId('agent-create-submit'));
+
+    expect(await screen.findByTestId('agent-create-environment-error')).toBeTruthy();
+    expect(createAgent).not.toHaveBeenCalled();
+  });
+
+  it('points at environment creation when the organization has none', async () => {
+    listEnvironments.mockResolvedValue({ environments: [], nextPageToken: '' });
+    renderCreatePage();
+
+    const empty = await screen.findByTestId('agent-create-environment-empty');
+    expect(empty.textContent).toContain('No environments in this organization.');
   });
 });

@@ -1,5 +1,5 @@
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
-import { AgentAvailability, AgentRole, type ComputeResources } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentAvailability, AgentRole } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AppVisibility, InstallationAuditLogLevel } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
@@ -74,16 +74,6 @@ export function formatLabelPairs(labels: Record<string, string>): string {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${key}=${value}`)
     .join(', ');
-}
-
-export function formatComputeResources(resources?: ComputeResources): string {
-  if (!resources) return EMPTY_PLACEHOLDER;
-  const parts: string[] = [];
-  if (resources.requestsCpu) parts.push(`req-cpu: ${resources.requestsCpu}`);
-  if (resources.requestsMemory) parts.push(`req-mem: ${resources.requestsMemory}`);
-  if (resources.limitsCpu) parts.push(`lim-cpu: ${resources.limitsCpu}`);
-  if (resources.limitsMemory) parts.push(`lim-mem: ${resources.limitsMemory}`);
-  return parts.length > 0 ? parts.join(', ') : EMPTY_PLACEHOLDER;
 }
 
 export function truncate(value?: string | null, maxLength = 100): string {

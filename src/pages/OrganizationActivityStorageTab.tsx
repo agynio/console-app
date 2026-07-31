@@ -3,6 +3,7 @@ import { NavLink, useLocation, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { runnersClient } from '@/api/client';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
+import { FilterBar } from '@/components/FilterBar';
 import { MultiSelectFilter } from '@/components/MultiSelectFilter';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Badge } from '@/components/ui/badge';
@@ -97,7 +98,7 @@ const upsertVolume = (
 };
 
 export function OrganizationActivityStorageTab() {
-  useDocumentTitle('Storage');
+  useDocumentTitle('Provisioned Storage');
 
   const { id } = useParams();
   const organizationId = id ?? '';
@@ -210,6 +211,12 @@ export function OrganizationActivityStorageTab() {
     runnerFilter.length > 0 ||
     attachedKindFilter.length > 0 ||
     statusFilter.length > 0;
+  const clearFilters = () => {
+    setSearchTerm('');
+    setRunnerFilter([]);
+    setAttachedKindFilter([]);
+    setStatusFilter([]);
+  };
   const handleSort = (key: VolumeSortKey) => {
     if (key === sortKey) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -280,43 +287,36 @@ export function OrganizationActivityStorageTab() {
           Real-time view of persistent volumes in use across the organization.
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-[220px] max-w-sm flex-1">
-          <Input
-            placeholder="Search storage volumes..."
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            data-testid="organization-storage-search"
-          />
-        </div>
-        <div className="min-w-[180px]">
-          <MultiSelectFilter
-            label="Runner"
-            options={runnerOptions}
-            selectedValues={runnerFilter}
-            onChange={setRunnerFilter}
-            testId="organization-storage-runner-filter"
-          />
-        </div>
-        <div className="min-w-[180px]">
-          <MultiSelectFilter
-            label="Attached to"
-            options={VOLUME_ATTACHMENT_OPTIONS}
-            selectedValues={attachedKindFilter}
-            onChange={setAttachedKindFilter}
-            testId="organization-storage-attached-filter"
-          />
-        </div>
-        <div className="min-w-[180px]">
-          <MultiSelectFilter
-            label="Status"
-            options={statusOptions}
-            selectedValues={statusFilter}
-            onChange={setStatusFilter}
-            testId="organization-storage-status-filter"
-          />
-        </div>
-      </div>
+      <FilterBar isActive={hasActiveFilters} onClear={clearFilters} testId="organization-storage-filters">
+        <Input
+          className="w-full max-w-xs sm:w-64"
+          placeholder="Search storage volumes..."
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          data-testid="organization-storage-search"
+        />
+        <MultiSelectFilter
+          label="Runner"
+          options={runnerOptions}
+          selectedValues={runnerFilter}
+          onChange={setRunnerFilter}
+          testId="organization-storage-runner-filter"
+        />
+        <MultiSelectFilter
+          label="Attached to"
+          options={VOLUME_ATTACHMENT_OPTIONS}
+          selectedValues={attachedKindFilter}
+          onChange={setAttachedKindFilter}
+          testId="organization-storage-attached-filter"
+        />
+        <MultiSelectFilter
+          label="Status"
+          options={statusOptions}
+          selectedValues={statusFilter}
+          onChange={setStatusFilter}
+          testId="organization-storage-status-filter"
+        />
+      </FilterBar>
       {volumesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading storage volumes...</div> : null}
       {volumesQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load storage.</div> : null}
       {volumes.length === 0 && !volumesQuery.isPending ? (
