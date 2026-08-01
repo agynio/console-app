@@ -161,12 +161,14 @@ export function OrganizationThreadDetailPage() {
   const isThreadLoading = threadQuery.isPending;
   const isThreadError = threadQuery.isError;
 
+  // Only the organization room. Nothing in the platform publishes to
+  // "thread:{id}" -- that room came from platform.v1, and the workload events
+  // below arrive on the organization room.
   const notificationRooms = useMemo(() => {
     const rooms: string[] = [];
     if (organizationId) rooms.push(`organization:${organizationId}`);
-    if (resolvedThreadId) rooms.push(`thread:${resolvedThreadId}`);
     return rooms;
-  }, [organizationId, resolvedThreadId]);
+  }, [organizationId]);
 
   useNotifications({
     events: ['workload.status_changed', 'workload.updated'],

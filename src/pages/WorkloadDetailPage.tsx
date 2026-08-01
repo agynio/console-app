@@ -392,12 +392,13 @@ export function WorkloadDetailPage() {
   const workloadTitle = workload?.meta?.id ? `Workload ${truncate(workload.meta.id, 12)}` : 'Workload';
   useDocumentTitle(workloadTitle);
 
+  // Only the organization room -- see OrganizationThreadDetailPage: no
+  // publisher exists for "thread:{id}".
   const volumeNotificationRooms = useMemo(() => {
     const rooms: string[] = [];
     if (organizationId) rooms.push(`organization:${organizationId}`);
-    if (workload?.threadId) rooms.push(`thread:${workload.threadId}`);
     return rooms;
-  }, [organizationId, workload?.threadId]);
+  }, [organizationId]);
 
   useNotifications({
     events: ['volume.updated'],
