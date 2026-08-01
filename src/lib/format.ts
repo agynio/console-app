@@ -1,5 +1,10 @@
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
-import { AgentAvailability, AgentRole } from '@/gen/agynio/api/agents/v1/agents_pb';
+import {
+  AgentAvailability,
+  AgentDefaultThread,
+  AgentFinalMessage,
+  AgentRole,
+} from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AppVisibility, InstallationAuditLogLevel } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { AuthMethod } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
@@ -195,6 +200,18 @@ export function formatMembershipRole(role?: MembershipRole): string {
 export function formatAgentAvailability(availability?: AgentAvailability): string {
   if (availability === AgentAvailability.INTERNAL) return 'Internal';
   if (availability === AgentAvailability.PRIVATE) return 'Private';
+  return 'Unspecified';
+}
+
+export function formatAgentDefaultThread(value?: AgentDefaultThread): string {
+  if (value === AgentDefaultThread.ORIGIN) return 'Originating thread';
+  if (value === AgentDefaultThread.NONE) return 'None';
+  return 'Unspecified';
+}
+
+export function formatAgentFinalMessage(value?: AgentFinalMessage): string {
+  if (value === AgentFinalMessage.DISCARD) return 'Discard';
+  if (value === AgentFinalMessage.DEFAULT_THREAD) return 'Post to default thread';
   return 'Unspecified';
 }
 

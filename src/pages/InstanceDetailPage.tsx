@@ -162,6 +162,24 @@ export function InstanceDetailPage() {
               </div>
             </div>
             <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Default thread</div>
+              {/* Where this instance's final turn message goes, and the thread it
+                  sends to when it names none. Its class decides whether one is
+                  set at all. */}
+              <div className="text-sm text-foreground" data-testid="instance-detail-default-thread">
+                {instance.defaultThreadId ? (
+                  <NavLink
+                    className="text-primary hover:underline"
+                    to={`/organizations/${organizationId}/threads/${instance.defaultThreadId}`}
+                  >
+                    {truncate(instance.defaultThreadId, 12)}
+                  </NavLink>
+                ) : (
+                  EMPTY_PLACEHOLDER
+                )}
+              </div>
+            </div>
+            <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Last activity</div>
               <div className="text-sm text-foreground">{formatTimestamp(instance.lastActivityAt)}</div>
             </div>
