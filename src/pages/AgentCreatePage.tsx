@@ -8,7 +8,11 @@ import { JsonEditor } from '@/components/JsonEditor';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AgentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
+import {
+  AgentAvailability,
+  AgentDefaultThread,
+  AgentFinalMessage,
+} from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { NO_MODEL } from '@/lib/constants';
 import { GO_DURATION_HELP_TEXT, isValidGoDuration } from '@/lib/duration';
@@ -38,6 +42,8 @@ export function AgentCreatePage() {
   const [idleTimeout, setIdleTimeout] = useState('');
   const [idleTimeoutError, setIdleTimeoutError] = useState('');
   const [availability, setAvailability] = useState<AgentAvailability>(AgentAvailability.INTERNAL);
+  const [defaultThread, setDefaultThread] = useState<AgentDefaultThread>(AgentDefaultThread.ORIGIN);
+  const [finalMessage, setFinalMessage] = useState<AgentFinalMessage>(AgentFinalMessage.DISCARD);
 
   const modelsQuery = useQuery({
     queryKey: ['llm', organizationId, 'models', 'all'],
@@ -75,6 +81,8 @@ export function AgentCreatePage() {
       organizationId: string;
       idleTimeout?: string;
       availability: AgentAvailability;
+      defaultThread: AgentDefaultThread;
+      finalMessage: AgentFinalMessage;
     }) => agentsClient.createAgent(payload),
     onSuccess: (response) => {
       const agentId = response.agent?.meta?.id;
@@ -148,6 +156,8 @@ export function AgentCreatePage() {
       organizationId,
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
       availability,
+      defaultThread,
+      finalMessage,
     });
   };
 
@@ -306,6 +316,46 @@ export function AgentCreatePage() {
                 <SelectItem value={String(AgentAvailability.PRIVATE)}>Private</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-default-thread">Default Thread</Label>
+            <Select
+              value={String(defaultThread)}
+              onValueChange={(value) => setDefaultThread(Number(value) as AgentDefaultThread)}
+            >
+              <SelectTrigger id="agent-create-default-thread" data-testid="agent-create-default-thread">
+                <SelectValue placeholder="Select a default thread" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(AgentDefaultThread.ORIGIN)}>Originating thread</SelectItem>
+                <SelectItem value={String(AgentDefaultThread.NONE)}>None</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Where a new instance's default thread comes from when nobody names one. The originating
+              thread is the one that added the instance — the thread it owes an answer to.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-final-message">Final Message</Label>
+            <Select
+              value={String(finalMessage)}
+              onValueChange={(value) => setFinalMessage(Number(value) as AgentFinalMessage)}
+            >
+              <SelectTrigger id="agent-create-final-message" data-testid="agent-create-final-message">
+                <SelectValue placeholder="Select a final message policy" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(AgentFinalMessage.DISCARD)}>Discard</SelectItem>
+                <SelectItem value={String(AgentFinalMessage.DEFAULT_THREAD)}>
+                  Post to default thread
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              What becomes of the text the agent CLI produces at the end of a turn. Discard it when the
+              agent already sends its own messages, or it posts twice.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="agent-create-idle-timeout">Idle Timeout</Label>
