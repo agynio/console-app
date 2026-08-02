@@ -320,12 +320,6 @@ export function OrganizationActivityWorkloadsTab() {
 
   return (
     <div className="space-y-6" data-testid="organization-activity-workloads">
-      <div className="space-y-2">
-        <h3 className="text-base font-semibold text-foreground">Workloads</h3>
-        <p className="text-sm text-muted-foreground">
-          Real-time view of running agent workloads in the organization.
-        </p>
-      </div>
       <WorkloadsTable
         workloads={workloads}
         query={workloadsQuery}

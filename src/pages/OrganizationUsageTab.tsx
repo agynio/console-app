@@ -780,27 +780,19 @@ export function OrganizationUsageTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4" data-testid="organization-usage-header">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">Usage dashboard</h2>
-          <p className="text-sm text-muted-foreground">
-            Monitor consumption across LLM, compute, storage, and platform activity.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3" data-testid="organization-usage-range-select">
-          <Select value={rangeOption} onValueChange={(value) => setRangeOption(value as RangeOption)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select range" />
-            </SelectTrigger>
-            <SelectContent>
-              {rangeOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="flex flex-wrap items-center gap-3" data-testid="organization-usage-header">
+        <Select value={rangeOption} onValueChange={(value) => setRangeOption(value as RangeOption)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select range" />
+          </SelectTrigger>
+          <SelectContent>
+            {rangeOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {rangeOption === 'custom' ? (
         <div className="flex flex-wrap items-center gap-3" data-testid="organization-usage-custom-range">
