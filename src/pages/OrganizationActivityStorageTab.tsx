@@ -281,12 +281,6 @@ export function OrganizationActivityStorageTab() {
 
   return (
     <div className="space-y-4" data-testid="organization-activity-storage">
-      <div className="space-y-2">
-        <h3 className="text-base font-semibold text-foreground">Storage</h3>
-        <p className="text-sm text-muted-foreground">
-          Real-time view of persistent volumes in use across the organization.
-        </p>
-      </div>
       <FilterBar isActive={hasActiveFilters} onClear={clearFilters} testId="organization-storage-filters">
         <Input
           className="w-full max-w-xs sm:w-64"
