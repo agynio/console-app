@@ -20,7 +20,7 @@ import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
 type NestedInitScriptsDialogProps = {
-  targetCase: 'mcpId' | 'hookId';
+  targetCase: 'mcpId';
   targetId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,9 +54,7 @@ export function NestedInitScriptsDialog({
       if (!targetId) {
         return Promise.reject(new Error('Missing target ID.'));
       }
-      return targetCase === 'mcpId'
-        ? agentsClient.listInitScripts({ mcpId: targetId, pageSize: MAX_PAGE_SIZE, pageToken: '' })
-        : agentsClient.listInitScripts({ hookId: targetId, pageSize: MAX_PAGE_SIZE, pageToken: '' });
+      return agentsClient.listInitScripts({ mcpId: targetId, pageSize: MAX_PAGE_SIZE, pageToken: '' })
     },
     enabled: Boolean(targetId),
     staleTime: 60_000,
@@ -69,7 +67,7 @@ export function NestedInitScriptsDialog({
     mutationFn: (payload: {
       script: string;
       description: string;
-      target: { case: 'mcpId'; value: string } | { case: 'hookId'; value: string };
+      target: { case: 'mcpId'; value: string };
     }) => agentsClient.createInitScript(payload),
     onSuccess: () => {
       toast.success('Init script added.');
@@ -109,10 +107,7 @@ export function NestedInitScriptsDialog({
       return;
     }
 
-    const target =
-      targetCase === 'mcpId'
-        ? ({ case: 'mcpId', value: targetId } as const)
-        : ({ case: 'hookId', value: targetId } as const);
+    const target = { case: 'mcpId', value: targetId } as const;
 
     createInitScriptMutation.mutate({
       script: trimmedScript,

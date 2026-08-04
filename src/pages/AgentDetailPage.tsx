@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AgentConfigurationTab } from '@/pages/agent-detail/AgentConfigurationTab';
 import { AgentRolesSection } from '@/pages/agent-detail/AgentRolesSection';
-import { AgentHooksTab } from '@/pages/agent-detail/AgentHooksTab';
 import { AgentInitScriptsTab } from '@/pages/agent-detail/AgentInitScriptsTab';
 import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
 import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
@@ -85,9 +84,6 @@ export function AgentDetailPage() {
           </section>
           <section data-testid="agent-detail-section-skills">
             <AgentSkillsTab agentId={resolvedAgentId} />
-          </section>
-          <section data-testid="agent-detail-section-hooks">
-            <AgentHooksTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-envs">
             <EnvsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />

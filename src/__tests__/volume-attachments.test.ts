@@ -18,12 +18,11 @@ describe('volume attachment labels', () => {
 
   it('summarizes multiple attachments with a remaining count', () => {
     const summary = summarizeVolumeAttachments([
-      create(AttachmentSchema, { kind: AttachmentKind.HOOK, id: 'hook-1', name: 'Hook B' }),
       create(AttachmentSchema, { kind: AttachmentKind.MCP, id: 'mcp-1', name: 'MCP A' }),
       create(AttachmentSchema, { kind: AttachmentKind.AGENT, id: 'agent-1', name: 'Agent C' }),
     ]);
 
-    expect(summary).toBe('Agent Agent C +2 more');
+    expect(summary).toBe('Agent Agent C +1 more');
   });
 
   it('uses unattached for empty attachments', () => {

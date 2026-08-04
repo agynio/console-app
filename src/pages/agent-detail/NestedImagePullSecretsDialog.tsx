@@ -23,7 +23,7 @@ const EMPTY_ATTACHMENTS: ImagePullSecretAttachment[] = [];
 const EMPTY_SECRETS: ImagePullSecret[] = [];
 
 type NestedImagePullSecretsDialogProps = {
-  targetCase: 'mcpId' | 'hookId';
+  targetCase: 'mcpId';
   targetId: string | null;
   organizationId: string;
   open: boolean;
@@ -57,9 +57,7 @@ export function NestedImagePullSecretsDialog({
       if (!targetId) {
         return Promise.reject(new Error('Missing target ID.'));
       }
-      return targetCase === 'mcpId'
-        ? agentsClient.listImagePullSecretAttachments({ mcpId: targetId, pageSize: MAX_PAGE_SIZE, pageToken: '' })
-        : agentsClient.listImagePullSecretAttachments({ hookId: targetId, pageSize: MAX_PAGE_SIZE, pageToken: '' });
+      return agentsClient.listImagePullSecretAttachments({ mcpId: targetId, pageSize: MAX_PAGE_SIZE, pageToken: '' })
     },
     enabled: Boolean(targetId),
     staleTime: 60_000,
@@ -101,7 +99,7 @@ export function NestedImagePullSecretsDialog({
   const createAttachmentMutation = useMutation({
     mutationFn: (payload: {
       imagePullSecretId: string;
-      target: { case: 'mcpId'; value: string } | { case: 'hookId'; value: string };
+      target: { case: 'mcpId'; value: string };
     }) => agentsClient.createImagePullSecretAttachment(payload),
     onSuccess: () => {
       toast.success('Image pull secret attached.');
@@ -142,10 +140,7 @@ export function NestedImagePullSecretsDialog({
       toast.error('Missing target ID.');
       return;
     }
-    const target =
-      targetCase === 'mcpId'
-        ? ({ case: 'mcpId', value: targetId } as const)
-        : ({ case: 'hookId', value: targetId } as const);
+    const target = { case: 'mcpId', value: targetId } as const;
 
     createAttachmentMutation.mutate({ imagePullSecretId: selectedSecretId, target });
   };

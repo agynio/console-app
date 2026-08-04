@@ -3,11 +3,12 @@ import { EMPTY_PLACEHOLDER } from '@/lib/format';
 
 const UNATTACHED_LABEL = 'Unattached';
 
-const ATTACHMENT_KIND_LABELS: Record<AttachmentKind, string> = {
+// Partial rather than exhaustive: a kind the platform removed still arrives
+// from an older runner, and falls back to the generic label below.
+const ATTACHMENT_KIND_LABELS: Partial<Record<AttachmentKind, string>> = {
   [AttachmentKind.UNSPECIFIED]: 'Attachment',
   [AttachmentKind.AGENT]: 'Agent',
   [AttachmentKind.MCP]: 'MCP',
-  [AttachmentKind.HOOK]: 'Hook',
 };
 
 export const formatVolumeAttachmentLabel = (attachment: Attachment) => {

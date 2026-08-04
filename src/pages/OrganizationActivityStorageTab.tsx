@@ -37,7 +37,6 @@ const VOLUME_STATUS_OPTIONS = [
 const VOLUME_ATTACHMENT_OPTIONS = [
   { value: String(VolumeAttachmentFilterKind.AGENT), label: 'Agent' },
   { value: String(VolumeAttachmentFilterKind.MCP), label: 'MCP' },
-  { value: String(VolumeAttachmentFilterKind.HOOK), label: 'Hook' },
   { value: String(VolumeAttachmentFilterKind.UNATTACHED), label: 'Unattached' },
 ];
 
