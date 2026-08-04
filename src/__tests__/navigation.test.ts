@@ -4,7 +4,7 @@ import { CLUSTER_NAV_GROUPS, ORGANIZATION_NAV_GROUPS, type NavGroup } from '@/la
 const EXPECTED_ORGANIZATION_STRUCTURE: Array<[string, string[]]> = [
   ['Organization', ['Overview', 'Members', 'Groups']],
   ['Agents & Apps', ['Agents', 'Apps']],
-  ['Runtime', ['Environments', 'Volumes', 'Runners']],
+  ['Runtime', ['Images', 'Environments', 'Volumes', 'Runners']],
   ['Networking', ['Private Networks', 'Private Resources', 'Egress Rules']],
   ['LLM', ['Providers', 'Models']],
   ['Credentials', ['Secrets', 'Secret Providers']],
@@ -20,8 +20,8 @@ describe('organization navigation', () => {
     );
   });
 
-  it('has 21 sections and no ungrouped items', () => {
-    expect(sectionsOf(ORGANIZATION_NAV_GROUPS)).toHaveLength(21);
+  it('has 22 sections and no ungrouped items', () => {
+    expect(sectionsOf(ORGANIZATION_NAV_GROUPS)).toHaveLength(22);
   });
 
   it('never repeats a section name in its own group header', () => {

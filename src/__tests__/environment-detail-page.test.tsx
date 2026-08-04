@@ -12,7 +12,6 @@ import {
   EntityMetaSchema as EgressEntityMetaSchema,
 } from '@/gen/agynio/api/egress/v1/egress_pb';
 import {
-  EntityMetaSchema as SecretsEntityMetaSchema,
 } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { EntityMetaSchema as RunnerEntityMetaSchema, RunnerSchema } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
