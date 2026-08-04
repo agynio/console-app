@@ -14,7 +14,6 @@ import {
   LineChartIcon,
   MessageSquareIcon,
   NetworkIcon,
-  PackageIcon,
   PlugIcon,
   ServerIcon,
   ShieldIcon,
@@ -131,14 +130,6 @@ export const ORGANIZATION_NAV_GROUPS: NavGroup[] = [
         path: '/secret-providers',
         icon: VaultIcon,
         testId: 'nav-organization-secret-providers',
-      },
-      {
-        // A registry credential, not a picture: the package reads as the
-        // container image it pulls, and the group header carries the secret.
-        label: 'Image Pull Secrets',
-        path: '/image-pull-secrets',
-        icon: PackageIcon,
-        testId: 'nav-organization-image-pull-secrets',
       },
     ],
   },

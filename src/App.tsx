@@ -18,7 +18,6 @@ import { OrganizationRunnersTab } from '@/pages/OrganizationRunnersTab';
 import { OrganizationSandboxesTab } from '@/pages/OrganizationSandboxesTab';
 import { SandboxDetailPage } from '@/pages/SandboxDetailPage';
 import { OrganizationUsageTab } from '@/pages/OrganizationUsageTab';
-import { OrganizationImagePullSecretsTab } from '@/pages/OrganizationImagePullSecretsTab';
 import { OrganizationSecretProvidersTab } from '@/pages/OrganizationSecretProvidersTab';
 import { OrganizationSecretsTab } from '@/pages/OrganizationSecretsTab';
 import { OrganizationThreadDetailPage } from '@/pages/OrganizationThreadDetailPage';
@@ -101,7 +100,6 @@ export default function App() {
           <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
           <Route path="models" element={<OrganizationModelsTab />} />
           <Route path="secrets" element={<OrganizationSecretsTab />} />
-          <Route path="image-pull-secrets" element={<OrganizationImagePullSecretsTab />} />
           <Route path="secret-providers" element={<OrganizationSecretProvidersTab />} />
           <Route path="runners" element={<OrganizationRunnersTab />} />
           <Route path="runners/:runnerId" element={<RunnerDetailPage />} />

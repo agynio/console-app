@@ -12,7 +12,6 @@ import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
 import { AgentVolumeAttachmentsTab } from '@/pages/agent-detail/AgentVolumeAttachmentsTab';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
-import { ImagePullSecretsTab } from '@/pages/detail-tabs/ImagePullSecretsTab';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { toast } from 'sonner';
 
@@ -80,7 +79,7 @@ export function AgentDetailPage() {
             <AgentRolesSection agentId={resolvedAgentId} organizationId={organizationId} availability={agent.availability} />
           </section>
           <section data-testid="agent-detail-section-mcps">
-            <AgentMcpsTab agentId={resolvedAgentId} organizationId={organizationId} />
+            <AgentMcpsTab agentId={resolvedAgentId} />
           </section>
           <section data-testid="agent-detail-section-skills">
             <AgentSkillsTab agentId={resolvedAgentId} />
@@ -96,9 +95,6 @@ export function AgentDetailPage() {
           </section>
           <section data-testid="agent-detail-section-egress-rules">
             <EgressRuleAttachmentsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
-          </section>
-          <section data-testid="agent-detail-section-image-pull-secrets">
-            <ImagePullSecretsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </section>
         </div>
       ) : null}

@@ -13,7 +13,6 @@ import {
 } from '@/gen/agynio/api/egress/v1/egress_pb';
 import {
   EntityMetaSchema as SecretsEntityMetaSchema,
-  ImagePullSecretSchema,
 } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { EntityMetaSchema as RunnerEntityMetaSchema, RunnerSchema } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -23,14 +22,10 @@ const {
   getEnvironment,
   listEnvs,
   createEnv,
-  listImagePullSecretAttachments,
-  createImagePullSecretAttachment,
 } = vi.hoisted(() => ({
   getEnvironment: vi.fn(),
   listEnvs: vi.fn(),
   createEnv: vi.fn(),
-  listImagePullSecretAttachments: vi.fn(),
-  createImagePullSecretAttachment: vi.fn(),
 }));
 
 const { listEgressRules, listEgressRuleAttachments, createEgressRuleAttachment } = vi.hoisted(() => ({
@@ -39,10 +34,9 @@ const { listEgressRules, listEgressRuleAttachments, createEgressRuleAttachment }
   createEgressRuleAttachment: vi.fn(),
 }));
 
-const { getRunner, listSecrets, listImagePullSecrets } = vi.hoisted(() => ({
+const { getRunner, listSecrets } = vi.hoisted(() => ({
   getRunner: vi.fn(),
   listSecrets: vi.fn(),
-  listImagePullSecrets: vi.fn(),
 }));
 
 vi.mock('@/api/client', () => ({
@@ -50,8 +44,6 @@ vi.mock('@/api/client', () => ({
     getEnvironment,
     listEnvs,
     createEnv,
-    listImagePullSecretAttachments,
-    createImagePullSecretAttachment,
   },
   egressClient: {
     listEgressRules,
@@ -59,7 +51,7 @@ vi.mock('@/api/client', () => ({
     createEgressRuleAttachment,
   },
   runnersClient: { getRunner },
-  secretsClient: { listSecrets, listImagePullSecrets },
+  secretsClient: { listSecrets },
 }));
 
 vi.mock('sonner', () => ({
@@ -110,14 +102,11 @@ describe('EnvironmentDetailPage', () => {
     getEnvironment.mockReset();
     listEnvs.mockReset();
     createEnv.mockReset();
-    listImagePullSecretAttachments.mockReset();
-    createImagePullSecretAttachment.mockReset();
     listEgressRules.mockReset();
     listEgressRuleAttachments.mockReset();
     createEgressRuleAttachment.mockReset();
     getRunner.mockReset();
     listSecrets.mockReset();
-    listImagePullSecrets.mockReset();
 
     getEnvironment.mockResolvedValue({
       environment: create(EnvironmentSchema, {
@@ -149,17 +138,6 @@ describe('EnvironmentDetailPage', () => {
           meta: create(EgressEntityMetaSchema, { id: 'rule-1' }),
           name: 'allow-github',
           matcher: create(EgressRuleMatcherSchema, { domainPattern: '*.github.com' }),
-        }),
-      ],
-      nextPageToken: '',
-    });
-    listImagePullSecretAttachments.mockResolvedValue({ imagePullSecretAttachments: [], nextPageToken: '' });
-    listImagePullSecrets.mockResolvedValue({
-      imagePullSecrets: [
-        create(ImagePullSecretSchema, {
-          meta: create(SecretsEntityMetaSchema, { id: 'ips-1' }),
-          registry: 'ghcr.io',
-          username: 'robot',
         }),
       ],
       nextPageToken: '',
@@ -285,38 +263,4 @@ describe('EnvironmentDetailPage', () => {
     expect(createEgressRuleAttachment.mock.calls[0][0]).not.toHaveProperty('agentId');
   });
 
-  it('attaches an image pull secret targeting the environment', async () => {
-    createImagePullSecretAttachment.mockResolvedValue({});
-
-    renderDetailPage();
-    expect(await screen.findByTestId('environment-detail-card')).toBeTruthy();
-
-    selectTab('environment-detail-image-pull-secrets-tab');
-
-    expect(await screen.findByTestId('environment-image-pull-secrets-empty')).toBeTruthy();
-
-    await waitFor(() => {
-      expect(listImagePullSecretAttachments).toHaveBeenCalledWith({
-        organizationId: 'org-1',
-        environmentId: 'env-1',
-        pageSize: MAX_PAGE_SIZE,
-        pageToken: '',
-      });
-    });
-
-    fireEvent.click(screen.getByTestId('environment-image-pull-secrets-attach'));
-    expect(await screen.findByTestId('environment-image-pull-secrets-attach-dialog')).toBeTruthy();
-
-    const listbox = await openSelect('environment-image-pull-secrets-attach-select');
-    fireEvent.click(within(listbox).getByText('ghcr.io (robot)'));
-
-    fireEvent.click(screen.getByTestId('environment-image-pull-secrets-attach-submit'));
-
-    await waitFor(() => {
-      expect(createImagePullSecretAttachment).toHaveBeenCalledWith({
-        imagePullSecretId: 'ips-1',
-        target: { case: 'environmentId', value: 'env-1' },
-      });
-    });
-  });
 });

@@ -7,7 +7,7 @@ const EXPECTED_ORGANIZATION_STRUCTURE: Array<[string, string[]]> = [
   ['Runtime', ['Environments', 'Volumes', 'Runners']],
   ['Networking', ['Private Networks', 'Private Resources', 'Egress Rules']],
   ['LLM', ['Providers', 'Models']],
-  ['Credentials', ['Secrets', 'Secret Providers', 'Image Pull Secrets']],
+  ['Credentials', ['Secrets', 'Secret Providers']],
   ['Operations', ['Threads', 'Instances', 'Workloads', 'Sandboxes', 'Provisioned Storage', 'Usage']],
 ];
 
@@ -20,8 +20,8 @@ describe('organization navigation', () => {
     );
   });
 
-  it('has 22 sections and no ungrouped items', () => {
-    expect(sectionsOf(ORGANIZATION_NAV_GROUPS)).toHaveLength(22);
+  it('has 21 sections and no ungrouped items', () => {
+    expect(sectionsOf(ORGANIZATION_NAV_GROUPS)).toHaveLength(21);
   });
 
   it('never repeats a section name in its own group header', () => {

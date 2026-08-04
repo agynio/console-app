@@ -7,7 +7,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
-import { ImagePullSecretsTab } from '@/pages/detail-tabs/ImagePullSecretsTab';
 import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { EMPTY_PLACEHOLDER, formatTimestamp } from '@/lib/format';
@@ -147,7 +146,6 @@ export function EnvironmentDetailPage() {
             <EgressRuleAttachmentsTab target={target} organizationId={organizationId} />
           </TabsContent>
           <TabsContent value="image-pull-secrets">
-            <ImagePullSecretsTab target={target} organizationId={organizationId} />
           </TabsContent>
         </Tabs>
       ) : null}
