@@ -74,6 +74,12 @@ service AgentsGateway {
   rpc DeleteSkill(agynio.api.agents.v1.DeleteSkillRequest) returns (agynio.api.agents.v1.DeleteSkillResponse);
   rpc ListSkills(agynio.api.agents.v1.ListSkillsRequest) returns (agynio.api.agents.v1.ListSkillsResponse);
 
+  // --- Hooks ---
+  rpc CreateHook(agynio.api.agents.v1.CreateHookRequest) returns (agynio.api.agents.v1.CreateHookResponse) { option deprecated = true; }
+  rpc GetHook(agynio.api.agents.v1.GetHookRequest) returns (agynio.api.agents.v1.GetHookResponse) { option deprecated = true; }
+  rpc UpdateHook(agynio.api.agents.v1.UpdateHookRequest) returns (agynio.api.agents.v1.UpdateHookResponse) { option deprecated = true; }
+  rpc DeleteHook(agynio.api.agents.v1.DeleteHookRequest) returns (agynio.api.agents.v1.DeleteHookResponse) { option deprecated = true; }
+  rpc ListHooks(agynio.api.agents.v1.ListHooksRequest) returns (agynio.api.agents.v1.ListHooksResponse) { option deprecated = true; }
 
   // --- Envs ---
   rpc CreateEnv(agynio.api.agents.v1.CreateEnvRequest) returns (agynio.api.agents.v1.CreateEnvResponse);
@@ -89,4 +95,9 @@ service AgentsGateway {
   rpc DeleteInitScript(agynio.api.agents.v1.DeleteInitScriptRequest) returns (agynio.api.agents.v1.DeleteInitScriptResponse);
   rpc ListInitScripts(agynio.api.agents.v1.ListInitScriptsRequest) returns (agynio.api.agents.v1.ListInitScriptsResponse);
 
+  // --- Image Pull Secret Attachments (no Update - immutable) ---
+  rpc CreateImagePullSecretAttachment(agynio.api.agents.v1.CreateImagePullSecretAttachmentRequest) returns (agynio.api.agents.v1.CreateImagePullSecretAttachmentResponse) { option deprecated = true; }
+  rpc GetImagePullSecretAttachment(agynio.api.agents.v1.GetImagePullSecretAttachmentRequest) returns (agynio.api.agents.v1.GetImagePullSecretAttachmentResponse) { option deprecated = true; }
+  rpc DeleteImagePullSecretAttachment(agynio.api.agents.v1.DeleteImagePullSecretAttachmentRequest) returns (agynio.api.agents.v1.DeleteImagePullSecretAttachmentResponse) { option deprecated = true; }
+  rpc ListImagePullSecretAttachments(agynio.api.agents.v1.ListImagePullSecretAttachmentsRequest) returns (agynio.api.agents.v1.ListImagePullSecretAttachmentsResponse) { option deprecated = true; }
 }
