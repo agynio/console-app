@@ -5,6 +5,9 @@ import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ImagePicker } from '@/components/ImagePicker';
+import { ImageVersionPicker } from '@/components/ImageVersionPicker';
+import { ImageType } from '@/gen/agynio/api/images/v1/images_pb';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { ComputeResources, Mcp } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { useImageRef } from '@/hooks/useImageRef';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -28,13 +32,15 @@ import { toast } from 'sonner';
 
 type AgentMcpsTabProps = {
   agentId: string;
+  organizationId: string;
 };
 
-export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
+export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
-  const [createImage, setCreateImage] = useState('');
+  const [createImageId, setCreateImageId] = useState('');
+  const [createImageTag, setCreateImageTag] = useState('');
   const [createCommand, setCreateCommand] = useState('');
   const [createDescription, setCreateDescription] = useState('');
   const [createResources, setCreateResources] = useState<ComputeResources | undefined>(undefined);
@@ -43,7 +49,8 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [editMcpId, setEditMcpId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editImage, setEditImage] = useState('');
+  const [editImageId, setEditImageId] = useState('');
+  const [editImageTag, setEditImageTag] = useState('');
   const [editCommand, setEditCommand] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editResources, setEditResources] = useState<ComputeResources | undefined>(undefined);
@@ -61,18 +68,19 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   });
 
   const mcps = mcpsQuery.data?.mcps ?? [];
+  const imageRef = useImageRef(organizationId);
   const listControls = useListControls({
     items: mcps,
     searchFields: [
       (mcp) => mcp.name,
       (mcp) => mcp.description,
-      (mcp) => mcp.image,
+      (mcp) => imageRef(mcp.imageId, mcp.imageTag, mcp.image),
       (mcp) => mcp.command,
       (mcp) => formatDateOnly(mcp.meta?.createdAt),
     ],
     sortOptions: {
       name: (mcp) => mcp.name,
-      image: (mcp) => mcp.image,
+      image: (mcp) => imageRef(mcp.imageId, mcp.imageTag, mcp.image),
       command: (mcp) => mcp.command,
       created: (mcp) => timestampToMillis(mcp.meta?.createdAt),
     },
@@ -86,7 +94,8 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
     mutationFn: (payload: {
       agentId: string;
       name: string;
-      image: string;
+      imageId: string;
+      imageTag: string;
       command: string;
       description: string;
       resources?: ComputeResources;
@@ -96,7 +105,8 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
       void queryClient.invalidateQueries({ queryKey: ['mcps', agentId, 'list'] });
       setCreateOpen(false);
       setCreateName('');
-      setCreateImage('');
+      setCreateImageId('');
+      setCreateImageTag('');
       setCreateCommand('');
       setCreateDescription('');
       setCreateResources(undefined);
@@ -111,7 +121,8 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   const updateMcpMutation = useMutation({
     mutationFn: (payload: {
       id: string;
-      image?: string;
+      imageId?: string;
+      imageTag?: string;
       command?: string;
       description?: string;
       resources?: ComputeResources;
@@ -141,18 +152,18 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
 
   const handleCreate = () => {
     const trimmedName = createName.trim();
-    const trimmedImage = createImage.trim();
     if (!trimmedName) {
       setCreateNameError('Name is required.');
     }
-    if (!trimmedImage) {
-      setCreateImageError('Image is required.');
+    if (!createImageId || !createImageTag) {
+      setCreateImageError('Image and version are required.');
     }
-    if (!trimmedName || !trimmedImage) return;
+    if (!trimmedName || !createImageId || !createImageTag) return;
     createMcpMutation.mutate({
       agentId,
       name: trimmedName,
-      image: trimmedImage,
+      imageId: createImageId,
+      imageTag: createImageTag,
       command: createCommand.trim(),
       description: createDescription.trim(),
       resources: createResources,
@@ -167,7 +178,8 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
     }
     setEditMcpId(mcpId);
     setEditName(mcp.name);
-    setEditImage(mcp.image);
+    setEditImageId(mcp.imageId);
+    setEditImageTag(mcp.imageTag);
     setEditCommand(mcp.command);
     setEditDescription(mcp.description);
     setEditResources(mcp.resources ?? undefined);
@@ -176,9 +188,8 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
   };
 
   const handleEditSave = () => {
-    const trimmedImage = editImage.trim();
-    if (!trimmedImage) {
-      setEditImageError('Image is required.');
+    if (!editImageId || !editImageTag) {
+      setEditImageError('Image and version are required.');
       return;
     }
     if (!editMcpId) {
@@ -187,7 +198,8 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
     }
     updateMcpMutation.mutate({
       id: editMcpId,
-      image: trimmedImage,
+      imageId: editImageId,
+      imageTag: editImageTag,
       command: editCommand.trim(),
       description: editDescription.trim(),
       resources: editResources,
@@ -226,7 +238,8 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
     if (!open) {
       setEditMcpId(null);
       setEditName('');
-      setEditImage('');
+      setEditImageId('');
+      setEditImageTag('');
       setEditCommand('');
       setEditDescription('');
       setEditResources(undefined);
@@ -332,7 +345,7 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground" data-testid="agent-mcp-image">
-                    {mcp.image || '—'}
+                    {imageRef(mcp.imageId, mcp.imageTag, mcp.image)}
                   </span>
                   <span className="text-xs text-muted-foreground" data-testid="agent-mcp-command">
                     {truncate(mcp.command)}
@@ -356,11 +369,6 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleInitOpen(mcp)} data-testid="agent-mcp-init-scripts">
                           Init Scripts
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          data-testid="agent-mcp-image-pull-secrets"
-                        >
-                          Image Pull Secrets
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleDeleteOpen(mcp)} data-testid="agent-mcp-delete">
                           Delete
@@ -399,16 +407,29 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
               {createNameError && <p className="text-sm text-destructive">{createNameError}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-mcps-create-image">Image</Label>
-              <Input
-                id="agent-mcps-create-image"
-                value={createImage}
-                onChange={(event) => {
-                  setCreateImage(event.target.value);
+              <ImagePicker
+                organizationId={organizationId}
+                types={[ImageType.MCP, ImageType.WORKSPACE]}
+                value={createImageId}
+                onChange={(imageId) => {
+                  setCreateImageId(imageId);
+                  setCreateImageTag('');
                   if (createImageError) setCreateImageError('');
                 }}
-                data-testid="agent-mcps-create-image"
+                label="Image"
+                testIdPrefix="agent-mcps-create"
               />
+              {createImageId ? (
+                <ImageVersionPicker
+                  imageId={createImageId}
+                  value={createImageTag}
+                  onChange={(tag) => {
+                    setCreateImageTag(tag);
+                    if (createImageError) setCreateImageError('');
+                  }}
+                  testIdPrefix="agent-mcps-create"
+                />
+              ) : null}
               {createImageError && <p className="text-sm text-destructive">{createImageError}</p>}
             </div>
             <div className="space-y-2">
@@ -470,16 +491,29 @@ export function AgentMcpsTab({ agentId }: AgentMcpsTabProps) {
               <Input id="agent-mcps-edit-name" value={editName} disabled data-testid="agent-mcps-edit-name" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-mcps-edit-image">Image</Label>
-              <Input
-                id="agent-mcps-edit-image"
-                value={editImage}
-                onChange={(event) => {
-                  setEditImage(event.target.value);
+              <ImagePicker
+                organizationId={organizationId}
+                types={[ImageType.MCP, ImageType.WORKSPACE]}
+                value={editImageId}
+                onChange={(imageId) => {
+                  setEditImageId(imageId);
+                  setEditImageTag('');
                   if (editImageError) setEditImageError('');
                 }}
-                data-testid="agent-mcps-edit-image"
+                label="Image"
+                testIdPrefix="agent-mcps-edit"
               />
+              {editImageId ? (
+                <ImageVersionPicker
+                  imageId={editImageId}
+                  value={editImageTag}
+                  onChange={(tag) => {
+                    setEditImageTag(tag);
+                    if (editImageError) setEditImageError('');
+                  }}
+                  testIdPrefix="agent-mcps-edit"
+                />
+              ) : null}
               {editImageError && <p className="text-sm text-destructive">{editImageError}</p>}
             </div>
             <div className="space-y-2">

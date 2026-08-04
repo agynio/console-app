@@ -79,7 +79,7 @@ export function AgentDetailPage() {
             <AgentRolesSection agentId={resolvedAgentId} organizationId={organizationId} availability={agent.availability} />
           </section>
           <section data-testid="agent-detail-section-mcps">
-            <AgentMcpsTab agentId={resolvedAgentId} />
+            <AgentMcpsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-skills">
             <AgentSkillsTab agentId={resolvedAgentId} />
