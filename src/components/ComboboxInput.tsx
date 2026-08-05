@@ -119,12 +119,15 @@ export function ComboboxInput({
                 key={option.value}
                 type="button"
                 data-testid={testId ? `${testId}-option-${option.value}` : undefined}
-                className="flex w-full flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-left text-sm transition hover:bg-accent hover:text-accent-foreground"
+                className="flex w-full min-w-0 flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-left text-sm transition hover:bg-accent hover:text-accent-foreground"
                 onClick={() => select(option)}
               >
-                <span>{option.label}</span>
+                {/* A value can be longer than the field it fills - a tag naming
+                    a commit, say - so it truncates rather than widening the
+                    list past its anchor. */}
+                <span className="w-full truncate">{option.label}</span>
                 {option.description ? (
-                  <span className="text-xs text-muted-foreground">{option.description}</span>
+                  <span className="w-full truncate text-xs text-muted-foreground">{option.description}</span>
                 ) : null}
               </button>
             ))

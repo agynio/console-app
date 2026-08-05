@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { imagesClient } from '@/api/client';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ComboboxInput } from '@/components/ComboboxInput';
 import { type ImageType, ImageVisibility, type Image } from '@/gen/agynio/api/images/v1/images_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 
@@ -18,16 +18,15 @@ type ImagePickerProps = {
   testIdPrefix: string;
 };
 
-const imageLabel = (image: Image, organizationId: string) => {
-  const parts = [image.name];
+// What the name alone does not say. A public image from another organization is
+// usable but not yours, and stored versions are still served while a registry is
+// unreachable - which explains a tag list that looks behind.
+const imageDescription = (image: Image, organizationId: string) => {
+  const parts: string[] = [];
   if (image.description?.trim()) parts.push(image.description.trim());
-  // A public image from another organization is usable but not yours, and the
-  // list is the only place that difference is visible.
   if (image.visibility === ImageVisibility.PUBLIC && image.organizationId !== organizationId) {
-    parts.push('shared');
+    parts.push(`shared by ${image.organizationSlug}`);
   }
-  // Stored versions are still served while a registry is unreachable; saying so
-  // explains why the tag list may be behind.
   if (image.staleSince) parts.push('registry unreachable');
   return parts.join(' · ');
 };
@@ -66,21 +65,28 @@ export function ImagePicker({
 
   const images = useMemo(() => listed.data ?? [], [listed.data]);
 
+  // The field shows a name; the caller stores an id. A typed name that matches
+  // nothing clears the selection rather than inventing one.
+  const selectedName = images.find((image) => image.meta?.id === value)?.name ?? '';
+  const idForName = (name: string) =>
+    images.find((image) => image.name === name)?.meta?.id ?? '';
+
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger className="w-full" data-testid={`${testIdPrefix}-image-trigger`}>
-          <SelectValue placeholder={listed.isPending ? 'Loading images…' : 'Select an image'} />
-        </SelectTrigger>
-        <SelectContent className="max-h-72 w-[var(--radix-select-trigger-width)]">
-          {images.map((image) => (
-            <SelectItem key={image.meta?.id} value={image.meta?.id ?? ''}>
-              <span className="block truncate">{imageLabel(image, organizationId)}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <ComboboxInput
+        value={selectedName}
+        onValueChange={(name) => onChange(idForName(name))}
+        options={images.map((image) => ({
+          value: image.name,
+          label: image.name,
+          description: imageDescription(image, organizationId),
+        }))}
+        disabled={disabled}
+        placeholder={listed.isPending ? 'Loading images…' : 'Select an image'}
+        emptyMessage={listed.isPending ? 'Loading images…' : 'No matching image'}
+        data-testid={`${testIdPrefix}-image`}
+      />
       {!listed.isPending && images.length === 0 ? (
         <p className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-image-empty`}>
           No images of this type are available. Register one under Runtime → Images.

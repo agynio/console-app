@@ -1,7 +1,7 @@
 import { create } from '@bufbuild/protobuf';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import {
   EntityMetaSchema as ImageEntityMetaSchema,
   ImageSchema,
@@ -89,14 +89,13 @@ describe('AgentMcpsTab image selection', () => {
       target: { value: 'github' },
     });
 
-    fireEvent.click(screen.getByTestId('agent-mcps-create-image-trigger'));
-    const listbox = await screen.findByRole('listbox');
-    fireEvent.click(within(listbox).getByText('mcp-github'));
+    fireEvent.click(screen.getByTestId('agent-mcps-create-image-toggle'));
+    fireEvent.click(await screen.findByTestId('agent-mcps-create-image-option-mcp-github'));
 
     // The version picker preselects the newest tag, so no second choice is
     // needed for the common case.
     await waitFor(() =>
-      expect(screen.getByTestId('agent-mcps-create-version-trigger').textContent).toContain('2.0.0'),
+      expect((screen.getByTestId('agent-mcps-create-version') as HTMLInputElement).value).toBe('2.0.0'),
     );
 
     fireEvent.click(screen.getByTestId('agent-mcps-create-submit'));

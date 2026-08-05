@@ -114,10 +114,12 @@ async function openSelect(testId: string) {
 // Choosing the workspace image also settles its version: the picker preselects
 // the newest tag, which is the whole point of not typing a reference by hand.
 async function pickWorkspaceImage(prefix = 'organization-environments-create') {
-  const listbox = await openSelect(`${prefix}-workspace-image-trigger`);
-  fireEvent.click(within(listbox).getByText('devcontainer-go'));
+  fireEvent.click(screen.getByTestId(`${prefix}-workspace-image-toggle`));
+  fireEvent.click(await screen.findByTestId(`${prefix}-workspace-image-option-devcontainer-go`));
   await waitFor(() => {
-    expect(screen.getByTestId(`${prefix}-workspace-version-picker`)).toBeTruthy();
+    expect(
+      (screen.getByTestId(`${prefix}-workspace-version`) as HTMLInputElement).value,
+    ).toBe('1.2.0');
   });
 }
 
