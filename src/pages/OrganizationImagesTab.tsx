@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { imagesClient } from '@/api/client';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ImageType,
   ImageVisibility,
@@ -26,6 +27,19 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatDateOnly } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
+
+const ALL_TYPES = 'all';
+
+// A public image owned elsewhere is usable here but not yours; the owner's name
+// is what makes that legible, so it is shown as <owner>/<image>.
+const imageLabel = (image: Image, organizationId: string) => {
+  if (image.organizationId === organizationId) return image.name;
+  // organization_name is resolved on read by the images service. Read
+  // defensively so a Gateway that predates the field shows the image rather
+  // than an owner named "undefined".
+  const owner = (image as { organizationName?: string }).organizationName?.trim();
+  return owner ? `${owner}/${image.name}` : image.name;
+};
 
 const TYPE_LABELS: Partial<Record<ImageType, string>> = {
   [ImageType.WORKSPACE]: 'Workspace',
@@ -64,6 +78,7 @@ export function OrganizationImagesTab() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [values, setValues] = useState<RegisterValues>(emptyValues);
   const [pendingDelete, setPendingDelete] = useState<Image | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>(ALL_TYPES);
 
   const listed = useQuery({
     queryKey: ['images', organizationId, 'all'],
@@ -73,6 +88,18 @@ export function OrganizationImagesTab() {
   });
 
   const images = useMemo(() => listed.data?.images ?? [], [listed.data]);
+
+  // ListImages returns the organization's own images plus every public image on
+  // the platform, so the split is by owner rather than by a second request.
+  const { own, shared } = useMemo(() => {
+    const filtered = images.filter(
+      (image) => typeFilter === ALL_TYPES || String(image.type) === typeFilter,
+    );
+    return {
+      own: filtered.filter((image) => image.organizationId === organizationId),
+      shared: filtered.filter((image) => image.organizationId !== organizationId),
+    };
+  }, [images, organizationId, typeFilter]);
 
   const registerMutation = useMutation({
     mutationFn: (input: RegisterValues) =>
@@ -110,97 +137,110 @@ export function OrganizationImagesTab() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  return (
-    <div className="space-y-4" data-testid="organization-images">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Images</h2>
-          <p className="text-sm text-muted-foreground">
-            Register an image once; its versions are read from the upstream repository.
+  const table = (rows: Image[], emptyText: string, testId: string) => (
+    <Card className="border-border">
+      <CardContent className="px-0">
+        {listed.isPending ? (
+          <p className="px-6 py-6 text-sm text-muted-foreground">Loading images...</p>
+        ) : rows.length === 0 ? (
+          <p className="px-6 py-6 text-sm text-muted-foreground" data-testid={`${testId}-empty`}>
+            {emptyText}
           </p>
-        </div>
-        <Button onClick={() => setRegisterOpen(true)} data-testid="images-register-open">
-          Register image
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <th className="px-6 py-4 font-medium">Name</th>
+                <th className="p-3 font-medium">Type</th>
+                <th className="p-3 font-medium">Repository</th>
+                <th className="p-3 font-medium">Discovery</th>
+                <th className="p-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((image) => {
+                const id = image.meta?.id ?? '';
+                return (
+                  <tr key={id} className="border-b" data-testid={`image-row-${image.name}`}>
+                    <td className="px-6 py-4">
+                      <NavLink
+                        to={`/organizations/${organizationId}/images/${id}`}
+                        className="font-medium hover:underline"
+                        data-testid={`image-link-${image.name}`}
+                      >
+                        {imageLabel(image, organizationId)}
+                      </NavLink>
+                      {image.description ? (
+                        <div className="text-muted-foreground">{image.description}</div>
+                      ) : null}
+                    </td>
+                    <td className="p-3">{TYPE_LABELS[image.type] ?? '—'}</td>
+                    <td className="p-3 font-mono text-xs">{image.repository}</td>
+                    <td className="p-3">
+                      {image.staleSince ? (
+                        <span data-testid="image-stale">Registry unreachable</span>
+                      ) : image.lastDiscoveryAt ? (
+                        formatDateOnly(image.lastDiscoveryAt)
+                      ) : (
+                        'Pending'
+                      )}
+                    </td>
+                    <td className="p-3 text-right">
+                      {image.organizationId === organizationId ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPendingDelete(image)}
+                          data-testid={`image-delete-${image.name}`}
+                        >
+                          Delete
+                        </Button>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-6" data-testid="organization-images">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="max-w-[220px]" data-testid="images-type-filter">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_TYPES}>All types</SelectItem>
+            <SelectItem value={String(ImageType.WORKSPACE)}>Workspace</SelectItem>
+            <SelectItem value={String(ImageType.AGENT_RUNTIME)}>Agent runtime</SelectItem>
+            <SelectItem value={String(ImageType.MCP)}>MCP</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={() => setRegisterOpen(true)} data-testid="images-register-open">
+          Add image
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {listed.isPending ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-          ) : images.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground" data-testid="images-empty">
-              No images yet.
-            </p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="p-3 font-medium">Name</th>
-                  <th className="p-3 font-medium">Type</th>
-                  <th className="p-3 font-medium">Repository</th>
-                  <th className="p-3 font-medium">Visibility</th>
-                  <th className="p-3 font-medium">Discovery</th>
-                  <th className="p-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {images.map((image) => {
-                  const foreign = image.organizationId !== organizationId;
-                  return (
-                    <tr key={image.meta?.id} className="border-b" data-testid={`image-row-${image.name}`}>
-                      <td className="p-3">
-                        <div className="font-medium">{image.name}</div>
-                        {image.description ? (
-                          <div className="text-muted-foreground">{image.description}</div>
-                        ) : null}
-                      </td>
-                      <td className="p-3">{TYPE_LABELS[image.type] ?? '—'}</td>
-                      <td className="p-3 font-mono text-xs">{image.repository}</td>
-                      <td className="p-3">
-                        {image.visibility === ImageVisibility.PUBLIC ? 'Public' : 'Internal'}
-                        {/* A public image from elsewhere is usable but not
-                            yours to edit. */}
-                        {foreign ? (
-                          <span className="ml-2 text-muted-foreground" data-testid="image-foreign">
-                            shared from another organization
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="p-3">
-                        {image.staleSince ? (
-                          <span data-testid="image-stale">
-                            Registry unreachable
-                            {image.lastDiscoveryAt
-                              ? ` · last succeeded ${formatDateOnly(image.lastDiscoveryAt)}`
-                              : ''}
-                          </span>
-                        ) : image.lastDiscoveryAt ? (
-                          formatDateOnly(image.lastDiscoveryAt)
-                        ) : (
-                          'Pending'
-                        )}
-                      </td>
-                      <td className="p-3 text-right">
-                        {foreign ? null : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setPendingDelete(image)}
-                            data-testid={`image-delete-${image.name}`}
-                          >
-                            Delete
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="own">
+        <TabsList>
+          <TabsTrigger value="own" data-testid="images-tab-own">
+            This organization
+          </TabsTrigger>
+          {/* Public images owned elsewhere: usable here, not editable here. */}
+          <TabsTrigger value="shared" data-testid="images-tab-discover">
+            Discover
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="own">{table(own, 'No images yet.', 'images')}</TabsContent>
+        <TabsContent value="shared">
+          {table(shared, 'No organization is sharing an image.', 'images-shared')}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
         <DialogContent>

@@ -66,16 +66,19 @@ functions:
                     sleep 1; elapsed=$((elapsed + 1))
                     [ "$elapsed" -ge 120 ] && { echo "ERROR: sync timeout" >&2; exit 1; }
                   done
-                  # npm defaults its cache to the home of the image's user,
-                  # which this container does not run as.
-                  export npm_config_cache=/opt/app/data/.npm-cache
                   npm ci --no-audit --no-fund
                   # The port the Service already targets, so the ingress and
                   # every URL the browser was handed keep working.
                   exec npx vite --host 0.0.0.0 --port 3000
               env:
+                # Anything generated has to land outside the synced tree: the
+                # sync is bidirectional, so a cache written next to the source
+                # is copied back onto the developer's machine. npm alone puts
+                # ~90MB there.
                 - name: HOME
-                  value: /opt/app/data
+                  value: /tmp
+                - name: npm_config_cache
+                  value: /tmp/npm-cache
               resources:
                 # The released container is nginx serving a build and is sized
                 # for it; installing dependencies and running Vite is a
