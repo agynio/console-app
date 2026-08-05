@@ -1,9 +1,9 @@
-import * as React from 'react';
-import { ChevronDownIcon } from 'lucide-react';
-import { Popover as PopoverPrimitive } from 'radix-ui';
+import * as React from "react";
+import { ChevronDownIcon } from "lucide-react";
+import { Popover as PopoverPrimitive } from "radix-ui";
 
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export type ComboboxOption = {
   value: string;
@@ -23,7 +23,7 @@ type ComboboxInputProps = {
   // itself belongs here rather than beside the field, where it would appear
   // and shift the form around it.
   footer?: React.ReactNode;
-  'data-testid'?: string;
+  "data-testid"?: string;
 };
 
 /**
@@ -41,10 +41,10 @@ export function ComboboxInput({
   onValueChange,
   options,
   placeholder,
-  emptyMessage = 'No options available',
+  emptyMessage = "No options available",
   disabled,
   footer,
-  'data-testid': testId,
+  "data-testid": testId,
 }: ComboboxInputProps) {
   const [open, setOpen] = React.useState(false);
   // Filtering applies to what someone is typing, not to what they picked. A
@@ -53,13 +53,30 @@ export function ComboboxInput({
   const [typing, setTyping] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const fieldRef = React.useRef<HTMLDivElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
+
+  // A dialog's scroll lock cancels wheel events outside its own subtree, and
+  // this list is portalled out of it so it can float clear of the dialog's
+  // overflow. Scrolling it is therefore explicit rather than the browser's.
+  React.useEffect(() => {
+    const list = listRef.current;
+    if (!open || !list) return;
+    const onWheel = (event: WheelEvent) => {
+      if (list.scrollHeight <= list.clientHeight) return;
+      event.preventDefault();
+      list.scrollTop += event.deltaY;
+    };
+    list.addEventListener("wheel", onWheel, { passive: false });
+    return () => list.removeEventListener("wheel", onWheel);
+  }, [open]);
 
   const query = value.trim().toLowerCase();
   const visible =
     typing && query
       ? options.filter(
           (option) =>
-            option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query),
+            option.label.toLowerCase().includes(query) ||
+            option.value.toLowerCase().includes(query),
         )
       : options;
 
@@ -101,7 +118,7 @@ export function ComboboxInput({
               setOpen(true);
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Escape') {
+              if (event.key === "Escape") {
                 setOpen(false);
               }
             }}
@@ -123,51 +140,64 @@ export function ComboboxInput({
           <ChevronDownIcon className="h-4 w-4" />
         </button>
       </div>
-      {/* Deliberately not portalled. Every use of this is inside a dialog, and
-          a dialog's scroll lock only permits scrolling within its own subtree -
-          a portalled list renders outside it and cannot be scrolled at all. */}
-      <PopoverPrimitive.Content
-        align="start"
-        sideOffset={4}
-        // The list is a suggestion surface, not a modal: focus stays in the
-        // input so typing is never interrupted by opening it. That leaves
-        // focus outside the content, which Radix would otherwise read as a
-        // dismissal - opening on focus would close again in the same tick.
-        onOpenAutoFocus={(event) => event.preventDefault()}
-        onFocusOutside={(event) => {
-          if (fieldRef.current?.contains(event.target as Node)) event.preventDefault();
-        }}
-        onPointerDownOutside={(event) => {
-          if (fieldRef.current?.contains(event.target as Node)) event.preventDefault();
-        }}
-        className={cn(
-          'z-50 max-h-60 w-[var(--radix-popover-trigger-width)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md',
-        )}
-        style={{ width: 'var(--radix-popover-anchor-width)' }}
+      {/* Portalled so a dialog's overflow cannot clip it. That puts it outside
+          the dialog's scroll lock, which permits scrolling only within its own
+          subtree - hence the wheel handler below. */}
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          ref={listRef}
+          align="start"
+          sideOffset={4}
+          // The list is a suggestion surface, not a modal: focus stays in the
+          // input so typing is never interrupted by opening it. That leaves
+          // focus outside the content, which Radix would otherwise read as a
+          // dismissal - opening on focus would close again in the same tick.
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onFocusOutside={(event) => {
+            if (fieldRef.current?.contains(event.target as Node))
+              event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (fieldRef.current?.contains(event.target as Node))
+              event.preventDefault();
+          }}
+          className={cn(
+            "z-50 max-h-60 w-[var(--radix-popover-trigger-width)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md",
+          )}
+          style={{ width: "var(--radix-popover-anchor-width)" }}
         >
-        {visible.length === 0 ? (
-          <p className="px-2 py-1.5 text-sm text-muted-foreground">{emptyMessage}</p>
-        ) : (
-          visible.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              data-testid={testId ? `${testId}-option-${option.value}` : undefined}
-              className="flex w-full min-w-0 flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-left text-sm transition hover:bg-accent hover:text-accent-foreground"
-              onClick={() => select(option)}
-            >
-              {/* A value can be longer than the field it fills - a tag naming
-                  a commit, say - so it truncates rather than widening the
-                  list past its anchor. */}
-              <span className="w-full truncate">{option.label}</span>
-              {option.description ? (
-                <span className="w-full truncate text-xs text-muted-foreground">{option.description}</span>
-              ) : null}
-            </button>
-          ))
-        )}
-        {footer ? <div className="mt-1 border-t border-border pt-1">{footer}</div> : null}
-      </PopoverPrimitive.Content>
+          {visible.length === 0 ? (
+            <p className="px-2 py-1.5 text-sm text-muted-foreground">
+              {emptyMessage}
+            </p>
+          ) : (
+            visible.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                data-testid={
+                  testId ? `${testId}-option-${option.value}` : undefined
+                }
+                className="flex w-full min-w-0 flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-left text-sm transition hover:bg-accent hover:text-accent-foreground"
+                onClick={() => select(option)}
+              >
+                {/* A value can be longer than the field it fills - a tag naming
+                    a commit, say - so it truncates rather than widening the
+                    list past its anchor. */}
+                <span className="w-full truncate">{option.label}</span>
+                {option.description ? (
+                  <span className="w-full truncate text-xs text-muted-foreground">
+                    {option.description}
+                  </span>
+                ) : null}
+              </button>
+            ))
+          )}
+          {footer ? (
+            <div className="mt-1 border-t border-border pt-1">{footer}</div>
+          ) : null}
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>
   );
 }
