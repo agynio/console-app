@@ -155,6 +155,10 @@ dev:
               - .devspace/
               - node_modules/
               - dist/
+              # Generated in the container from the deployment's own variables.
+              # Syncing the repo's placeholder over it leaves the console with
+              # no OIDC settings and stuck on its loading screen.
+              - public/env.js
         logs:
           enabled: true
           lastLines: 200
