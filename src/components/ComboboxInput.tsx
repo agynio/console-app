@@ -47,6 +47,7 @@ export function ComboboxInput({
   // option and leave nothing to switch to.
   const [typing, setTyping] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const fieldRef = React.useRef<HTMLDivElement>(null);
 
   const query = value.trim().toLowerCase();
   const visible =
@@ -66,7 +67,7 @@ export function ComboboxInput({
 
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-      <div className="relative">
+      <div ref={fieldRef} className="relative">
         <PopoverPrimitive.Anchor asChild>
           <Input
             id={id}
@@ -113,8 +114,16 @@ export function ComboboxInput({
           align="start"
           sideOffset={4}
           // The list is a suggestion surface, not a modal: focus stays in the
-          // input so typing is never interrupted by opening it.
+          // input so typing is never interrupted by opening it. That leaves
+          // focus outside the content, which Radix would otherwise read as a
+          // dismissal - opening on focus would close again in the same tick.
           onOpenAutoFocus={(event) => event.preventDefault()}
+          onFocusOutside={(event) => {
+            if (fieldRef.current?.contains(event.target as Node)) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (fieldRef.current?.contains(event.target as Node)) event.preventDefault();
+          }}
           className={cn(
             'z-50 max-h-60 w-[var(--radix-popover-trigger-width)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md',
           )}
