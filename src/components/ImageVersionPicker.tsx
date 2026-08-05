@@ -17,14 +17,19 @@ type ImageVersionPickerProps = {
   testIdPrefix: string;
 };
 
-const versionLabel = (version: ImageVersion) => {
-  // A tag is not a bare string: its push time and description are what make a
-  // row readable.
-  const pushed = version.pushedAt ? formatDateOnly(version.pushedAt) : '';
-  const description = version.description?.trim();
-  const suffix = [pushed, description].filter(Boolean).join(' · ');
-  return suffix ? `${version.tag} — ${suffix}` : version.tag;
-};
+// A tag carries a push time worth showing, but a sha- or tmp- tag is long
+// enough to set the width of whatever contains it, so the tag is truncated and
+// the date sits beside it rather than being appended to one long line.
+function VersionRow({ version }: { version: ImageVersion }) {
+  return (
+    <span className="flex w-full items-baseline justify-between gap-3">
+      <span className="truncate font-mono text-xs">{version.tag}</span>
+      {version.pushedAt ? (
+        <span className="shrink-0 text-xs text-muted-foreground">{formatDateOnly(version.pushedAt)}</span>
+      ) : null}
+    </span>
+  );
+}
 
 /**
  * Selects a tag within an image. Opening it refreshes the image, so a tag
@@ -67,16 +72,20 @@ export function ImageVersionPicker({
     <div className="space-y-2" data-testid={`${testIdPrefix}-version-picker`}>
       <Label>Version</Label>
       <Select value={value} onValueChange={onChange} disabled={disabled || !imageId}>
-        <SelectTrigger data-testid={`${testIdPrefix}-version-trigger`}>
+        <SelectTrigger className="w-full" data-testid={`${testIdPrefix}-version-trigger`}>
           <SelectValue placeholder={refreshed.isPending ? 'Loading versions…' : 'Select a version'} />
         </SelectTrigger>
-        <SelectContent>
+        {/* Bounded to the trigger's width and to a scrollable height: a
+            repository publishes far more tags than fit a dialog. */}
+        <SelectContent className="max-h-72 w-[var(--radix-select-trigger-width)]">
           {missingCurrent ? (
-            <SelectItem value={value}>{value} — not currently listed upstream</SelectItem>
+            <SelectItem value={value}>
+              <span className="truncate font-mono text-xs">{value}</span>
+            </SelectItem>
           ) : null}
           {shown.map((version) => (
             <SelectItem key={version.tag} value={version.tag}>
-              {versionLabel(version)}
+              <VersionRow version={version} />
             </SelectItem>
           ))}
         </SelectContent>

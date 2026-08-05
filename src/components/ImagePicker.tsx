@@ -70,13 +70,13 @@ export function ImagePicker({
     <div className="space-y-2">
       <Label>{label}</Label>
       <Select value={value} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger data-testid={`${testIdPrefix}-image-trigger`}>
+        <SelectTrigger className="w-full" data-testid={`${testIdPrefix}-image-trigger`}>
           <SelectValue placeholder={listed.isPending ? 'Loading images…' : 'Select an image'} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-72 w-[var(--radix-select-trigger-width)]">
           {images.map((image) => (
             <SelectItem key={image.meta?.id} value={image.meta?.id ?? ''}>
-              {imageLabel(image, organizationId)}
+              <span className="block truncate">{imageLabel(image, organizationId)}</span>
             </SelectItem>
           ))}
         </SelectContent>
