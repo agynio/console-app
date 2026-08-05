@@ -123,50 +123,51 @@ export function ComboboxInput({
           <ChevronDownIcon className="h-4 w-4" />
         </button>
       </div>
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          align="start"
-          sideOffset={4}
-          // The list is a suggestion surface, not a modal: focus stays in the
-          // input so typing is never interrupted by opening it. That leaves
-          // focus outside the content, which Radix would otherwise read as a
-          // dismissal - opening on focus would close again in the same tick.
-          onOpenAutoFocus={(event) => event.preventDefault()}
-          onFocusOutside={(event) => {
-            if (fieldRef.current?.contains(event.target as Node)) event.preventDefault();
-          }}
-          onPointerDownOutside={(event) => {
-            if (fieldRef.current?.contains(event.target as Node)) event.preventDefault();
-          }}
-          className={cn(
-            'z-50 max-h-60 w-[var(--radix-popover-trigger-width)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md',
-          )}
-          style={{ width: 'var(--radix-popover-anchor-width)' }}
+      {/* Deliberately not portalled. Every use of this is inside a dialog, and
+          a dialog's scroll lock only permits scrolling within its own subtree -
+          a portalled list renders outside it and cannot be scrolled at all. */}
+      <PopoverPrimitive.Content
+        align="start"
+        sideOffset={4}
+        // The list is a suggestion surface, not a modal: focus stays in the
+        // input so typing is never interrupted by opening it. That leaves
+        // focus outside the content, which Radix would otherwise read as a
+        // dismissal - opening on focus would close again in the same tick.
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        onFocusOutside={(event) => {
+          if (fieldRef.current?.contains(event.target as Node)) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          if (fieldRef.current?.contains(event.target as Node)) event.preventDefault();
+        }}
+        className={cn(
+          'z-50 max-h-60 w-[var(--radix-popover-trigger-width)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md',
+        )}
+        style={{ width: 'var(--radix-popover-anchor-width)' }}
         >
-          {visible.length === 0 ? (
-            <p className="px-2 py-1.5 text-sm text-muted-foreground">{emptyMessage}</p>
-          ) : (
-            visible.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                data-testid={testId ? `${testId}-option-${option.value}` : undefined}
-                className="flex w-full min-w-0 flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-left text-sm transition hover:bg-accent hover:text-accent-foreground"
-                onClick={() => select(option)}
-              >
-                {/* A value can be longer than the field it fills - a tag naming
-                    a commit, say - so it truncates rather than widening the
-                    list past its anchor. */}
-                <span className="w-full truncate">{option.label}</span>
-                {option.description ? (
-                  <span className="w-full truncate text-xs text-muted-foreground">{option.description}</span>
-                ) : null}
-              </button>
-            ))
-          )}
-          {footer ? <div className="mt-1 border-t border-border pt-1">{footer}</div> : null}
-        </PopoverPrimitive.Content>
-      </PopoverPrimitive.Portal>
+        {visible.length === 0 ? (
+          <p className="px-2 py-1.5 text-sm text-muted-foreground">{emptyMessage}</p>
+        ) : (
+          visible.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              data-testid={testId ? `${testId}-option-${option.value}` : undefined}
+              className="flex w-full min-w-0 flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-left text-sm transition hover:bg-accent hover:text-accent-foreground"
+              onClick={() => select(option)}
+            >
+              {/* A value can be longer than the field it fills - a tag naming
+                  a commit, say - so it truncates rather than widening the
+                  list past its anchor. */}
+              <span className="w-full truncate">{option.label}</span>
+              {option.description ? (
+                <span className="w-full truncate text-xs text-muted-foreground">{option.description}</span>
+              ) : null}
+            </button>
+          ))
+        )}
+        {footer ? <div className="mt-1 border-t border-border pt-1">{footer}</div> : null}
+      </PopoverPrimitive.Content>
     </PopoverPrimitive.Root>
   );
 }
