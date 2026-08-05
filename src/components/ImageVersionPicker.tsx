@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { imagesClient } from '@/api/client';
-import { Button } from '@/components/ui/button';
 import { ComboboxInput, type ComboboxOption } from '@/components/ComboboxInput';
 import type { ImageVersion } from '@/gen/agynio/api/images/v1/images_pb';
 import { formatDateOnly } from '@/lib/format';
@@ -77,20 +76,23 @@ export function ImageVersionPicker({
         disabled={disabled || !imageId}
         placeholder={refreshed.isPending ? 'Loading versions…' : 'Select or type a version'}
         emptyMessage={refreshed.isPending ? 'Loading versions…' : 'No matching version'}
+        // Inside the list: revealing the rest is about the list, and a button
+        // beside the field would appear the moment an image is chosen and push
+        // everything below it down.
+        footer={
+          hasReleases && other.length > 0 && !showAll ? (
+            <button
+              type="button"
+              className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+              onClick={() => setShowAll(true)}
+              data-testid={`${testIdPrefix}-show-all-tags`}
+            >
+              Show all tags ({other.length})
+            </button>
+          ) : null
+        }
         data-testid={`${testIdPrefix}-version`}
       />
-
-      {hasReleases && other.length > 0 && !showAll ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowAll(true)}
-          data-testid={`${testIdPrefix}-show-all-tags`}
-        >
-          Show all tags ({other.length})
-        </Button>
-      ) : null}
     </div>
   );
 }

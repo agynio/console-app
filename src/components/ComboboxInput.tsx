@@ -19,6 +19,10 @@ type ComboboxInputProps = {
   placeholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
+  // Rendered under the options, inside the list. Anything acting on the list
+  // itself belongs here rather than beside the field, where it would appear
+  // and shift the form around it.
+  footer?: React.ReactNode;
   'data-testid'?: string;
 };
 
@@ -39,6 +43,7 @@ export function ComboboxInput({
   placeholder,
   emptyMessage = 'No options available',
   disabled,
+  footer,
   'data-testid': testId,
 }: ComboboxInputProps) {
   const [open, setOpen] = React.useState(false);
@@ -159,6 +164,7 @@ export function ComboboxInput({
               </button>
             ))
           )}
+          {footer ? <div className="mt-1 border-t border-border pt-1">{footer}</div> : null}
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>

@@ -148,6 +148,29 @@ describe('AgentMcpsTab image selection', () => {
     expect(screen.queryByTestId('agent-mcps-create-show-all-tags')).toBeNull();
   });
 
+  // The button lives in the list rather than beside the field, so choosing an
+  // image cannot push the rest of the form down.
+  it('reveals the non-semver tags from inside the list', async () => {
+    refreshImage.mockResolvedValue({
+      versions: [
+        create(ImageVersionSchema, { tag: '2.0.0' }),
+        create(ImageVersionSchema, { tag: 'sha-8ff09f8' }),
+      ],
+    });
+    renderTab();
+    fireEvent.click(await screen.findByTestId('agent-mcps-create'));
+
+    fireEvent.click(screen.getByTestId('agent-mcps-create-image-toggle'));
+    fireEvent.click(await screen.findByTestId('agent-mcps-create-image-option-mcp-github'));
+
+    fireEvent.focus(screen.getByTestId('agent-mcps-create-version'));
+    expect(await screen.findByTestId('agent-mcps-create-version-option-2.0.0')).toBeTruthy();
+    expect(screen.queryByTestId('agent-mcps-create-version-option-sha-8ff09f8')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('agent-mcps-create-show-all-tags'));
+    expect(await screen.findByTestId('agent-mcps-create-version-option-sha-8ff09f8')).toBeTruthy();
+  });
+
   it('creates an MCP from a catalog image and version rather than a typed reference', async () => {
     renderTab();
     fireEvent.click(await screen.findByTestId('agent-mcps-create'));
