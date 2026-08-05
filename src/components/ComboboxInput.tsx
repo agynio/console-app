@@ -53,22 +53,25 @@ export function ComboboxInput({
   const [typing, setTyping] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const fieldRef = React.useRef<HTMLDivElement>(null);
-  const listRef = React.useRef<HTMLDivElement>(null);
+  const detachWheel = React.useRef<(() => void) | null>(null);
 
   // A dialog's scroll lock cancels wheel events outside its own subtree, and
-  // this list is portalled out of it so it can float clear of the dialog's
-  // overflow. Scrolling it is therefore explicit rather than the browser's.
-  React.useEffect(() => {
-    const list = listRef.current;
-    if (!open || !list) return;
+  // this list is portalled out of it so nothing clips it. Its own listener runs
+  // first - the lock only prevents the default - so scrolling is applied here.
+  // Attached as the node mounts: Radix mounts the content after the state that
+  // opens it, so an effect keyed on that state finds no node.
+  const attachList = React.useCallback((node: HTMLDivElement | null) => {
+    detachWheel.current?.();
+    detachWheel.current = null;
+    if (!node) return;
     const onWheel = (event: WheelEvent) => {
-      if (list.scrollHeight <= list.clientHeight) return;
+      if (node.scrollHeight <= node.clientHeight) return;
       event.preventDefault();
-      list.scrollTop += event.deltaY;
+      node.scrollTop += event.deltaY;
     };
-    list.addEventListener("wheel", onWheel, { passive: false });
-    return () => list.removeEventListener("wheel", onWheel);
-  }, [open]);
+    node.addEventListener('wheel', onWheel, { passive: false });
+    detachWheel.current = () => node.removeEventListener('wheel', onWheel);
+  }, []);
 
   const query = value.trim().toLowerCase();
   const visible =
@@ -145,7 +148,7 @@ export function ComboboxInput({
           subtree - hence the wheel handler below. */}
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
-          ref={listRef}
+          ref={attachList}
           align="start"
           sideOffset={4}
           // The list is a suggestion surface, not a modal: focus stays in the
