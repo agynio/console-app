@@ -56,7 +56,8 @@ const emptyValues: RegisterValues = {
 };
 
 export function OrganizationImagesTab() {
-  const { organizationId = '' } = useParams();
+  // The route is organizations/:id; the param is not named organizationId.
+  const { id: organizationId = '' } = useParams();
   const queryClient = useQueryClient();
   useDocumentTitle('Images');
 
