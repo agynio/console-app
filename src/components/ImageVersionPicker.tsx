@@ -63,7 +63,11 @@ export function ImageVersionPicker({
     if (preselected) onChange(preselected);
   }, [imageId, value, versions, onChange]);
 
-  const shown = showAll ? [...release, ...other] : release;
+  // Semver tags are the list and everything else sits behind "show all" - but
+  // a repository that publishes no semver at all would then offer nothing, so
+  // there is nothing to hold back.
+  const hasReleases = release.length > 0;
+  const shown = showAll || !hasReleases ? [...release, ...other] : release;
 
   return (
     <div className="space-y-2" data-testid={`${testIdPrefix}-version-picker`}>
@@ -78,7 +82,7 @@ export function ImageVersionPicker({
         data-testid={`${testIdPrefix}-version`}
       />
 
-      {other.length > 0 && !showAll ? (
+      {hasReleases && other.length > 0 && !showAll ? (
         <Button
           type="button"
           variant="ghost"

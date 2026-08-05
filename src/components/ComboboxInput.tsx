@@ -58,10 +58,15 @@ export function ComboboxInput({
         )
       : options;
 
+  // Focus returns to the input after a selection so the field stays usable,
+  // which would otherwise re-open the list through onFocus in the same tick.
+  const justSelected = React.useRef(false);
+
   const select = (option: ComboboxOption) => {
     onValueChange(option.value);
     setTyping(false);
     setOpen(false);
+    justSelected.current = true;
     inputRef.current?.focus();
   };
 
@@ -83,6 +88,10 @@ export function ComboboxInput({
               setOpen(true);
             }}
             onFocus={() => {
+              if (justSelected.current) {
+                justSelected.current = false;
+                return;
+              }
               setTyping(false);
               setOpen(true);
             }}
