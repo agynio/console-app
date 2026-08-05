@@ -7,15 +7,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
-import { ImagePullSecretsTab } from '@/pages/detail-tabs/ImagePullSecretsTab';
 import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useImageRef } from '@/hooks/useImageRef';
 import { EMPTY_PLACEHOLDER, formatTimestamp } from '@/lib/format';
 
 export function EnvironmentDetailPage() {
   const { id: organizationIdParam, environmentId: environmentIdParam } = useParams();
   const organizationId = organizationIdParam ?? '';
   const environmentId = environmentIdParam ?? '';
+  const imageRef = useImageRef(organizationId);
 
   const environmentQuery = useQuery({
     queryKey: ['environments', environmentId, 'detail'],
@@ -80,9 +81,6 @@ export function EnvironmentDetailPage() {
             <TabsTrigger value="egress-rules" data-testid="environment-detail-egress-rules-tab">
               Egress Rules
             </TabsTrigger>
-            <TabsTrigger value="image-pull-secrets" data-testid="environment-detail-image-pull-secrets-tab">
-              Image Pull Secrets
-            </TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
             <Card className="border-border" data-testid="environment-detail-card">
@@ -90,7 +88,8 @@ export function EnvironmentDetailPage() {
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">Details</h3>
                   <p className="text-sm text-muted-foreground">
-                    The image, runner and flavor sandboxes start with. Edit these from the Environments list.
+                    The images, runner and flavor workloads start with. Edit these from the Environments
+                    list.
                   </p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -107,9 +106,28 @@ export function EnvironmentDetailPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Image</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Workspace image</div>
                     <div className="text-sm break-all text-foreground" data-testid="environment-detail-image">
-                      {environment.image || EMPTY_PLACEHOLDER}
+                      {imageRef(
+                        environment.workspaceImageId,
+                        environment.workspaceImageTag,
+                        environment.image,
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Agent runtime image
+                    </div>
+                    <div
+                      className="text-sm break-all text-foreground"
+                      data-testid="environment-detail-agent-runtime-image"
+                    >
+                      {/* Empty makes this workspace-only: usable by a sandbox,
+                          rejected when creating an agent. */}
+                      {environment.agentRuntimeImageId
+                        ? imageRef(environment.agentRuntimeImageId, environment.agentRuntimeImageTag)
+                        : 'Not set — workspace only'}
                     </div>
                   </div>
                   <div>
@@ -145,9 +163,6 @@ export function EnvironmentDetailPage() {
           </TabsContent>
           <TabsContent value="egress-rules">
             <EgressRuleAttachmentsTab target={target} organizationId={organizationId} />
-          </TabsContent>
-          <TabsContent value="image-pull-secrets">
-            <ImagePullSecretsTab target={target} organizationId={organizationId} />
           </TabsContent>
         </Tabs>
       ) : null}

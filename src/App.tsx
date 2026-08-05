@@ -18,7 +18,6 @@ import { OrganizationRunnersTab } from '@/pages/OrganizationRunnersTab';
 import { OrganizationSandboxesTab } from '@/pages/OrganizationSandboxesTab';
 import { SandboxDetailPage } from '@/pages/SandboxDetailPage';
 import { OrganizationUsageTab } from '@/pages/OrganizationUsageTab';
-import { OrganizationImagePullSecretsTab } from '@/pages/OrganizationImagePullSecretsTab';
 import { OrganizationSecretProvidersTab } from '@/pages/OrganizationSecretProvidersTab';
 import { OrganizationSecretsTab } from '@/pages/OrganizationSecretsTab';
 import { OrganizationThreadDetailPage } from '@/pages/OrganizationThreadDetailPage';
@@ -26,6 +25,8 @@ import { OrganizationThreadsTab } from '@/pages/OrganizationThreadsTab';
 import { OrganizationVolumesTab } from '@/pages/OrganizationVolumesTab';
 import { OrganizationEgressRulesTab } from '@/pages/OrganizationEgressRulesTab';
 import { OrganizationEnvironmentsTab } from '@/pages/OrganizationEnvironmentsTab';
+import { ImageDetailPage } from '@/pages/ImageDetailPage';
+import { OrganizationImagesTab } from '@/pages/OrganizationImagesTab';
 import { EnvironmentDetailPage } from '@/pages/EnvironmentDetailPage';
 import { OrganizationGroupsPage } from '@/pages/OrganizationGroupsPage';
 import { OrganizationGroupDetailPage } from '@/pages/OrganizationGroupDetailPage';
@@ -89,6 +90,8 @@ export default function App() {
           <Route path="agents" element={<OrganizationAgentsTab />} />
           <Route path="volumes" element={<OrganizationVolumesTab />} />
           <Route path="volumes/:volumeId" element={<VolumeDetailPage />} />
+          <Route path="images" element={<OrganizationImagesTab />} />
+          <Route path="images/:imageId" element={<ImageDetailPage />} />
           <Route path="environments" element={<OrganizationEnvironmentsTab />} />
           <Route path="environments/:environmentId" element={<EnvironmentDetailPage />} />
           <Route path="egress-rules" element={<OrganizationEgressRulesTab />} />
@@ -101,7 +104,6 @@ export default function App() {
           <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
           <Route path="models" element={<OrganizationModelsTab />} />
           <Route path="secrets" element={<OrganizationSecretsTab />} />
-          <Route path="image-pull-secrets" element={<OrganizationImagePullSecretsTab />} />
           <Route path="secret-providers" element={<OrganizationSecretProvidersTab />} />
           <Route path="runners" element={<OrganizationRunnersTab />} />
           <Route path="runners/:runnerId" element={<RunnerDetailPage />} />

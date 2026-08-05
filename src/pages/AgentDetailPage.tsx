@@ -6,14 +6,12 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AgentConfigurationTab } from '@/pages/agent-detail/AgentConfigurationTab';
 import { AgentRolesSection } from '@/pages/agent-detail/AgentRolesSection';
-import { AgentHooksTab } from '@/pages/agent-detail/AgentHooksTab';
 import { AgentInitScriptsTab } from '@/pages/agent-detail/AgentInitScriptsTab';
 import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
 import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
 import { AgentVolumeAttachmentsTab } from '@/pages/agent-detail/AgentVolumeAttachmentsTab';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
-import { ImagePullSecretsTab } from '@/pages/detail-tabs/ImagePullSecretsTab';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { toast } from 'sonner';
 
@@ -86,9 +84,6 @@ export function AgentDetailPage() {
           <section data-testid="agent-detail-section-skills">
             <AgentSkillsTab agentId={resolvedAgentId} />
           </section>
-          <section data-testid="agent-detail-section-hooks">
-            <AgentHooksTab agentId={resolvedAgentId} organizationId={organizationId} />
-          </section>
           <section data-testid="agent-detail-section-envs">
             <EnvsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </section>
@@ -100,9 +95,6 @@ export function AgentDetailPage() {
           </section>
           <section data-testid="agent-detail-section-egress-rules">
             <EgressRuleAttachmentsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
-          </section>
-          <section data-testid="agent-detail-section-image-pull-secrets">
-            <ImagePullSecretsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </section>
         </div>
       ) : null}

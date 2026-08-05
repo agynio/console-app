@@ -4,10 +4,10 @@ import { CLUSTER_NAV_GROUPS, ORGANIZATION_NAV_GROUPS, type NavGroup } from '@/la
 const EXPECTED_ORGANIZATION_STRUCTURE: Array<[string, string[]]> = [
   ['Organization', ['Overview', 'Members', 'Groups']],
   ['Agents & Apps', ['Agents', 'Apps']],
-  ['Runtime', ['Environments', 'Volumes', 'Runners']],
+  ['Runtime', ['Images', 'Environments', 'Volumes', 'Runners']],
   ['Networking', ['Private Networks', 'Private Resources', 'Egress Rules']],
   ['LLM', ['Providers', 'Models']],
-  ['Credentials', ['Secrets', 'Secret Providers', 'Image Pull Secrets']],
+  ['Credentials', ['Secrets', 'Secret Providers']],
   ['Operations', ['Threads', 'Instances', 'Workloads', 'Sandboxes', 'Provisioned Storage', 'Usage']],
 ];
 

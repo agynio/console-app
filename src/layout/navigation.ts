@@ -6,6 +6,7 @@ import {
   BuildingIcon,
   CableIcon,
   ContainerIcon,
+  LayersIcon,
   CpuIcon,
   DatabaseIcon,
   HardDriveIcon,
@@ -14,7 +15,6 @@ import {
   LineChartIcon,
   MessageSquareIcon,
   NetworkIcon,
-  PackageIcon,
   PlugIcon,
   ServerIcon,
   ShieldIcon,
@@ -86,6 +86,7 @@ export const ORGANIZATION_NAV_GROUPS: NavGroup[] = [
     label: 'Runtime',
     testId: 'nav-group-runtime',
     sections: [
+      { label: 'Images', path: '/images', icon: LayersIcon, testId: 'nav-organization-images' },
       { label: 'Environments', path: '/environments', icon: ContainerIcon, testId: 'nav-organization-environments' },
       { label: 'Volumes', path: '/volumes', icon: HardDriveIcon, testId: 'nav-organization-volumes' },
       { label: 'Runners', path: '/runners', icon: ServerIcon, testId: 'nav-organization-runners' },
@@ -131,14 +132,6 @@ export const ORGANIZATION_NAV_GROUPS: NavGroup[] = [
         path: '/secret-providers',
         icon: VaultIcon,
         testId: 'nav-organization-secret-providers',
-      },
-      {
-        // A registry credential, not a picture: the package reads as the
-        // container image it pulls, and the group header carries the secret.
-        label: 'Image Pull Secrets',
-        path: '/image-pull-secrets',
-        icon: PackageIcon,
-        testId: 'nav-organization-image-pull-secrets',
       },
     ],
   },

@@ -5,6 +5,8 @@ import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ImageSelector } from '@/components/ImageSelector';
+import { ImageType } from '@/gen/agynio/api/images/v1/images_pb';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,11 +21,11 @@ import {
 } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { ComputeResources, Mcp } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { useImageRef } from '@/hooks/useImageRef';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { NestedEnvsDialog } from '@/pages/agent-detail/NestedEnvsDialog';
-import { NestedImagePullSecretsDialog } from '@/pages/agent-detail/NestedImagePullSecretsDialog';
 import { NestedInitScriptsDialog } from '@/pages/agent-detail/NestedInitScriptsDialog';
 import { toast } from 'sonner';
 
@@ -36,7 +38,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
-  const [createImage, setCreateImage] = useState('');
+  const [createImageId, setCreateImageId] = useState('');
+  const [createImageTag, setCreateImageTag] = useState('');
   const [createCommand, setCreateCommand] = useState('');
   const [createDescription, setCreateDescription] = useState('');
   const [createResources, setCreateResources] = useState<ComputeResources | undefined>(undefined);
@@ -45,14 +48,14 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [editMcpId, setEditMcpId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editImage, setEditImage] = useState('');
+  const [editImageId, setEditImageId] = useState('');
+  const [editImageTag, setEditImageTag] = useState('');
   const [editCommand, setEditCommand] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editResources, setEditResources] = useState<ComputeResources | undefined>(undefined);
   const [editImageError, setEditImageError] = useState('');
   const [envTargetId, setEnvTargetId] = useState<string | null>(null);
   const [initTargetId, setInitTargetId] = useState<string | null>(null);
-  const [imagePullSecretsTargetId, setImagePullSecretsTargetId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const mcpsQuery = useQuery({
@@ -64,18 +67,19 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   });
 
   const mcps = mcpsQuery.data?.mcps ?? [];
+  const imageRef = useImageRef(organizationId);
   const listControls = useListControls({
     items: mcps,
     searchFields: [
       (mcp) => mcp.name,
       (mcp) => mcp.description,
-      (mcp) => mcp.image,
+      (mcp) => imageRef(mcp.imageId, mcp.imageTag, mcp.image),
       (mcp) => mcp.command,
       (mcp) => formatDateOnly(mcp.meta?.createdAt),
     ],
     sortOptions: {
       name: (mcp) => mcp.name,
-      image: (mcp) => mcp.image,
+      image: (mcp) => imageRef(mcp.imageId, mcp.imageTag, mcp.image),
       command: (mcp) => mcp.command,
       created: (mcp) => timestampToMillis(mcp.meta?.createdAt),
     },
@@ -89,7 +93,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     mutationFn: (payload: {
       agentId: string;
       name: string;
-      image: string;
+      imageId: string;
+      imageTag: string;
       command: string;
       description: string;
       resources?: ComputeResources;
@@ -99,7 +104,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
       void queryClient.invalidateQueries({ queryKey: ['mcps', agentId, 'list'] });
       setCreateOpen(false);
       setCreateName('');
-      setCreateImage('');
+      setCreateImageId('');
+      setCreateImageTag('');
       setCreateCommand('');
       setCreateDescription('');
       setCreateResources(undefined);
@@ -114,7 +120,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   const updateMcpMutation = useMutation({
     mutationFn: (payload: {
       id: string;
-      image?: string;
+      imageId?: string;
+      imageTag?: string;
       command?: string;
       description?: string;
       resources?: ComputeResources;
@@ -144,18 +151,18 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
 
   const handleCreate = () => {
     const trimmedName = createName.trim();
-    const trimmedImage = createImage.trim();
     if (!trimmedName) {
       setCreateNameError('Name is required.');
     }
-    if (!trimmedImage) {
-      setCreateImageError('Image is required.');
+    if (!createImageId || !createImageTag) {
+      setCreateImageError('Image and version are required.');
     }
-    if (!trimmedName || !trimmedImage) return;
+    if (!trimmedName || !createImageId || !createImageTag) return;
     createMcpMutation.mutate({
       agentId,
       name: trimmedName,
-      image: trimmedImage,
+      imageId: createImageId,
+      imageTag: createImageTag,
       command: createCommand.trim(),
       description: createDescription.trim(),
       resources: createResources,
@@ -170,7 +177,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     }
     setEditMcpId(mcpId);
     setEditName(mcp.name);
-    setEditImage(mcp.image);
+    setEditImageId(mcp.imageId);
+    setEditImageTag(mcp.imageTag);
     setEditCommand(mcp.command);
     setEditDescription(mcp.description);
     setEditResources(mcp.resources ?? undefined);
@@ -179,9 +187,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   };
 
   const handleEditSave = () => {
-    const trimmedImage = editImage.trim();
-    if (!trimmedImage) {
-      setEditImageError('Image is required.');
+    if (!editImageId || !editImageTag) {
+      setEditImageError('Image and version are required.');
       return;
     }
     if (!editMcpId) {
@@ -190,7 +197,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     }
     updateMcpMutation.mutate({
       id: editMcpId,
-      image: trimmedImage,
+      imageId: editImageId,
+      imageTag: editImageTag,
       command: editCommand.trim(),
       description: editDescription.trim(),
       resources: editResources,
@@ -215,15 +223,6 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     setInitTargetId(mcpId);
   };
 
-  const handleImagePullSecretsOpen = (mcp: Mcp) => {
-    const mcpId = mcp.meta?.id;
-    if (!mcpId) {
-      toast.error('Missing MCP ID.');
-      return;
-    }
-    setImagePullSecretsTargetId(mcpId);
-  };
-
   const handleDeleteOpen = (mcp: Mcp) => {
     const mcpId = mcp.meta?.id;
     if (!mcpId) {
@@ -238,7 +237,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     if (!open) {
       setEditMcpId(null);
       setEditName('');
-      setEditImage('');
+      setEditImageId('');
+      setEditImageTag('');
       setEditCommand('');
       setEditDescription('');
       setEditResources(undefined);
@@ -255,12 +255,6 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   const handleInitOpenChange = (open: boolean) => {
     if (!open) {
       setInitTargetId(null);
-    }
-  };
-
-  const handleImagePullSecretsOpenChange = (open: boolean) => {
-    if (!open) {
-      setImagePullSecretsTargetId(null);
     }
   };
 
@@ -350,7 +344,7 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground" data-testid="agent-mcp-image">
-                    {mcp.image || '—'}
+                    {imageRef(mcp.imageId, mcp.imageTag, mcp.image)}
                   </span>
                   <span className="text-xs text-muted-foreground" data-testid="agent-mcp-command">
                     {truncate(mcp.command)}
@@ -374,12 +368,6 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleInitOpen(mcp)} data-testid="agent-mcp-init-scripts">
                           Init Scripts
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => handleImagePullSecretsOpen(mcp)}
-                          data-testid="agent-mcp-image-pull-secrets"
-                        >
-                          Image Pull Secrets
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleDeleteOpen(mcp)} data-testid="agent-mcp-delete">
                           Delete
@@ -418,15 +406,18 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
               {createNameError && <p className="text-sm text-destructive">{createNameError}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-mcps-create-image">Image</Label>
-              <Input
-                id="agent-mcps-create-image"
-                value={createImage}
-                onChange={(event) => {
-                  setCreateImage(event.target.value);
+              <ImageSelector
+                organizationId={organizationId}
+                types={[ImageType.MCP, ImageType.WORKSPACE]}
+                label="Image"
+                imageId={createImageId}
+                imageTag={createImageTag}
+                onChange={(imageId, imageTag) => {
+                  setCreateImageId(imageId);
+                  setCreateImageTag(imageTag);
                   if (createImageError) setCreateImageError('');
                 }}
-                data-testid="agent-mcps-create-image"
+                testIdPrefix="agent-mcps-create"
               />
               {createImageError && <p className="text-sm text-destructive">{createImageError}</p>}
             </div>
@@ -489,15 +480,18 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
               <Input id="agent-mcps-edit-name" value={editName} disabled data-testid="agent-mcps-edit-name" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="agent-mcps-edit-image">Image</Label>
-              <Input
-                id="agent-mcps-edit-image"
-                value={editImage}
-                onChange={(event) => {
-                  setEditImage(event.target.value);
+              <ImageSelector
+                organizationId={organizationId}
+                types={[ImageType.MCP, ImageType.WORKSPACE]}
+                label="Image"
+                imageId={editImageId}
+                imageTag={editImageTag}
+                onChange={(imageId, imageTag) => {
+                  setEditImageId(imageId);
+                  setEditImageTag(imageTag);
                   if (editImageError) setEditImageError('');
                 }}
-                data-testid="agent-mcps-edit-image"
+                testIdPrefix="agent-mcps-edit"
               />
               {editImageError && <p className="text-sm text-destructive">{editImageError}</p>}
             </div>
@@ -562,16 +556,6 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
         onOpenChange={handleInitOpenChange}
         title="Init Scripts"
         description="Manage MCP init scripts."
-      />
-
-      <NestedImagePullSecretsDialog
-        targetCase="mcpId"
-        targetId={imagePullSecretsTargetId}
-        organizationId={organizationId}
-        open={Boolean(imagePullSecretsTargetId)}
-        onOpenChange={handleImagePullSecretsOpenChange}
-        title="Image Pull Secrets"
-        description="Manage MCP image pull secrets."
       />
 
       <ConfirmDialog

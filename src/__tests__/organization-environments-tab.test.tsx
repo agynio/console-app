@@ -12,6 +12,12 @@ import {
   RunnerSchema,
   RunnerStatus,
 } from '@/gen/agynio/api/runners/v1/runners_pb';
+import {
+  EntityMetaSchema as ImageEntityMetaSchema,
+  ImageSchema,
+  ImageType,
+  ImageVersionSchema,
+} from '@/gen/agynio/api/images/v1/images_pb';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { OrganizationEnvironmentsTab } from '@/pages/OrganizationEnvironmentsTab';
 
@@ -27,6 +33,11 @@ const { listRunners, listFlavors } = vi.hoisted(() => ({
   listFlavors: vi.fn(),
 }));
 
+const { listImages, refreshImage } = vi.hoisted(() => ({
+  listImages: vi.fn(),
+  refreshImage: vi.fn(),
+}));
+
 vi.mock('@/api/client', () => ({
   agentsClient: {
     listEnvironments,
@@ -37,6 +48,10 @@ vi.mock('@/api/client', () => ({
   runnersClient: {
     listRunners,
     listFlavors,
+  },
+  imagesClient: {
+    listImages,
+    refreshImage,
   },
 }));
 
@@ -50,13 +65,15 @@ vi.mock('sonner', () => ({
 function buildEnvironment({
   id,
   name,
-  image,
+  workspaceImageId = 'image-1',
+  workspaceImageTag = '1.2.0',
   runnerId,
   flavor,
 }: {
   id: string;
   name: string;
-  image: string;
+  workspaceImageId?: string;
+  workspaceImageTag?: string;
   runnerId: string;
   flavor: string;
 }) {
@@ -64,7 +81,8 @@ function buildEnvironment({
     meta: create(EntityMetaSchema, { id }),
     organizationId: 'org-1',
     name,
-    image,
+    workspaceImageId,
+    workspaceImageTag,
     runnerId,
     flavor,
   });
@@ -93,6 +111,18 @@ async function openSelect(testId: string) {
   return screen.findByRole('listbox');
 }
 
+// Choosing the workspace image also settles its version: the picker preselects
+// the newest tag, which is the whole point of not typing a reference by hand.
+async function pickWorkspaceImage(prefix = 'organization-environments-create') {
+  fireEvent.click(screen.getByTestId(`${prefix}-workspace-image-toggle`));
+  fireEvent.click(await screen.findByTestId(`${prefix}-workspace-image-option-devcontainer-go`));
+  await waitFor(() => {
+    expect(
+      (screen.getByTestId(`${prefix}-workspace-version`) as HTMLInputElement).value,
+    ).toBe('1.2.0');
+  });
+}
+
 describe('OrganizationEnvironmentsTab', () => {
   beforeAll(() => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -109,20 +139,41 @@ describe('OrganizationEnvironmentsTab', () => {
     deleteEnvironment.mockReset();
     listRunners.mockReset();
     listFlavors.mockReset();
+    listImages.mockReset();
+    refreshImage.mockReset();
+
+    listImages.mockResolvedValue({
+      images: [
+        create(ImageSchema, {
+          meta: create(ImageEntityMetaSchema, { id: 'image-1' }),
+          organizationId: 'org-1',
+          name: 'devcontainer-go',
+          type: ImageType.WORKSPACE,
+        }),
+        create(ImageSchema, {
+          meta: create(ImageEntityMetaSchema, { id: 'image-2' }),
+          organizationId: 'org-1',
+          name: 'agynd-cli',
+          type: ImageType.AGENT_RUNTIME,
+        }),
+      ],
+      nextPageToken: '',
+    });
+    refreshImage.mockResolvedValue({
+      versions: [create(ImageVersionSchema, { tag: '1.2.0' }), create(ImageVersionSchema, { tag: '1.1.0' })],
+    });
 
     listEnvironments.mockResolvedValue({
       environments: [
         buildEnvironment({
           id: 'env-1',
           name: 'default',
-          image: 'ghcr.io/agynio/sandbox:latest',
           runnerId: 'runner-1',
           flavor: 'small',
         }),
         buildEnvironment({
           id: 'env-2',
           name: 'gpu',
-          image: 'ghcr.io/agynio/sandbox:gpu',
           runnerId: 'runner-1',
           flavor: '',
         }),
@@ -174,9 +225,12 @@ describe('OrganizationEnvironmentsTab', () => {
     });
 
     const [firstRow, secondRow] = screen.getAllByTestId('organization-environment-row');
-    expect(within(firstRow).getByTestId('organization-environment-image').textContent).toBe(
-      'ghcr.io/agynio/sandbox:latest',
-    );
+    // The row stores an id; the name and tag are what a reader can act on.
+    await waitFor(() => {
+      expect(within(firstRow).getByTestId('organization-environment-image').textContent).toBe(
+        'devcontainer-go:1.2.0',
+      );
+    });
     expect(within(firstRow).getByTestId('organization-environment-runner').textContent).toBe('org-runner');
     expect(within(firstRow).getByTestId('organization-environment-flavor').textContent).toBe('small');
     // An empty flavor resolves to the runner's default at workload start.
@@ -210,7 +264,6 @@ describe('OrganizationEnvironmentsTab', () => {
       environment: buildEnvironment({
         id: 'env-3',
         name: 'builder',
-        image: 'ghcr.io/agynio/sandbox:builder',
         runnerId: 'runner-1',
         flavor: 'large',
       }),
@@ -226,9 +279,7 @@ describe('OrganizationEnvironmentsTab', () => {
     fireEvent.change(screen.getByTestId('organization-environments-create-name'), {
       target: { value: 'builder' },
     });
-    fireEvent.change(screen.getByTestId('organization-environments-create-image'), {
-      target: { value: 'ghcr.io/agynio/sandbox:builder' },
-    });
+    await pickWorkspaceImage();
 
     const runnerListbox = await openSelect('organization-environments-create-runner');
     fireEvent.click(within(runnerListbox).getByText('org-runner'));
@@ -243,7 +294,10 @@ describe('OrganizationEnvironmentsTab', () => {
       expect(createEnvironment).toHaveBeenCalledWith({
         organizationId: 'org-1',
         name: 'builder',
-        image: 'ghcr.io/agynio/sandbox:builder',
+        workspaceImageId: 'image-1',
+        workspaceImageTag: '1.2.0',
+        agentRuntimeImageId: '',
+        agentRuntimeImageTag: '',
         runnerId: 'runner-1',
         flavor: 'large',
       });
@@ -266,9 +320,7 @@ describe('OrganizationEnvironmentsTab', () => {
     fireEvent.change(screen.getByTestId('organization-environments-create-name'), {
       target: { value: 'picked' },
     });
-    fireEvent.change(screen.getByTestId('organization-environments-create-image'), {
-      target: { value: 'ghcr.io/agynio/sandbox:latest' },
-    });
+    await pickWorkspaceImage();
     const runnerListbox = await openSelect('organization-environments-create-runner');
     fireEvent.click(within(runnerListbox).getByText('org-runner'));
 
@@ -286,7 +338,10 @@ describe('OrganizationEnvironmentsTab', () => {
       expect(createEnvironment).toHaveBeenCalledWith({
         organizationId: 'org-1',
         name: 'picked',
-        image: 'ghcr.io/agynio/sandbox:latest',
+        workspaceImageId: 'image-1',
+        workspaceImageTag: '1.2.0',
+        agentRuntimeImageId: '',
+        agentRuntimeImageTag: '',
         runnerId: 'runner-1',
         flavor: 'ram-4gb',
       });
@@ -307,9 +362,7 @@ describe('OrganizationEnvironmentsTab', () => {
     fireEvent.change(screen.getByTestId('organization-environments-create-name'), {
       target: { value: 'custom' },
     });
-    fireEvent.change(screen.getByTestId('organization-environments-create-image'), {
-      target: { value: 'ghcr.io/agynio/sandbox:latest' },
-    });
+    await pickWorkspaceImage();
     const listbox = await openSelect('organization-environments-create-runner');
     fireEvent.click(within(listbox).getByText('org-runner'));
 
@@ -322,7 +375,10 @@ describe('OrganizationEnvironmentsTab', () => {
       expect(createEnvironment).toHaveBeenCalledWith({
         organizationId: 'org-1',
         name: 'custom',
-        image: 'ghcr.io/agynio/sandbox:latest',
+        workspaceImageId: 'image-1',
+        workspaceImageTag: '1.2.0',
+        agentRuntimeImageId: '',
+        agentRuntimeImageTag: '',
         runnerId: 'runner-1',
         flavor: 'not-in-catalog',
       });
@@ -334,7 +390,6 @@ describe('OrganizationEnvironmentsTab', () => {
       environment: buildEnvironment({
         id: 'env-4',
         name: 'defaults',
-        image: 'ghcr.io/agynio/sandbox:latest',
         runnerId: 'runner-1',
         flavor: '',
       }),
@@ -350,9 +405,7 @@ describe('OrganizationEnvironmentsTab', () => {
     fireEvent.change(screen.getByTestId('organization-environments-create-name'), {
       target: { value: 'defaults' },
     });
-    fireEvent.change(screen.getByTestId('organization-environments-create-image'), {
-      target: { value: 'ghcr.io/agynio/sandbox:latest' },
-    });
+    await pickWorkspaceImage();
 
     const runnerListbox = await openSelect('organization-environments-create-runner');
     fireEvent.click(within(runnerListbox).getByText('org-runner'));
@@ -363,14 +416,17 @@ describe('OrganizationEnvironmentsTab', () => {
       expect(createEnvironment).toHaveBeenCalledWith({
         organizationId: 'org-1',
         name: 'defaults',
-        image: 'ghcr.io/agynio/sandbox:latest',
+        workspaceImageId: 'image-1',
+        workspaceImageTag: '1.2.0',
+        agentRuntimeImageId: '',
+        agentRuntimeImageTag: '',
         runnerId: 'runner-1',
         flavor: '',
       });
     });
   });
 
-  it('requires a name, image, and runner before submitting', async () => {
+  it('requires a name, workspace image, and runner before submitting', async () => {
     renderEnvironmentsTab();
 
     expect(await screen.findByText('default')).toBeTruthy();
@@ -381,7 +437,7 @@ describe('OrganizationEnvironmentsTab', () => {
     fireEvent.click(screen.getByTestId('organization-environments-create-submit'));
 
     expect(await screen.findByText('Name is required.')).toBeTruthy();
-    expect(screen.getByText('Image is required.')).toBeTruthy();
+    expect(screen.getByText('Workspace image is required.')).toBeTruthy();
     expect(screen.getByText('Runner is required.')).toBeTruthy();
     expect(createEnvironment).not.toHaveBeenCalled();
   });

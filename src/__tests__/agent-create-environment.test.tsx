@@ -109,14 +109,15 @@ describe('AgentCreatePage environment', () => {
     expect(createAgent.mock.calls[0][0]).not.toHaveProperty('resources');
   });
 
+  // Every image an agent runs is a catalog entry named by its environment, so
+  // the form offers no image field of its own.
   it('has no image or compute resources inputs', async () => {
     renderCreatePage();
 
     await waitFor(() => expect(listEnvironments).toHaveBeenCalled());
     expect(screen.queryByTestId('agent-create-image')).toBeNull();
     expect(screen.queryByTestId('agent-create-resources')).toBeNull();
-    // The init image is the agent's own and stays.
-    expect(screen.getByTestId('agent-create-init-image')).toBeTruthy();
+    expect(screen.queryByTestId('agent-create-init-image')).toBeNull();
   });
 
   // An agent with no environment resolves to no flavor and no runner, so the

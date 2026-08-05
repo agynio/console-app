@@ -56,7 +56,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [description, setDescription] = useState('');
   const [environmentId, setEnvironmentId] = useState('');
   const [environmentError, setEnvironmentError] = useState('');
-  const [initImage, setInitImage] = useState('');
   const [configuration, setConfiguration] = useState('');
   const [configurationError, setConfigurationError] = useState('');
   const [idleTimeout, setIdleTimeout] = useState('');
@@ -120,7 +119,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       description?: string;
       configuration?: string;
       environmentId?: string;
-      initImage?: string;
       nickname?: string;
       idleTimeout?: string;
       availability?: AgentAvailability;
@@ -148,7 +146,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setModelId(agent.model || NO_MODEL);
       setDescription(agent.description);
       setEnvironmentId(agent.environmentId);
-      setInitImage(agent.initImage);
       setConfiguration(agent.configuration);
       setIdleTimeout(agent.idleTimeout ?? '');
       setAvailability(agent.availability || AgentAvailability.INTERNAL);
@@ -218,7 +215,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       description: description.trim(),
       configuration: trimmedConfig,
       environmentId,
-      initImage: initImage.trim(),
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
       availability,
       defaultThread,
@@ -279,10 +275,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
               >
                 {environmentName(agent.environmentId) || 'Not set'}
               </div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Init Image</div>
-              <div className="text-sm text-foreground">{agent.initImage || '—'}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Idle Timeout</div>
@@ -423,15 +415,6 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                   {environmentError}
                 </p>
               ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-configuration-init-image">Init Image</Label>
-              <Input
-                id="agent-configuration-init-image"
-                value={initImage}
-                onChange={(event) => setInitImage(event.target.value)}
-                data-testid="agent-configuration-init-image"
-              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="agent-configuration-availability">Availability</Label>

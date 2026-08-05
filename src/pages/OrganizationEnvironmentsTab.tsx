@@ -6,6 +6,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { SortableHeader } from '@/components/SortableHeader';
 import { ComboboxInput, type ComboboxOption } from '@/components/ComboboxInput';
+import { ImageSelector } from '@/components/ImageSelector';
+import { ImageType } from '@/gen/agynio/api/images/v1/images_pb';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -22,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Environment } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useImageRef } from '@/hooks/useImageRef';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -29,12 +32,19 @@ import { toast } from 'sonner';
 
 type EnvironmentValues = {
   name: string;
-  image: string;
   runnerId: string;
   flavor: string;
+  workspaceImageId: string;
+  workspaceImageTag: string;
+  // Empty makes a workspace-only environment: usable by a sandbox, rejected
+  // when creating an agent.
+  agentRuntimeImageId: string;
+  agentRuntimeImageTag: string;
 };
 
-type EnvironmentFieldErrors = Partial<Record<'name' | 'image' | 'runnerId', string>>;
+type EnvironmentFieldErrors = Partial<
+  Record<'name' | 'runnerId' | 'workspaceImageId' | 'workspaceImageTag', string>
+>;
 
 type RunnerOption = {
   value: string;
@@ -42,6 +52,7 @@ type RunnerOption = {
 };
 
 type EnvironmentDialogProps = {
+  organizationId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -58,7 +69,15 @@ type EnvironmentDialogProps = {
   testIdPrefix: string;
 };
 
-const emptyEnvironmentValues: EnvironmentValues = { name: '', image: '', runnerId: '', flavor: '' };
+const emptyEnvironmentValues: EnvironmentValues = {
+  name: '',
+  runnerId: '',
+  flavor: '',
+  workspaceImageId: '',
+  workspaceImageTag: '',
+  agentRuntimeImageId: '',
+  agentRuntimeImageTag: '',
+};
 
 // Requests are what scheduling reserves, so they are the useful number when
 // choosing between flavors; limits are the ceiling and are left out.
@@ -69,6 +88,7 @@ function describeResources(resources?: { requestsCpu: string; requestsMemory: st
 }
 
 function EnvironmentDialog({
+  organizationId,
   open,
   onOpenChange,
   title,
@@ -102,19 +122,19 @@ function EnvironmentDialog({
 
   const handleSubmit = () => {
     const name = values.name.trim();
-    const image = values.image.trim();
     const nextErrors: EnvironmentFieldErrors = {};
 
     if (!name) nextErrors.name = 'Name is required.';
-    if (!image) nextErrors.image = 'Image is required.';
     if (!values.runnerId) nextErrors.runnerId = 'Runner is required.';
+    if (!values.workspaceImageId) nextErrors.workspaceImageId = 'Workspace image is required.';
+    if (!values.workspaceImageTag) nextErrors.workspaceImageTag = 'A version is required.';
 
     setErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean)) return;
 
     // Flavor is a catalog entry name the runner resolves at workload start, so an
     // unknown or empty value is accepted here: empty means the runner's default.
-    onSubmit({ name, image, runnerId: values.runnerId, flavor: values.flavor.trim() });
+    onSubmit({ ...values, name, flavor: values.flavor.trim() });
   };
 
   return (
@@ -137,16 +157,38 @@ function EnvironmentDialog({
             {errors.name ? <p className="text-xs text-destructive">{errors.name}</p> : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`${testIdPrefix}-image`}>Image</Label>
-            <Input
-              id={`${testIdPrefix}-image`}
-              value={values.image}
-              onChange={(event) => updateValue('image', event.target.value)}
-              placeholder="ghcr.io/agynio/sandbox:latest"
-              data-testid={`${testIdPrefix}-image`}
+            <ImageSelector
+              organizationId={organizationId}
+              types={[ImageType.WORKSPACE]}
+              label="Workspace image"
+              imageId={values.workspaceImageId}
+              imageTag={values.workspaceImageTag}
+              onChange={(imageId, imageTag) => {
+                updateValue('workspaceImageId', imageId);
+                updateValue('workspaceImageTag', imageTag);
+              }}
+              testIdPrefix={`${testIdPrefix}-workspace`}
             />
-            {errors.image ? <p className="text-xs text-destructive">{errors.image}</p> : null}
+            {errors.workspaceImageId ? (
+              <p className="text-xs text-destructive">{errors.workspaceImageId}</p>
+            ) : null}
+            {errors.workspaceImageTag ? (
+              <p className="text-xs text-destructive">{errors.workspaceImageTag}</p>
+            ) : null}
           </div>
+          <ImageSelector
+            organizationId={organizationId}
+            types={[ImageType.AGENT_RUNTIME]}
+            label="Agent runtime image (optional)"
+            description="Supplies the agent CLI. Leave empty for a workspace-only environment — usable by a sandbox, rejected when creating an agent."
+            imageId={values.agentRuntimeImageId}
+            imageTag={values.agentRuntimeImageTag}
+            onChange={(imageId, imageTag) => {
+              updateValue('agentRuntimeImageId', imageId);
+              updateValue('agentRuntimeImageTag', imageTag);
+            }}
+            testIdPrefix={`${testIdPrefix}-runtime`}
+          />
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-runner`}>Runner</Label>
             <Select value={values.runnerId} onValueChange={(value) => updateValue('runnerId', value)}>
@@ -307,6 +349,8 @@ export function OrganizationEnvironmentsTab() {
       .sort((left, right) => left.label.localeCompare(right.label));
   }, [runnersQuery.data?.runners]);
 
+  const imageRef = useImageRef(organizationId);
+
   const runnerLabel = (runnerId: string) =>
     runnerOptions.find((option) => option.value === runnerId)?.label || runnerId || '—';
 
@@ -315,13 +359,13 @@ export function OrganizationEnvironmentsTab() {
     searchFields: [
       (environment) => environment.name,
       (environment) => environment.meta?.id ?? '',
-      (environment) => environment.image,
+      (environment) => imageRef(environment.workspaceImageId, environment.workspaceImageTag, environment.image),
       (environment) => runnerLabel(environment.runnerId),
       (environment) => environment.flavor,
     ],
     sortOptions: {
       name: (environment) => environment.name,
-      image: (environment) => environment.image,
+      image: (environment) => imageRef(environment.workspaceImageId, environment.workspaceImageTag, environment.image),
       runner: (environment) => runnerLabel(environment.runnerId),
       flavor: (environment) => environment.flavor,
       created: (environment) => timestampToMillis(environment.meta?.createdAt),
@@ -460,7 +504,7 @@ export function OrganizationEnvironmentsTab() {
                       className="text-xs break-all text-muted-foreground"
                       data-testid="organization-environment-image"
                     >
-                      {environment.image || '—'}
+                      {imageRef(environment.workspaceImageId, environment.workspaceImageTag, environment.image)}
                     </span>
                     <span className="text-xs text-muted-foreground" data-testid="organization-environment-runner">
                       {runnerLabel(environment.runnerId)}
@@ -504,10 +548,11 @@ export function OrganizationEnvironmentsTab() {
         }}
       />
       <EnvironmentDialog
+        organizationId={organizationId}
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="Add environment"
-        description="Define the image, runner, and flavor sandboxes start with."
+        description="Define the images, runner, and flavor workloads start with."
         submitLabel="Add environment"
         pendingLabel="Adding..."
         initialValues={emptyEnvironmentValues}
@@ -519,20 +564,24 @@ export function OrganizationEnvironmentsTab() {
       />
       {editTarget ? (
         <EnvironmentDialog
+          organizationId={organizationId}
           key={editTarget.meta?.id}
           open
           onOpenChange={(open) => {
             if (!open) setEditTarget(null);
           }}
           title="Edit environment"
-          description="Update the image, runner, and flavor sandboxes start with."
+          description="Update the images, runner, and flavor workloads start with."
           submitLabel="Save changes"
           pendingLabel="Saving..."
           initialValues={{
             name: editTarget.name,
-            image: editTarget.image,
             runnerId: editTarget.runnerId,
             flavor: editTarget.flavor,
+            workspaceImageId: editTarget.workspaceImageId,
+            workspaceImageTag: editTarget.workspaceImageTag,
+            agentRuntimeImageId: editTarget.agentRuntimeImageId,
+            agentRuntimeImageTag: editTarget.agentRuntimeImageTag,
           }}
           runnerOptions={runnerOptions}
           flavorsByRunner={flavorsByRunner}

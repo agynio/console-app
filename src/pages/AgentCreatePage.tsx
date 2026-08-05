@@ -36,7 +36,6 @@ export function AgentCreatePage() {
   const [description, setDescription] = useState('');
   const [environmentId, setEnvironmentId] = useState('');
   const [environmentError, setEnvironmentError] = useState('');
-  const [initImage, setInitImage] = useState('');
   const [configuration, setConfiguration] = useState('');
   const [configurationError, setConfigurationError] = useState('');
   const [idleTimeout, setIdleTimeout] = useState('');
@@ -77,7 +76,6 @@ export function AgentCreatePage() {
       description: string;
       configuration: string;
       environmentId: string;
-      initImage: string;
       organizationId: string;
       idleTimeout?: string;
       availability: AgentAvailability;
@@ -152,7 +150,6 @@ export function AgentCreatePage() {
       description: description.trim(),
       configuration: trimmedConfig,
       environmentId,
-      initImage: initImage.trim(),
       organizationId,
       ...(trimmedIdleTimeout ? { idleTimeout: trimmedIdleTimeout } : {}),
       availability,
@@ -287,20 +284,10 @@ export function AgentCreatePage() {
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Supplies the image and compute this agent runs with, and the ENVs, egress rules and image pull
-                secrets attached to it.
+                Supplies the images and compute this agent runs with, and the ENVs and egress rules
+                attached to it.
               </p>
             )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="agent-create-init-image">Init Image</Label>
-            <Input
-              id="agent-create-init-image"
-              placeholder="ghcr.io/org/agent-init:latest"
-              value={initImage}
-              onChange={(event) => setInitImage(event.target.value)}
-              data-testid="agent-create-init-image"
-            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="agent-create-availability">Availability</Label>
