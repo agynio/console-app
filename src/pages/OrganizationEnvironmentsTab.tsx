@@ -6,8 +6,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { SortableHeader } from '@/components/SortableHeader';
 import { ComboboxInput, type ComboboxOption } from '@/components/ComboboxInput';
-import { ImagePicker } from '@/components/ImagePicker';
-import { ImageVersionPicker } from '@/components/ImageVersionPicker';
+import { ImageSelector } from '@/components/ImageSelector';
 import { ImageType } from '@/gen/agynio/api/images/v1/images_pb';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -158,59 +157,38 @@ function EnvironmentDialog({
             {errors.name ? <p className="text-xs text-destructive">{errors.name}</p> : null}
           </div>
           <div className="space-y-2">
-            <ImagePicker
+            <ImageSelector
               organizationId={organizationId}
               types={[ImageType.WORKSPACE]}
-              value={values.workspaceImageId}
-              onChange={(imageId) => {
-                updateValue('workspaceImageId', imageId);
-                // A tag belongs to the image it was chosen in, so changing the
-                // image clears it and the picker preselects afresh.
-                updateValue('workspaceImageTag', '');
-              }}
               label="Workspace image"
+              imageId={values.workspaceImageId}
+              imageTag={values.workspaceImageTag}
+              onChange={(imageId, imageTag) => {
+                updateValue('workspaceImageId', imageId);
+                updateValue('workspaceImageTag', imageTag);
+              }}
               testIdPrefix={`${testIdPrefix}-workspace`}
             />
             {errors.workspaceImageId ? (
               <p className="text-xs text-destructive">{errors.workspaceImageId}</p>
             ) : null}
-            {values.workspaceImageId ? (
-              <ImageVersionPicker
-                imageId={values.workspaceImageId}
-                value={values.workspaceImageTag}
-                onChange={(tag) => updateValue('workspaceImageTag', tag)}
-                testIdPrefix={`${testIdPrefix}-workspace`}
-              />
-            ) : null}
             {errors.workspaceImageTag ? (
               <p className="text-xs text-destructive">{errors.workspaceImageTag}</p>
             ) : null}
           </div>
-          <div className="space-y-2">
-            <ImagePicker
-              organizationId={organizationId}
-              types={[ImageType.AGENT_RUNTIME]}
-              value={values.agentRuntimeImageId}
-              onChange={(imageId) => {
-                updateValue('agentRuntimeImageId', imageId);
-                updateValue('agentRuntimeImageTag', '');
-              }}
-              label="Agent runtime image (optional)"
-              testIdPrefix={`${testIdPrefix}-runtime`}
-            />
-            <p className="text-xs text-muted-foreground">
-              Supplies the agent CLI. Leave empty for a workspace-only environment — usable by a
-              sandbox, rejected when creating an agent.
-            </p>
-            {values.agentRuntimeImageId ? (
-              <ImageVersionPicker
-                imageId={values.agentRuntimeImageId}
-                value={values.agentRuntimeImageTag}
-                onChange={(tag) => updateValue('agentRuntimeImageTag', tag)}
-                testIdPrefix={`${testIdPrefix}-runtime`}
-              />
-            ) : null}
-          </div>
+          <ImageSelector
+            organizationId={organizationId}
+            types={[ImageType.AGENT_RUNTIME]}
+            label="Agent runtime image (optional)"
+            description="Supplies the agent CLI. Leave empty for a workspace-only environment — usable by a sandbox, rejected when creating an agent."
+            imageId={values.agentRuntimeImageId}
+            imageTag={values.agentRuntimeImageTag}
+            onChange={(imageId, imageTag) => {
+              updateValue('agentRuntimeImageId', imageId);
+              updateValue('agentRuntimeImageTag', imageTag);
+            }}
+            testIdPrefix={`${testIdPrefix}-runtime`}
+          />
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-runner`}>Runner</Label>
             <Select value={values.runnerId} onValueChange={(value) => updateValue('runnerId', value)}>

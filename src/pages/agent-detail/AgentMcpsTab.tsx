@@ -5,8 +5,7 @@ import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ComputeResourcesEditor } from '@/components/ComputeResourcesEditor';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { ImagePicker } from '@/components/ImagePicker';
-import { ImageVersionPicker } from '@/components/ImageVersionPicker';
+import { ImageSelector } from '@/components/ImageSelector';
 import { ImageType } from '@/gen/agynio/api/images/v1/images_pb';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -407,29 +406,19 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
               {createNameError && <p className="text-sm text-destructive">{createNameError}</p>}
             </div>
             <div className="space-y-2">
-              <ImagePicker
+              <ImageSelector
                 organizationId={organizationId}
                 types={[ImageType.MCP, ImageType.WORKSPACE]}
-                value={createImageId}
-                onChange={(imageId) => {
+                label="Image"
+                imageId={createImageId}
+                imageTag={createImageTag}
+                onChange={(imageId, imageTag) => {
                   setCreateImageId(imageId);
-                  setCreateImageTag('');
+                  setCreateImageTag(imageTag);
                   if (createImageError) setCreateImageError('');
                 }}
-                label="Image"
                 testIdPrefix="agent-mcps-create"
               />
-              {createImageId ? (
-                <ImageVersionPicker
-                  imageId={createImageId}
-                  value={createImageTag}
-                  onChange={(tag) => {
-                    setCreateImageTag(tag);
-                    if (createImageError) setCreateImageError('');
-                  }}
-                  testIdPrefix="agent-mcps-create"
-                />
-              ) : null}
               {createImageError && <p className="text-sm text-destructive">{createImageError}</p>}
             </div>
             <div className="space-y-2">
@@ -491,29 +480,19 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
               <Input id="agent-mcps-edit-name" value={editName} disabled data-testid="agent-mcps-edit-name" />
             </div>
             <div className="space-y-2">
-              <ImagePicker
+              <ImageSelector
                 organizationId={organizationId}
                 types={[ImageType.MCP, ImageType.WORKSPACE]}
-                value={editImageId}
-                onChange={(imageId) => {
+                label="Image"
+                imageId={editImageId}
+                imageTag={editImageTag}
+                onChange={(imageId, imageTag) => {
                   setEditImageId(imageId);
-                  setEditImageTag('');
+                  setEditImageTag(imageTag);
                   if (editImageError) setEditImageError('');
                 }}
-                label="Image"
                 testIdPrefix="agent-mcps-edit"
               />
-              {editImageId ? (
-                <ImageVersionPicker
-                  imageId={editImageId}
-                  value={editImageTag}
-                  onChange={(tag) => {
-                    setEditImageTag(tag);
-                    if (editImageError) setEditImageError('');
-                  }}
-                  testIdPrefix="agent-mcps-edit"
-                />
-              ) : null}
               {editImageError && <p className="text-sm text-destructive">{editImageError}</p>}
             </div>
             <div className="space-y-2">

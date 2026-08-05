@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { imagesClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { ComboboxInput, type ComboboxOption } from '@/components/ComboboxInput';
-import { Label } from '@/components/ui/label';
 import type { ImageVersion } from '@/gen/agynio/api/images/v1/images_pb';
 import { formatDateOnly } from '@/lib/format';
 import { groupVersions, preselectedTag } from '@/lib/image-versions';
@@ -70,8 +69,7 @@ export function ImageVersionPicker({
   const shown = showAll || !hasReleases ? [...release, ...other] : release;
 
   return (
-    <div className="space-y-2" data-testid={`${testIdPrefix}-version-picker`}>
-      <Label>Version</Label>
+    <div className="space-y-1" data-testid={`${testIdPrefix}-version-picker`}>
       <ComboboxInput
         value={value}
         onValueChange={onChange}

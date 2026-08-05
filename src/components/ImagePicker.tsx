@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { imagesClient } from '@/api/client';
-import { Label } from '@/components/ui/label';
 import { ComboboxInput } from '@/components/ComboboxInput';
 import { type ImageType, ImageVisibility, type Image } from '@/gen/agynio/api/images/v1/images_pb';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
@@ -13,7 +12,6 @@ type ImagePickerProps = {
   types: ImageType[];
   value: string;
   onChange: (imageId: string) => void;
-  label: string;
   disabled?: boolean;
   testIdPrefix: string;
 };
@@ -36,7 +34,6 @@ export function ImagePicker({
   types,
   value,
   onChange,
-  label,
   disabled,
   testIdPrefix,
 }: ImagePickerProps) {
@@ -73,8 +70,7 @@ export function ImagePicker({
   useEffect(() => setText(selectedName), [selectedName]);
 
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
+    <div className="space-y-1">
       <ComboboxInput
         value={text}
         onValueChange={(name) => {
