@@ -34,10 +34,9 @@ const ALL_TYPES = 'all';
 // is what makes that legible, so it is shown as <owner>/<image>.
 const imageLabel = (image: Image, organizationId: string) => {
   if (image.organizationId === organizationId) return image.name;
-  // organization_name is resolved on read by the images service. Read
-  // defensively so a Gateway that predates the field shows the image rather
-  // than an owner named "undefined".
-  const owner = (image as { organizationName?: string }).organizationName?.trim();
+  // The slug rather than the name: it is unique platform-wide, and it is what
+  // the pull reference for this image already carries.
+  const owner = image.organizationSlug.trim();
   return owner ? `${owner}/${image.name}` : image.name;
 };
 
