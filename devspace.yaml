@@ -67,6 +67,12 @@ functions:
                     [ "$elapsed" -ge 120 ] && { echo "ERROR: sync timeout" >&2; exit 1; }
                   done
                   npm ci --no-audit --no-fund
+                  # The released image generates env.js at start from the same
+                  # variables; Vite serves public/env.js, which is empty, so
+                  # without this the console has no OIDC settings and never
+                  # finishes loading. Same script, so the two cannot drift.
+                  sh docker/40-generate-env.sh
+                  cp /tmp/env.js public/env.js
                   # The port the Service already targets, so the ingress and
                   # every URL the browser was handed keep working.
                   exec npx vite --host 0.0.0.0 --port 3000
