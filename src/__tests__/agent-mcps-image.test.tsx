@@ -81,6 +81,22 @@ describe('AgentMcpsTab image selection', () => {
     });
   });
 
+  // Preselection is a starting point, not a floor: clearing the field used to
+  // refill it on the next render, so a version could not be emptied.
+  it('leaves the version cleared once it is cleared', async () => {
+    renderTab();
+    fireEvent.click(await screen.findByTestId('agent-mcps-create'));
+
+    fireEvent.click(screen.getByTestId('agent-mcps-create-image-toggle'));
+    fireEvent.click(await screen.findByTestId('agent-mcps-create-image-option-mcp-github'));
+
+    const version = () => screen.getByTestId('agent-mcps-create-version') as HTMLInputElement;
+    await waitFor(() => expect(version().value).toBe('2.0.0'));
+
+    fireEvent.change(version(), { target: { value: '' } });
+    await waitFor(() => expect(version().value).toBe(''));
+  });
+
   it('creates an MCP from a catalog image and version rather than a typed reference', async () => {
     renderTab();
     fireEvent.click(await screen.findByTestId('agent-mcps-create'));

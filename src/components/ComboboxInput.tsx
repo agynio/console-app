@@ -42,26 +42,30 @@ export function ComboboxInput({
   'data-testid': testId,
 }: ComboboxInputProps) {
   const [open, setOpen] = React.useState(false);
+  // Filtering applies to what someone is typing, not to what they picked. A
+  // field holding a chosen option would otherwise narrow the list to that one
+  // option and leave nothing to switch to.
+  const [typing, setTyping] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const query = value.trim().toLowerCase();
-  const matches = query
-    ? options.filter(
-        (option) =>
-          option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query),
-      )
-    : options;
-  // An exact match means the list has nothing left to offer.
-  const visible = matches.length === 1 && matches[0].value === value ? [] : matches;
+  const visible =
+    typing && query
+      ? options.filter(
+          (option) =>
+            option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query),
+        )
+      : options;
 
   const select = (option: ComboboxOption) => {
     onValueChange(option.value);
+    setTyping(false);
     setOpen(false);
     inputRef.current?.focus();
   };
 
   return (
-    <PopoverPrimitive.Root open={open && visible.length > 0} onOpenChange={setOpen}>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
       <div className="relative">
         <PopoverPrimitive.Anchor asChild>
           <Input
@@ -73,10 +77,14 @@ export function ComboboxInput({
             data-testid={testId}
             className="pr-9"
             onChange={(event) => {
+              setTyping(true);
               onValueChange(event.target.value);
               setOpen(true);
             }}
-            onFocus={() => setOpen(true)}
+            onFocus={() => {
+              setTyping(false);
+              setOpen(true);
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 setOpen(false);
@@ -92,6 +100,7 @@ export function ComboboxInput({
           data-testid={testId ? `${testId}-toggle` : undefined}
           className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
           onClick={() => {
+            setTyping(false);
             setOpen((previous) => !previous);
             inputRef.current?.focus();
           }}

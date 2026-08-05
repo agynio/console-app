@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { imagesClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,9 @@ export function ImageVersionPicker({
   testIdPrefix,
 }: ImageVersionPickerProps) {
   const [showAll, setShowAll] = useState(false);
+  // Preselection is a starting point, not a floor. Keyed by image so choosing a
+  // different one preselects again, while clearing the field leaves it clear.
+  const preselectedFor = useRef('');
 
   const refreshed = useQuery({
     queryKey: ['image-versions', imageId],
@@ -51,13 +54,14 @@ export function ImageVersionPicker({
   const versions = useMemo(() => refreshed.data?.versions ?? [], [refreshed.data]);
   const { release, other } = useMemo(() => groupVersions(versions), [versions]);
 
-  // Preselect the newest so the common case needs no decision at all. Only
-  // when the caller has not already chosen one.
+  // Preselect the newest so the common case needs no decision at all.
   useEffect(() => {
-    if (value || versions.length === 0) return;
+    if (!imageId || versions.length === 0 || preselectedFor.current === imageId) return;
+    preselectedFor.current = imageId;
+    if (value) return;
     const preselected = preselectedTag(versions);
     if (preselected) onChange(preselected);
-  }, [value, versions, onChange]);
+  }, [imageId, value, versions, onChange]);
 
   const shown = showAll ? [...release, ...other] : release;
 

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { imagesClient } from '@/api/client';
 import { Label } from '@/components/ui/label';
@@ -65,18 +65,26 @@ export function ImagePicker({
 
   const images = useMemo(() => listed.data ?? [], [listed.data]);
 
-  // The field shows a name; the caller stores an id. A typed name that matches
-  // nothing clears the selection rather than inventing one.
+  // The field shows a name while the caller stores an id, so the text is its
+  // own state: deriving it from the id would erase each keystroke that does not
+  // yet spell a whole name.
+  const [text, setText] = useState('');
   const selectedName = images.find((image) => image.meta?.id === value)?.name ?? '';
-  const idForName = (name: string) =>
-    images.find((image) => image.name === name)?.meta?.id ?? '';
+  useEffect(() => setText(selectedName), [selectedName]);
 
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
       <ComboboxInput
-        value={selectedName}
-        onValueChange={(name) => onChange(idForName(name))}
+        value={text}
+        onValueChange={(name) => {
+          setText(name);
+          // Only a whole name is a selection; anything else is still being
+          // typed and leaves the stored id alone until it resolves.
+          const match = images.find((image) => image.name === name);
+          if (match) onChange(match.meta?.id ?? '');
+          else if (value) onChange('');
+        }}
         options={images.map((image) => ({
           value: image.name,
           label: image.name,
