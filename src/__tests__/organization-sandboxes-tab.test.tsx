@@ -1,3 +1,4 @@
+import { SessionKind } from '@/gen/agynio/api/terminal_proxy/v1/terminal_proxy_pb';
 import { create } from '@bufbuild/protobuf';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -258,6 +259,7 @@ describe('SandboxTerminal', () => {
       expect(createTerminalSession).toHaveBeenCalledWith({
         workloadId: 'workload-1',
         containerName: 'main',
+        kind: SessionKind.SHELL,
       });
     });
 
