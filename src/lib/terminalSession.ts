@@ -1,4 +1,5 @@
 import { terminalClient } from '@/api/client';
+import { SessionKind } from '@/gen/agynio/api/terminal_proxy/v1/terminal_proxy_pb';
 
 /**
  * Browser client for the Terminal Proxy wire protocol, mirroring the CLI's
@@ -104,6 +105,9 @@ export class TerminalSession {
       const session = await terminalClient.createTerminalSession({
         workloadId: target.workloadId,
         containerName: target.containerName,
+        // Required. An unspecified kind is rejected rather than defaulted, so
+        // the browser terminal has to name the one it wants.
+        kind: SessionKind.SHELL,
       });
       ticket = session.ticket;
       websocketUrl = session.websocketUrl;
