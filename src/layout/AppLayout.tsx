@@ -2,19 +2,22 @@ import type { ReactNode } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   ChevronDownIcon,
+  ChevronsUpDownIcon,
   ChevronRightIcon,
   KeyIcon,
+  LogOutIcon,
   MonitorSmartphoneIcon,
   SettingsIcon,
 } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
+import { ProductSwitcher } from '@/components/ProductSwitcher';
+import { ThemeMenuItems } from '@/components/ThemeMenuItems';
 import { PendingInvitesMenu } from '@/components/PendingInvitesMenu';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
-import { OrganizationSwitcher } from '@/components/OrganizationSwitcher';
+import { OrganizationMenuItems } from '@/components/OrganizationSwitcher';
 import { useCreateOrganization } from '@/hooks/useCreateOrganization';
 import { useSidebarGroups } from '@/hooks/useSidebarGroups';
 import { usePageTitle } from '@/context/PageTitleContext';
@@ -23,10 +26,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+function getInitials(name: string | null | undefined): string {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  return `${parts[0]?.[0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase() || 'U';
+}
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
@@ -110,7 +118,6 @@ function NoAccessScreen({ onSignOut, userMenu, pendingMembershipsCount }: NoAcce
       <div className="flex min-h-screen flex-col bg-muted/40">
         <header className="sticky top-0 z-10 flex items-center justify-end border-b border-border bg-background px-6 py-4">
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             {userMenu}
           </div>
         </header>
@@ -169,7 +176,8 @@ export function AppLayout() {
     status: orgStatus,
     error: orgError,
   } = useOrganizationContext();
-  const { currentUser, isClusterAdmin, status: userStatus, error: userError, signOut } = useUserContext();
+  const { currentUser, status: userStatus, error: userError, signOut } = useUserContext();
+  const createOrganization = useCreateOrganization();
   const pageTitle = usePageTitle();
   const navigate = useNavigate();
 
@@ -197,12 +205,28 @@ export function AppLayout() {
     );
   }
 
+  const userInitials = getInitials(currentUser?.name ?? currentUser?.email);
+
   const userMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="relative" data-testid="user-menu-trigger">
-          {currentUser?.name ?? 'Signed in'}
-          <ChevronDownIcon className="ml-2 h-4 w-4" />
+        <button
+          type="button"
+          className="relative flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
+          data-testid="user-menu-trigger"
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+            {userInitials}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm text-foreground">
+              {currentUser?.email ?? currentUser?.name ?? 'Signed in'}
+            </p>
+            <p className="truncate text-xs text-muted-foreground" data-testid="user-menu-org">
+              {selectedOrganization?.name ?? (contextMode?.mode === 'cluster' ? 'Cluster Administration' : 'No organization')}
+            </p>
+          </div>
+          <ChevronsUpDownIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
           {pendingMembershipsCount > 0 ? (
             <span
               className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground"
@@ -211,18 +235,19 @@ export function AppLayout() {
               {pendingMembershipsCount}
             </span>
           ) : null}
-        </Button>
+        </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" data-testid="user-menu">
-        <DropdownMenuLabel data-testid="user-menu-name">{currentUser?.name ?? 'Signed in'}</DropdownMenuLabel>
-        <DropdownMenuLabel className="text-xs text-muted-foreground" data-testid="user-menu-email">
-          {currentUser?.email ?? 'User profile'}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled data-testid="user-menu-role">
-          Cluster role: {isClusterAdmin ? 'admin' : 'none'}
-        </DropdownMenuItem>
-        <PendingInvitesMenu />
+      <DropdownMenuContent align="end" className="w-64" data-testid="user-menu">
+        {/* The trigger already shows who is signed in and where. */}
+        <OrganizationMenuItems onCreateOrganization={() => createOrganization.handleOpenChange(true)} />
+        {/* PendingInvitesMenu renders nothing without invites, so its divider
+            travels with it rather than stacking on the next one. */}
+        {pendingMembershipsCount > 0 ? (
+          <>
+            <DropdownMenuSeparator />
+            <PendingInvitesMenu />
+          </>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate('/devices')} data-testid="user-menu-devices">
           <MonitorSmartphoneIcon className="h-4 w-4" />
@@ -232,12 +257,14 @@ export function AppLayout() {
           <KeyIcon className="h-4 w-4" />
           API Tokens
         </DropdownMenuItem>
+        <ThemeMenuItems />
         <DropdownMenuItem onSelect={() => navigate('/settings')} data-testid="user-menu-settings">
           <SettingsIcon className="h-4 w-4" />
           Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => signOut()} data-testid="user-menu-signout">
+          <LogOutIcon className="h-4 w-4" />
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -262,27 +289,41 @@ export function AppLayout() {
   return (
     <div className="flex min-h-screen bg-muted/40">
       <aside
-        className="sticky top-0 flex h-screen w-64 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-4 py-6 text-sidebar-foreground"
+        className="sticky top-0 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
         data-testid="console-sidebar"
       >
-        {isClusterContext ? <SidebarNav groups={CLUSTER_NAV_GROUPS} basePath="" /> : null}
-        {isOrganizationContext ? <SidebarNav groups={ORGANIZATION_NAV_GROUPS} basePath={organizationBase} /> : null}
+        {/* Pinned: only the navigation below it scrolls. */}
+        <div className="shrink-0 px-4 py-4">
+          <ProductSwitcher currentProductId="console" />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+          {isClusterContext ? <SidebarNav groups={CLUSTER_NAV_GROUPS} basePath="" /> : null}
+          {isOrganizationContext ? (
+            <SidebarNav groups={ORGANIZATION_NAV_GROUPS} basePath={organizationBase} />
+          ) : null}
+        </div>
       </aside>
       <main className="flex flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-6 py-4">
           <h1 className="text-lg font-semibold text-foreground" data-testid="page-title">
             {pageTitle}
           </h1>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <OrganizationSwitcher />
-            {userMenu}
-          </div>
+          <div className="flex items-center gap-3">{userMenu}</div>
         </header>
         <div className="flex-1 p-6">
           <Outlet />
         </div>
       </main>
+      <CreateOrganizationDialog
+        open={createOrganization.open}
+        onOpenChange={createOrganization.handleOpenChange}
+        organizationName={createOrganization.organizationName}
+        organizationNameError={createOrganization.organizationNameError}
+        onOrganizationNameChange={createOrganization.handleNameChange}
+        onSubmit={createOrganization.handleSubmit}
+        isSubmitting={createOrganization.isSubmitting}
+        testIdPrefix="org-switcher-create"
+      />
       <Toaster richColors position="top-right" />
     </div>
   );

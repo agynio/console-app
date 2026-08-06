@@ -1,34 +1,28 @@
 import { useMemo } from 'react';
-import { ChevronDownIcon, PlusIcon } from 'lucide-react';
+import { PlusIcon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
-import { useCreateOrganization } from '@/hooks/useCreateOrganization';
 
-export function OrganizationSwitcher() {
-  const { organizations, contextMode, selectedOrganization, status, setContextMode } = useOrganizationContext();
+/** Sentinel for the cluster context, which is not an organization id. */
+const CLUSTER_VALUE = '__cluster__';
+
+/**
+ * Organization items, rendered inside the user menu. Creating an organization
+ * is raised to the caller: this menu unmounts on select, so it cannot own the
+ * dialog.
+ */
+export function OrganizationMenuItems({ onCreateOrganization }: { onCreateOrganization: () => void }) {
+  const { organizations, contextMode, selectedOrganization, setContextMode } = useOrganizationContext();
   const { isClusterAdmin } = useUserContext();
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    open: createOpen,
-    handleOpenChange,
-    organizationName,
-    organizationNameError,
-    handleNameChange,
-    handleSubmit,
-    isSubmitting,
-  } = useCreateOrganization();
-
   const sortedOrganizations = useMemo(
     () => [...organizations].sort((a, b) => a.name.localeCompare(b.name)),
     [organizations],
@@ -86,64 +80,45 @@ export function OrganizationSwitcher() {
     navigate(resolveClusterPath());
   };
 
-  const triggerLabel = () => {
-    if (status === 'loading') return 'Loading organizations';
-    if (contextMode?.mode === 'cluster') return 'Cluster Administration';
-    return selectedOrganization?.name ?? 'Select organization';
-  };
-
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" disabled={status === 'loading'}>
-            {triggerLabel()}
-            <ChevronDownIcon className="ml-2 h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {isClusterAdmin ? (
-            <>
-              <DropdownMenuItem
-                onSelect={handleSelectCluster}
-                disabled={contextMode?.mode === 'cluster'}
-                data-testid="org-switcher-cluster"
-              >
-                Cluster Administration
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          ) : null}
-          {sortedOrganizations.length === 0 ? (
-            <DropdownMenuItem disabled>No organizations</DropdownMenuItem>
-          ) : (
-            sortedOrganizations.map((org) => (
-              <DropdownMenuItem
-                key={org.id}
-                disabled={org.id === selectedOrganization?.id && contextMode?.mode === 'organization'}
-                onSelect={() => handleSelect(org.id)}
-              >
-                {org.name}
-              </DropdownMenuItem>
-            ))
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => handleOpenChange(true)} data-testid="org-switcher-create">
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Create organization
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <CreateOrganizationDialog
-        open={createOpen}
-        onOpenChange={handleOpenChange}
-        organizationName={organizationName}
-        organizationNameError={organizationNameError}
-        onOrganizationNameChange={handleNameChange}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        testIdPrefix="org-switcher-create"
-      />
+      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Organization</DropdownMenuLabel>
+      {/* Radio group, matching the chat and tracing menus: the current context
+          is marked rather than greyed out. */}
+      <DropdownMenuRadioGroup
+        value={contextMode?.mode === 'cluster' ? CLUSTER_VALUE : selectedOrganization?.id ?? ''}
+        onValueChange={(value) => (value === CLUSTER_VALUE ? handleSelectCluster() : handleSelect(value))}
+        data-testid="org-switcher"
+      >
+        {sortedOrganizations.length === 0 && !isClusterAdmin ? (
+          <DropdownMenuItem disabled>No organizations</DropdownMenuItem>
+        ) : null}
+        {sortedOrganizations.map((org) => (
+          <DropdownMenuRadioItem
+            key={org.id}
+            value={org.id}
+            className="data-[state=checked]:font-medium"
+            data-testid={`org-item-${org.id}`}
+          >
+            <span className="truncate" title={org.name}>
+              {org.name}
+            </span>
+          </DropdownMenuRadioItem>
+        ))}
+        {isClusterAdmin ? (
+          <DropdownMenuRadioItem
+            value={CLUSTER_VALUE}
+            className="data-[state=checked]:font-medium"
+            data-testid="org-switcher-cluster"
+          >
+            Cluster Administration
+          </DropdownMenuRadioItem>
+        ) : null}
+      </DropdownMenuRadioGroup>
+      <DropdownMenuItem onSelect={onCreateOrganization} data-testid="org-switcher-create">
+        <PlusIcon className="mr-2 h-4 w-4" />
+        Create organization
+      </DropdownMenuItem>
     </>
   );
 }
