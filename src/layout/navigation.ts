@@ -88,7 +88,6 @@ export const ORGANIZATION_NAV_GROUPS: NavGroup[] = [
     sections: [
       { label: 'Images', path: '/images', icon: LayersIcon, testId: 'nav-organization-images' },
       { label: 'Environments', path: '/environments', icon: ContainerIcon, testId: 'nav-organization-environments' },
-      { label: 'Volumes', path: '/volumes', icon: HardDriveIcon, testId: 'nav-organization-volumes' },
       { label: 'Runners', path: '/runners', icon: ServerIcon, testId: 'nav-organization-runners' },
     ],
   },

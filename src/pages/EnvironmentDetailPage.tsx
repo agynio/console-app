@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
+import { EnvironmentVolumesTab } from '@/pages/detail-tabs/EnvironmentVolumesTab';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
 import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -74,6 +75,9 @@ export function EnvironmentDetailPage() {
           <TabsList>
             <TabsTrigger value="overview" data-testid="environment-detail-overview-tab">
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="volumes" data-testid="environment-detail-volumes-tab">
+              Volumes
             </TabsTrigger>
             <TabsTrigger value="envs" data-testid="environment-detail-envs-tab">
               ENVs
@@ -157,6 +161,9 @@ export function EnvironmentDetailPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+          <TabsContent value="volumes">
+            <EnvironmentVolumesTab environmentId={environment.meta?.id ?? ''} />
           </TabsContent>
           <TabsContent value="envs">
             <EnvsTab target={target} organizationId={organizationId} />

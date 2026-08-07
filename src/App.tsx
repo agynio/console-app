@@ -22,7 +22,6 @@ import { OrganizationSecretProvidersTab } from '@/pages/OrganizationSecretProvid
 import { OrganizationSecretsTab } from '@/pages/OrganizationSecretsTab';
 import { OrganizationThreadDetailPage } from '@/pages/OrganizationThreadDetailPage';
 import { OrganizationThreadsTab } from '@/pages/OrganizationThreadsTab';
-import { OrganizationVolumesTab } from '@/pages/OrganizationVolumesTab';
 import { OrganizationEgressRulesTab } from '@/pages/OrganizationEgressRulesTab';
 import { OrganizationEnvironmentsTab } from '@/pages/OrganizationEnvironmentsTab';
 import { ImageDetailPage } from '@/pages/ImageDetailPage';
@@ -43,7 +42,6 @@ import { UserDetailPage } from '@/pages/UserDetailPage';
 import { RunnersListPage } from '@/pages/RunnersListPage';
 import { RunnerDetailPage } from '@/pages/RunnerDetailPage';
 import { WorkloadDetailPage } from '@/pages/WorkloadDetailPage';
-import { VolumeDetailPage } from '@/pages/VolumeDetailPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AppsPage } from '@/pages/AppsPage';
 import { ApiTokensPage } from '@/pages/ApiTokensPage';
@@ -88,8 +86,6 @@ export default function App() {
           <Route path="agents/new" element={<AgentCreatePage />} />
           <Route path="agents/:agentId" element={<AgentDetailPage />} />
           <Route path="agents" element={<OrganizationAgentsTab />} />
-          <Route path="volumes" element={<OrganizationVolumesTab />} />
-          <Route path="volumes/:volumeId" element={<VolumeDetailPage />} />
           <Route path="images" element={<OrganizationImagesTab />} />
           <Route path="images/:imageId" element={<ImageDetailPage />} />
           <Route path="environments" element={<OrganizationEnvironmentsTab />} />
