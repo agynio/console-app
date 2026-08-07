@@ -9,7 +9,6 @@ import {
   LayersIcon,
   CpuIcon,
   DatabaseIcon,
-  HardDriveIcon,
   HomeIcon,
   KeyRoundIcon,
   LineChartIcon,
