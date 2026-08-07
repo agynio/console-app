@@ -78,14 +78,22 @@ const rangeOptions: Array<{ value: RangeOption; label: string }> = [
   { value: 'custom', label: 'Custom range' },
 ];
 
+// A subscription is a flat fee: its tokens have no marginal cost, and summing
+// them alongside API tokens produces a bill that does not exist. Every token
+// query that feeds a spend view therefore filters to resource=model. The
+// distinct resource value is the only thing keeping the two apart.
+const METERED_MODEL_TOKENS = { resource: 'model' } as const;
+
 const usageQueryConfigs: UsageQueryConfig[] = [
-  { key: 'llm-input-total', unit: Unit.TOKENS, granularity: Granularity.TOTAL, labelFilters: { kind: 'input' } },
-  { key: 'llm-cached-total', unit: Unit.TOKENS, granularity: Granularity.TOTAL, labelFilters: { kind: 'cached' } },
-  { key: 'llm-output-total', unit: Unit.TOKENS, granularity: Granularity.TOTAL, labelFilters: { kind: 'output' } },
+  { key: 'llm-input-total', unit: Unit.TOKENS, granularity: Granularity.TOTAL, labelFilters: { ...METERED_MODEL_TOKENS, kind: 'input' } },
+  { key: 'llm-cached-total', unit: Unit.TOKENS, granularity: Granularity.TOTAL, labelFilters: { ...METERED_MODEL_TOKENS, kind: 'cached' } },
+  { key: 'llm-output-total', unit: Unit.TOKENS, granularity: Granularity.TOTAL, labelFilters: { ...METERED_MODEL_TOKENS, kind: 'output' } },
   {
     key: 'llm-requests-total',
     unit: Unit.COUNT,
     granularity: Granularity.TOTAL,
+    // Deliberately unfiltered: this counts calls, not spend, and a native-mode
+    // call is still a call the organization made.
     labelFilters: { kind: 'request' },
     groupBy: 'status',
   },
@@ -94,34 +102,35 @@ const usageQueryConfigs: UsageQueryConfig[] = [
     unit: Unit.TOKENS,
     granularity: Granularity.DAY,
     useRangeGranularity: true,
+    labelFilters: { ...METERED_MODEL_TOKENS },
     groupBy: 'kind',
   },
   {
     key: 'llm-consumers-input-total',
     unit: Unit.TOKENS,
     granularity: Granularity.TOTAL,
-    labelFilters: { kind: 'input' },
+    labelFilters: { ...METERED_MODEL_TOKENS, kind: 'input' },
     groupBy: 'identity_id',
   },
   {
     key: 'llm-consumers-output-total',
     unit: Unit.TOKENS,
     granularity: Granularity.TOTAL,
-    labelFilters: { kind: 'output' },
+    labelFilters: { ...METERED_MODEL_TOKENS, kind: 'output' },
     groupBy: 'identity_id',
   },
   {
     key: 'llm-models-input-total',
     unit: Unit.TOKENS,
     granularity: Granularity.TOTAL,
-    labelFilters: { kind: 'input' },
+    labelFilters: { ...METERED_MODEL_TOKENS, kind: 'input' },
     groupBy: 'resource_id',
   },
   {
     key: 'llm-models-output-total',
     unit: Unit.TOKENS,
     granularity: Granularity.TOTAL,
-    labelFilters: { kind: 'output' },
+    labelFilters: { ...METERED_MODEL_TOKENS, kind: 'output' },
     groupBy: 'resource_id',
   },
   { key: 'compute-flavor-total', unit: Unit.FLAVOR_SECONDS, granularity: Granularity.TOTAL },
