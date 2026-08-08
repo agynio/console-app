@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -36,7 +35,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { EMPTY_PLACEHOLDER } from '@/lib/format';
+import { SortableHeader } from '@/components/SortableHeader';
+import { useListControls } from '@/hooks/useListControls';
+import { EMPTY_PLACEHOLDER, formatDateOnly, timestampToMillis } from '@/lib/format';
 
 const PAGE_SIZE = 200;
 
@@ -178,83 +179,143 @@ export function OrganizationSubscriptionsTab() {
   const attachmentCount = (subscriptionId: string) =>
     attachments.filter((attachment) => attachment.subscriptionId === subscriptionId).length;
 
+  const listControls = useListControls({
+    items: subscriptions,
+    searchFields: [
+      (subscription) => subscription.name,
+      (subscription) => subscription.meta?.id ?? '',
+      (subscription) => vendorLabel(subscription.vendor),
+      (subscription) => subscription.secretId,
+    ],
+    sortOptions: {
+      name: (subscription) => subscription.name,
+      vendor: (subscription) => vendorLabel(subscription.vendor),
+      attached: (subscription) => attachmentCount(subscription.meta?.id ?? ''),
+      created: (subscription) => timestampToMillis(subscription.meta?.createdAt),
+    },
+    defaultSortKey: 'name',
+  });
+  const visible = listControls.filteredItems;
+  const hasSearch = listControls.searchTerm.trim().length > 0;
+
   return (
     <div className="space-y-4" data-testid="organization-subscriptions">
-      <div className="flex items-center justify-end">
-        <Button size="sm" onClick={() => setCreateOpen(true)} data-testid="subscriptions-create">
-          New subscription
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search subscriptions..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCreateOpen(true)}
+          data-testid="subscriptions-create"
+        >
+          Add subscription
         </Button>
       </div>
-
       {isLoading ? (
-        <Card className="border-border" data-testid="subscriptions-loading">
-          <CardContent className="py-6 text-sm text-muted-foreground">
-            Loading subscriptions…
-          </CardContent>
-        </Card>
-      ) : error ? (
-        <Card className="border-border" data-testid="subscriptions-error">
-          <CardContent className="py-6 text-sm text-destructive">
-            Unable to load subscriptions.
-          </CardContent>
-        </Card>
-      ) : subscriptions.length === 0 ? (
+        <div className="text-sm text-muted-foreground">Loading subscriptions...</div>
+      ) : null}
+      {error ? <div className="text-sm text-muted-foreground">Failed to load subscriptions.</div> : null}
+      {subscriptions.length === 0 && !isLoading ? (
         <Card className="border-border" data-testid="subscriptions-empty">
-          <CardContent className="py-6">
-            <p className="text-sm text-foreground">No subscriptions yet.</p>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            No subscriptions found.
           </CardContent>
         </Card>
-      ) : (
+      ) : null}
+      {subscriptions.length > 0 ? (
         <Card className="border-border" data-testid="subscriptions-table">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Secret</TableHead>
-                  <TableHead>Attached to</TableHead>
-                  <TableHead className="w-0" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {subscriptions.map((subscription) => {
+          <CardContent className="px-0">
+            <div
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_200px]"
+              data-testid="subscriptions-header"
+            >
+              <SortableHeader
+                label="Subscription"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Vendor"
+                sortKey="vendor"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Attached"
+                sortKey="attached"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Created"
+                sortKey="created"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <span className="text-right">Actions</span>
+            </div>
+            <div className="divide-y divide-border">
+              {visible.length === 0 ? (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  {hasSearch ? 'No results found.' : 'No subscriptions registered.'}
+                </div>
+              ) : (
+                visible.map((subscription) => {
                   const subscriptionId = subscription.meta?.id ?? '';
                   const count = attachmentCount(subscriptionId);
                   return (
-                    <TableRow key={subscriptionId} data-testid="subscriptions-row">
-                      <TableCell className="font-medium text-foreground">
-                        {subscription.name || EMPTY_PLACEHOLDER}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
+                    <div
+                      key={subscriptionId}
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_200px]"
+                      data-testid="subscriptions-row"
+                    >
+                      <div>
+                        <div className="font-medium" data-testid="subscriptions-name">
+                          {subscription.name || EMPTY_PLACEHOLDER}
+                        </div>
+                        <div className="text-xs text-muted-foreground" data-testid="subscriptions-secret">
+                          {subscription.secretId || EMPTY_PLACEHOLDER}
+                        </div>
+                      </div>
+                      <span className="text-xs text-muted-foreground" data-testid="subscriptions-vendor">
                         {vendorLabel(subscription.vendor)}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {subscription.secretId || EMPTY_PLACEHOLDER}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {count === 0 ? 'Nothing' : `${count} target${count === 1 ? '' : 's'}`}
-                      </TableCell>
-                      <TableCell>
+                      </span>
+                      <span className="text-xs text-muted-foreground" data-testid="subscriptions-attached">
+                        {count === 0 ? EMPTY_PLACEHOLDER : `${count} target${count === 1 ? '' : 's'}`}
+                      </span>
+                      <span className="text-xs text-muted-foreground" data-testid="subscriptions-created">
+                        {formatDateOnly(subscription.meta?.createdAt)}
+                      </span>
+                      <div className="flex items-center justify-end gap-2">
                         <Button
-                          variant="ghost"
+                          variant="destructive"
                           size="sm"
-                          onClick={() =>
-                            setPendingDelete({ id: subscriptionId, name: subscription.name })
-                          }
+                          onClick={() => setPendingDelete({ id: subscriptionId, name: subscription.name })}
                           data-testid="subscriptions-delete"
                         >
                           Delete
                         </Button>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   );
-                })}
-              </TableBody>
-            </Table>
+                })
+              )}
+            </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       <Dialog
         open={createOpen}
