@@ -21,6 +21,9 @@ import { EMPTY_PLACEHOLDER } from '@/lib/format';
 
 type EnvironmentVolumesTabProps = {
   environmentId: string;
+  // The environment's runner: a storage class is resolved against the catalog
+  // of the runner the workload lands on, so only that runner's classes apply.
+  runnerId: string;
 };
 
 type PendingRemoval = {
@@ -34,7 +37,7 @@ type PendingRemoval = {
  * per owner — per agent instance, per sandbox — so this lists definitions, not
  * the disks made from them; those appear under storage activity.
  */
-export function EnvironmentVolumesTab({ environmentId }: EnvironmentVolumesTabProps) {
+export function EnvironmentVolumesTab({ environmentId, runnerId }: EnvironmentVolumesTabProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
@@ -163,6 +166,7 @@ export function EnvironmentVolumesTab({ environmentId }: EnvironmentVolumesTabPr
 
       <CreateVolumeDialog
         environmentId={environmentId}
+        runnerId={runnerId}
         open={createOpen}
         onOpenChange={setCreateOpen}
       />

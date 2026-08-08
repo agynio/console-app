@@ -163,7 +163,10 @@ export function EnvironmentDetailPage() {
             </Card>
           </TabsContent>
           <TabsContent value="volumes">
-            <EnvironmentVolumesTab environmentId={environment.meta?.id ?? ''} />
+            <EnvironmentVolumesTab
+              environmentId={environment.meta?.id ?? ''}
+              runnerId={environment.runnerId ?? ''}
+            />
           </TabsContent>
           <TabsContent value="envs">
             <EnvsTab target={target} organizationId={organizationId} />

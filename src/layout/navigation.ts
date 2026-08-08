@@ -6,6 +6,7 @@ import {
   BuildingIcon,
   CableIcon,
   ContainerIcon,
+  CreditCardIcon,
   LayersIcon,
   CpuIcon,
   DatabaseIcon,
@@ -117,6 +118,12 @@ export const ORGANIZATION_NAV_GROUPS: NavGroup[] = [
     sections: [
       { label: 'Providers', path: '/llm-providers', icon: BrainIcon, testId: 'nav-organization-llm-providers' },
       { label: 'Models', path: '/models', icon: SparklesIcon, testId: 'nav-organization-models' },
+      {
+        label: 'Subscriptions',
+        path: '/subscriptions',
+        icon: CreditCardIcon,
+        testId: 'nav-organization-subscriptions',
+      },
     ],
   },
   {
