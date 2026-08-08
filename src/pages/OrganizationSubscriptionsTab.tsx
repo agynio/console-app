@@ -44,20 +44,16 @@ const PAGE_SIZE = 200;
 // means leaving the form and losing what is already typed into it.
 const NEW_SECRET = '__new__';
 
-// OpenAI is listed but not selectable. Its subscription credential lives in a
-// file rather than an environment variable, so no placeholder can be delivered
-// to a workload and CreateSubscription refuses it -- leaving it out entirely
-// would read as a vendor the platform has never heard of.
 const VENDOR_OPTIONS = [
-  { value: Vendor.CLAUDE, label: 'Anthropic', available: true },
-  { value: Vendor.CODEX, label: 'OpenAI', available: false },
+  { value: Vendor.ANTHROPIC, label: 'Anthropic' },
+  { value: Vendor.OPENAI, label: 'OpenAI' },
 ] as const;
 
 function vendorLabel(vendor: Vendor): string {
   switch (vendor) {
-    case Vendor.CLAUDE:
+    case Vendor.ANTHROPIC:
       return 'Anthropic';
-    case Vendor.CODEX:
+    case Vendor.OPENAI:
       return 'OpenAI';
     default:
       return EMPTY_PLACEHOLDER;
@@ -78,7 +74,7 @@ export function OrganizationSubscriptionsTab() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
-  const [vendor, setVendor] = useState<Vendor>(Vendor.CLAUDE);
+  const [vendor, setVendor] = useState<Vendor>(Vendor.ANTHROPIC);
   const [secretId, setSecretId] = useState('');
   const [newSecretTitle, setNewSecretTitle] = useState('');
   const [newSecretValue, setNewSecretValue] = useState('');
@@ -107,7 +103,7 @@ export function OrganizationSubscriptionsTab() {
 
   const resetForm = () => {
     setName('');
-    setVendor(Vendor.CLAUDE);
+    setVendor(Vendor.ANTHROPIC);
     setSecretId('');
     setNewSecretTitle('');
     setNewSecretValue('');
@@ -300,13 +296,8 @@ export function OrganizationSubscriptionsTab() {
                 </SelectTrigger>
                 <SelectContent>
                   {VENDOR_OPTIONS.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={String(option.value)}
-                      disabled={!option.available}
-                    >
+                    <SelectItem key={option.value} value={String(option.value)}>
                       {option.label}
-                      {option.available ? '' : ' — not yet supported'}
                     </SelectItem>
                   ))}
                 </SelectContent>
