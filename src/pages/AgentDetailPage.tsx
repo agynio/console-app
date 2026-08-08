@@ -9,7 +9,6 @@ import { AgentRolesSection } from '@/pages/agent-detail/AgentRolesSection';
 import { AgentInitScriptsTab } from '@/pages/agent-detail/AgentInitScriptsTab';
 import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
 import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
-import { AgentVolumeAttachmentsTab } from '@/pages/agent-detail/AgentVolumeAttachmentsTab';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -89,9 +88,6 @@ export function AgentDetailPage() {
           </section>
           <section data-testid="agent-detail-section-init-scripts">
             <AgentInitScriptsTab agentId={resolvedAgentId} />
-          </section>
-          <section data-testid="agent-detail-section-volumes">
-            <AgentVolumeAttachmentsTab agentId={resolvedAgentId} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-egress-rules">
             <EgressRuleAttachmentsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
