@@ -44,11 +44,14 @@ const PAGE_SIZE = 200;
 // means leaving the form and losing what is already typed into it.
 const NEW_SECRET = '__new__';
 
-// Codex is declared but not shippable: its subscription credential lives in a
+// OpenAI is listed but not selectable. Its subscription credential lives in a
 // file rather than an environment variable, so no placeholder can be delivered
-// to a workload. CreateSubscription refuses it, and offering it here would only
-// surface that refusal as a failed form.
-const VENDOR_OPTIONS = [{ value: Vendor.CLAUDE, label: 'Anthropic' }] as const;
+// to a workload and CreateSubscription refuses it -- leaving it out entirely
+// would read as a vendor the platform has never heard of.
+const VENDOR_OPTIONS = [
+  { value: Vendor.CLAUDE, label: 'Anthropic', available: true },
+  { value: Vendor.CODEX, label: 'OpenAI', available: false },
+] as const;
 
 function vendorLabel(vendor: Vendor): string {
   switch (vendor) {
@@ -297,8 +300,13 @@ export function OrganizationSubscriptionsTab() {
                 </SelectTrigger>
                 <SelectContent>
                   {VENDOR_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={String(option.value)}>
+                    <SelectItem
+                      key={option.value}
+                      value={String(option.value)}
+                      disabled={!option.available}
+                    >
                       {option.label}
+                      {option.available ? '' : ' — not yet supported'}
                     </SelectItem>
                   ))}
                 </SelectContent>
