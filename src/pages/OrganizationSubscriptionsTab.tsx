@@ -40,18 +40,22 @@ import { EMPTY_PLACEHOLDER } from '@/lib/format';
 
 const PAGE_SIZE = 200;
 
+// Chosen in the same Select as the existing secrets, so creating one never
+// means leaving the form and losing what is already typed into it.
+const NEW_SECRET = '__new__';
+
 // Codex is declared but not shippable: its subscription credential lives in a
 // file rather than an environment variable, so no placeholder can be delivered
 // to a workload. CreateSubscription refuses it, and offering it here would only
 // surface that refusal as a failed form.
-const VENDOR_OPTIONS = [{ value: Vendor.CLAUDE, label: 'Claude' }] as const;
+const VENDOR_OPTIONS = [{ value: Vendor.CLAUDE, label: 'Anthropic' }] as const;
 
 function vendorLabel(vendor: Vendor): string {
   switch (vendor) {
     case Vendor.CLAUDE:
-      return 'Claude';
+      return 'Anthropic';
     case Vendor.CODEX:
-      return 'Codex';
+      return 'OpenAI';
     default:
       return EMPTY_PLACEHOLDER;
   }
@@ -73,8 +77,9 @@ export function OrganizationSubscriptionsTab() {
   const [name, setName] = useState('');
   const [vendor, setVendor] = useState<Vendor>(Vendor.CLAUDE);
   const [secretId, setSecretId] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; secretId?: string }>({});
+  const [newSecretTitle, setNewSecretTitle] = useState('');
+  const [newSecretValue, setNewSecretValue] = useState('');
+  const [errors, setErrors] = useState<{ name?: string; secretId?: string; token?: string }>({});
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -101,19 +106,33 @@ export function OrganizationSubscriptionsTab() {
     setName('');
     setVendor(Vendor.CLAUDE);
     setSecretId('');
-    setAccountId('');
+    setNewSecretTitle('');
+    setNewSecretValue('');
     setErrors({});
   };
 
   const createSubscription = useMutation({
-    mutationFn: () =>
-      llmClient.createSubscription({
+    mutationFn: async () => {
+      // A new secret is created first and referenced by id: the subscription
+      // holds a reference either way, and the token never reaches this service.
+      let referencedSecretId = secretId;
+      if (secretId === NEW_SECRET) {
+        const created = await secretsClient.createSecret({
+          organizationId,
+          title: newSecretTitle.trim() || `${name.trim()} token`,
+          description: 'Subscription token',
+          value: newSecretValue,
+        });
+        referencedSecretId = created.secret?.meta?.id ?? '';
+        void queryClient.invalidateQueries({ queryKey: ['secrets', organizationId] });
+      }
+      return llmClient.createSubscription({
         organizationId,
         name: name.trim(),
         vendor,
-        secretId,
-        accountId: accountId.trim(),
-      }),
+        secretId: referencedSecretId,
+      });
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['llm', organizationId, 'subscriptions'] });
       toast.success('Subscription created.');
@@ -144,9 +163,10 @@ export function OrganizationSubscriptionsTab() {
   });
 
   const handleCreate = () => {
-    const nextErrors: { name?: string; secretId?: string } = {};
+    const nextErrors: { name?: string; secretId?: string; token?: string } = {};
     if (!name.trim()) nextErrors.name = 'Name is required.';
     if (!secretId) nextErrors.secretId = 'A secret holding the token is required.';
+    if (secretId === NEW_SECRET && !newSecretValue.trim()) nextErrors.token = 'Paste the token.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     createSubscription.mutate();
@@ -161,12 +181,7 @@ export function OrganizationSubscriptionsTab() {
 
   return (
     <div className="space-y-4" data-testid="organization-subscriptions">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          An organization's own plan with an agent CLI vendor. Attach one to an environment and its
-          workloads reach that vendor on it — the token is injected in flight and never enters the
-          container.
-        </p>
+      <div className="flex items-center justify-end">
         <Button size="sm" onClick={() => setCreateOpen(true)} data-testid="subscriptions-create">
           New subscription
         </Button>
@@ -186,11 +201,8 @@ export function OrganizationSubscriptionsTab() {
         </Card>
       ) : subscriptions.length === 0 ? (
         <Card className="border-border" data-testid="subscriptions-empty">
-          <CardContent className="space-y-2 py-6">
+          <CardContent className="py-6">
             <p className="text-sm text-foreground">No subscriptions yet.</p>
-            <p className="text-sm text-muted-foreground">
-              An environment in native LLM mode cannot start a workload until one is attached.
-            </p>
           </CardContent>
         </Card>
       ) : (
@@ -202,7 +214,6 @@ export function OrganizationSubscriptionsTab() {
                   <TableHead>Name</TableHead>
                   <TableHead>Vendor</TableHead>
                   <TableHead>Secret</TableHead>
-                  <TableHead>Account</TableHead>
                   <TableHead>Attached to</TableHead>
                   <TableHead className="w-0" />
                 </TableRow>
@@ -221,9 +232,6 @@ export function OrganizationSubscriptionsTab() {
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         {subscription.secretId || EMPTY_PLACEHOLDER}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {subscription.accountId || EMPTY_PLACEHOLDER}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {count === 0 ? 'Nothing' : `${count} target${count === 1 ? '' : 's'}`}
@@ -301,9 +309,10 @@ export function OrganizationSubscriptionsTab() {
               <Label htmlFor="subscription-secret">Secret</Label>
               <Select value={secretId} onValueChange={setSecretId}>
                 <SelectTrigger id="subscription-secret" data-testid="subscriptions-create-secret">
-                  <SelectValue placeholder="Choose a secret holding the token" />
+                  <SelectValue placeholder="Choose a secret, or add one" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NEW_SECRET}>Add a new secret…</SelectItem>
                   {secrets.map((secret) => (
                     <SelectItem key={secret.meta?.id} value={secret.meta?.id ?? ''}>
                       {secret.title}
@@ -311,25 +320,40 @@ export function OrganizationSubscriptionsTab() {
                   ))}
                 </SelectContent>
               </Select>
-              {errors.secretId ? (
-                <p className="text-sm text-destructive">{errors.secretId}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Create it under Credentials first if it is not here yet.
-                </p>
-              )}
+              {errors.secretId ? <p className="text-sm text-destructive">{errors.secretId}</p> : null}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="subscription-account">Account ID</Label>
-              <Input
-                id="subscription-account"
-                value={accountId}
-                onChange={(event) => setAccountId(event.target.value)}
-                placeholder="Only when the vendor's API requires one"
-                data-testid="subscriptions-create-account"
-              />
-            </div>
+            {secretId === NEW_SECRET ? (
+              <div className="space-y-4 rounded-md border border-border p-4">
+                <div className="space-y-2">
+                  <Label htmlFor="subscription-secret-title">Secret name</Label>
+                  <Input
+                    id="subscription-secret-title"
+                    value={newSecretTitle}
+                    onChange={(event) => setNewSecretTitle(event.target.value)}
+                    placeholder={name.trim() ? `${name.trim()} token` : 'Subscription token'}
+                    data-testid="subscriptions-create-secret-title"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subscription-secret-value">Token</Label>
+                  <Input
+                    id="subscription-secret-value"
+                    type="password"
+                    value={newSecretValue}
+                    onChange={(event) => setNewSecretValue(event.target.value)}
+                    data-testid="subscriptions-create-secret-value"
+                  />
+                  {errors.token ? (
+                    <p className="text-sm text-destructive">{errors.token}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Stored as a secret and referenced by the subscription. Never shown again.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <DialogFooter>

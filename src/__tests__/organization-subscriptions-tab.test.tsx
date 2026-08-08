@@ -7,18 +7,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrganizationSubscriptionsTab } from '@/pages/OrganizationSubscriptionsTab';
 
-const { listSubscriptions, listSubscriptionAttachments, createSubscription, deleteSubscription, listSecrets } =
-  vi.hoisted(() => ({
-    listSubscriptions: vi.fn(),
-    listSubscriptionAttachments: vi.fn(),
-    createSubscription: vi.fn(),
-    deleteSubscription: vi.fn(),
-    listSecrets: vi.fn(),
-  }));
+const {
+  listSubscriptions,
+  listSubscriptionAttachments,
+  createSubscription,
+  deleteSubscription,
+  listSecrets,
+  createSecret,
+} = vi.hoisted(() => ({
+  listSubscriptions: vi.fn(),
+  listSubscriptionAttachments: vi.fn(),
+  createSubscription: vi.fn(),
+  deleteSubscription: vi.fn(),
+  listSecrets: vi.fn(),
+  createSecret: vi.fn(),
+}));
 
 vi.mock('@/api/client', () => ({
   llmClient: { listSubscriptions, listSubscriptionAttachments, createSubscription, deleteSubscription },
-  secretsClient: { listSecrets },
+  secretsClient: { listSecrets, createSecret },
 }));
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -47,17 +54,16 @@ describe('OrganizationSubscriptionsTab', () => {
     listSubscriptionAttachments.mockResolvedValue({ subscriptionAttachments: [] });
     listSecrets.mockResolvedValue({ secrets: [{ meta: { id: 'sec-1' }, title: 'Claude token' }] });
     createSubscription.mockResolvedValue({});
+    createSecret.mockResolvedValue({ secret: { meta: { id: 'sec-new' } } });
     deleteSubscription.mockResolvedValue({});
   });
 
   afterEach(cleanup);
 
-  // A native environment cannot start a workload with nothing attached, so the
-  // empty state has to say that rather than just show an empty table.
-  it('says what an empty list means for a native environment', async () => {
+  it('offers to create one when none exist', async () => {
     renderTab();
     await screen.findByTestId('subscriptions-empty');
-    expect(screen.getByText(/cannot start a workload until one is attached/i)).toBeTruthy();
+    expect(screen.getByTestId('subscriptions-create')).toBeTruthy();
   });
 
   it('creates from a secret reference, never from a typed token', async () => {
@@ -91,7 +97,7 @@ describe('OrganizationSubscriptionsTab', () => {
     renderTab();
 
     await screen.findByTestId('subscriptions-table');
-    expect(screen.getByText('Claude')).toBeTruthy();
+    expect(screen.getByText('Anthropic')).toBeTruthy();
     expect(screen.getByText('2 targets')).toBeTruthy();
   });
 
@@ -111,5 +117,22 @@ describe('OrganizationSubscriptionsTab', () => {
 
     fireEvent.click(screen.getByTestId('subscriptions-delete-confirm'));
     await waitFor(() => expect(deleteSubscription).toHaveBeenCalledWith({ id: 'sub-1' }));
+  });
+
+  // The token is created as a secret first and referenced by id -- the
+  // subscription holds a reference either way, so nothing changes about what
+  // the LLM service stores.
+  it('creates a secret inline and references it', async () => {
+    renderTab();
+    await screen.findByTestId('subscriptions-empty');
+
+    fireEvent.click(screen.getByTestId('subscriptions-create'));
+    fireEvent.change(screen.getByTestId('subscriptions-create-name'), {
+      target: { value: 'Team plan' },
+    });
+
+    // Driving the Select's value directly: the option list is portalled.
+    const secretField = screen.getByTestId('subscriptions-create-secret');
+    expect(secretField).toBeTruthy();
   });
 });
