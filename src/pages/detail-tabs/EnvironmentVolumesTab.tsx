@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CreateVolumeDialog } from '@/components/CreateVolumeDialog';
+import { CreateVolumeDialog, type EditableVolume } from '@/components/CreateVolumeDialog';
 import { agentsClient } from '@/api/client';
 import { EMPTY_PLACEHOLDER } from '@/lib/format';
 
@@ -41,6 +41,7 @@ export function EnvironmentVolumesTab({ environmentId, runnerId }: EnvironmentVo
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
+  const [editing, setEditing] = useState<EditableVolume | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['environment-volumes', environmentId],
@@ -145,6 +146,24 @@ export function EnvironmentVolumesTab({ environmentId, runnerId }: EnvironmentVo
                         variant="ghost"
                         size="sm"
                         onClick={() =>
+                          setEditing({
+                            id: volume.meta?.id ?? '',
+                            name: volume.name,
+                            mountPath: volume.mountPath,
+                            persistent: volume.persistent,
+                            size: volume.size,
+                            storageClass: volume.storageClass ?? '',
+                            ttl: volume.ttl ?? '',
+                          })
+                        }
+                        data-testid="environment-volumes-edit"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
                           setPendingRemoval({
                             id: volume.meta?.id ?? '',
                             name: volume.name,
@@ -163,6 +182,17 @@ export function EnvironmentVolumesTab({ environmentId, runnerId }: EnvironmentVo
           </CardContent>
         </Card>
       )}
+
+      <CreateVolumeDialog
+        environmentId={environmentId}
+        runnerId={runnerId}
+        volume={editing ?? undefined}
+        open={editing !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+        key={editing?.id ?? 'edit'}
+      />
 
       <CreateVolumeDialog
         environmentId={environmentId}

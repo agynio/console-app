@@ -27,6 +27,12 @@ function renderTab() {
   );
 }
 
+// Radix positions the open listbox by scrolling the active item into view, which
+// jsdom does not implement.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 describe('EnvironmentVolumesTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -43,9 +49,10 @@ describe('EnvironmentVolumesTab', () => {
     expect(screen.getByTestId('environment-volumes-add')).toBeTruthy();
   });
 
-  // Size is what makes a volume persistent -- the resource makes the two
-  // biconditional, so the form must not be able to send one without the other.
-  it('sends persistent with a size and ephemeral without one', async () => {
+  // Persistence is chosen, not inferred from whether a size was typed. The
+  // resource still makes the two biconditional, so the form must not be able to
+  // send one without the other.
+  it('sends persistent with a size, and ephemeral with none', async () => {
     renderTab();
     await screen.findByTestId('environment-volumes-empty');
 
@@ -54,6 +61,8 @@ describe('EnvironmentVolumesTab', () => {
     fireEvent.change(screen.getByTestId('create-volume-mount-path'), {
       target: { value: '/workspace' },
     });
+    fireEvent.click(screen.getByTestId('create-volume-persistence'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Persistent' }));
     fireEvent.change(screen.getByTestId('create-volume-size'), { target: { value: '10Gi' } });
     fireEvent.click(screen.getByTestId('create-volume-submit'));
 
