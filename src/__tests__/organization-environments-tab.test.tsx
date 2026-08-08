@@ -1,4 +1,5 @@
 import { create } from '@bufbuild/protobuf';
+import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -293,6 +294,7 @@ describe('OrganizationEnvironmentsTab', () => {
     await waitFor(() => {
       expect(createEnvironment).toHaveBeenCalledWith({
         organizationId: 'org-1',
+        availability: EnvironmentAvailability.INTERNAL,
         name: 'builder',
         workspaceImageId: 'image-1',
         workspaceImageTag: '1.2.0',
@@ -337,6 +339,7 @@ describe('OrganizationEnvironmentsTab', () => {
     await waitFor(() => {
       expect(createEnvironment).toHaveBeenCalledWith({
         organizationId: 'org-1',
+        availability: EnvironmentAvailability.INTERNAL,
         name: 'picked',
         workspaceImageId: 'image-1',
         workspaceImageTag: '1.2.0',
@@ -374,6 +377,7 @@ describe('OrganizationEnvironmentsTab', () => {
     await waitFor(() => {
       expect(createEnvironment).toHaveBeenCalledWith({
         organizationId: 'org-1',
+        availability: EnvironmentAvailability.INTERNAL,
         name: 'custom',
         workspaceImageId: 'image-1',
         workspaceImageTag: '1.2.0',
@@ -415,6 +419,7 @@ describe('OrganizationEnvironmentsTab', () => {
     await waitFor(() => {
       expect(createEnvironment).toHaveBeenCalledWith({
         organizationId: 'org-1',
+        availability: EnvironmentAvailability.INTERNAL,
         name: 'defaults',
         workspaceImageId: 'image-1',
         workspaceImageTag: '1.2.0',

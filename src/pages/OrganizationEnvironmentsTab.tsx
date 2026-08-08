@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Environment } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useImageRef } from '@/hooks/useImageRef';
 import { useListControls } from '@/hooks/useListControls';
@@ -32,6 +33,7 @@ import { toast } from 'sonner';
 
 type EnvironmentValues = {
   name: string;
+  availability: EnvironmentAvailability;
   runnerId: string;
   flavor: string;
   workspaceImageId: string;
@@ -71,6 +73,7 @@ type EnvironmentDialogProps = {
 
 const emptyEnvironmentValues: EnvironmentValues = {
   name: '',
+  availability: EnvironmentAvailability.INTERNAL,
   runnerId: '',
   flavor: '',
   workspaceImageId: '',
@@ -115,7 +118,9 @@ function EnvironmentDialog({
 
   const flavorOptions = flavorsByRunner.get(values.runnerId) ?? [];
 
-  const updateValue = (field: keyof EnvironmentValues, value: string) => {
+  // Generic over the field: every other value is a string, availability is an
+  // enum, and typing it as string would only push the cast to the call sites.
+  const updateValue = <K extends keyof EnvironmentValues>(field: K, value: EnvironmentValues[K]) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
   };
@@ -189,6 +194,29 @@ function EnvironmentDialog({
             }}
             testIdPrefix={`${testIdPrefix}-runtime`}
           />
+          <div className="space-y-2">
+            <Label htmlFor={`${testIdPrefix}-availability`}>Availability</Label>
+            <Select
+              value={String(values.availability)}
+              onValueChange={(value) => updateValue('availability', Number(value) as EnvironmentAvailability)}
+            >
+              <SelectTrigger
+                id={`${testIdPrefix}-availability`}
+                className="w-full"
+                data-testid={`${testIdPrefix}-availability`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(EnvironmentAvailability.INTERNAL)}>
+                  Internal — every member of the organization
+                </SelectItem>
+                <SelectItem value={String(EnvironmentAvailability.PRIVATE)}>
+                  Private — only who it is shared with
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-runner`}>Runner</Label>
             <Select value={values.runnerId} onValueChange={(value) => updateValue('runnerId', value)}>
@@ -576,6 +604,7 @@ export function OrganizationEnvironmentsTab() {
           pendingLabel="Saving..."
           initialValues={{
             name: editTarget.name,
+            availability: editTarget.availability,
             runnerId: editTarget.runnerId,
             flavor: editTarget.flavor,
             workspaceImageId: editTarget.workspaceImageId,
