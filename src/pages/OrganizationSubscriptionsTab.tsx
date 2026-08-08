@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { llmClient, secretsClient } from '@/api/client';
-import { Vendor } from '@/gen/agynio/api/llm/v1/llm_pb';
+import { Vendor, type Subscription } from '@/gen/agynio/api/llm/v1/llm_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -73,6 +73,7 @@ export function OrganizationSubscriptionsTab() {
   const organizationId = id ?? '';
   const queryClient = useQueryClient();
 
+  const [editing, setEditing] = useState<Subscription | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [vendor, setVendor] = useState<Vendor>(Vendor.ANTHROPIC);
@@ -99,8 +100,18 @@ export function OrganizationSubscriptionsTab() {
   const { data: secretData } = useQuery({
     queryKey: ['secrets', organizationId, 'for-subscriptions'],
     queryFn: () => secretsClient.listSecrets({ organizationId, pageSize: PAGE_SIZE }),
-    enabled: createOpen && Boolean(organizationId),
+    enabled: (createOpen || editing !== null) && Boolean(organizationId),
   });
+
+  const openEdit = (subscription: Subscription) => {
+    setName(subscription.name);
+    setVendor(subscription.vendor);
+    setSecretId(subscription.secretId);
+    setNewSecretTitle('');
+    setNewSecretValue('');
+    setErrors({});
+    setEditing(subscription);
+  };
 
   const resetForm = () => {
     setName('');
@@ -146,6 +157,38 @@ export function OrganizationSubscriptionsTab() {
     },
   });
 
+  const updateSubscription = useMutation({
+    mutationFn: async () => {
+      let referencedSecretId = secretId;
+      if (secretId === NEW_SECRET) {
+        const created = await secretsClient.createSecret({
+          organizationId,
+          title: newSecretTitle.trim() || `${name.trim()} token`,
+          description: 'Subscription token',
+          value: newSecretValue,
+        });
+        referencedSecretId = created.secret?.meta?.id ?? '';
+        void queryClient.invalidateQueries({ queryKey: ['secrets', organizationId] });
+      }
+      return llmClient.updateSubscription({
+        id: editing?.meta?.id ?? '',
+        name: name.trim(),
+        secretId: referencedSecretId,
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['llm', organizationId, 'subscriptions'] });
+      toast.success('Subscription updated.');
+      setEditing(null);
+      resetForm();
+    },
+    onError: (mutationError) => {
+      toast.error(
+        mutationError instanceof Error ? mutationError.message : 'Failed to update the subscription.',
+      );
+    },
+  });
+
   const deleteSubscription = useMutation({
     mutationFn: (subscriptionId: string) => llmClient.deleteSubscription({ id: subscriptionId }),
     onSuccess: () => {
@@ -169,6 +212,10 @@ export function OrganizationSubscriptionsTab() {
     if (secretId === NEW_SECRET && !newSecretValue.trim()) nextErrors.token = 'Paste the token.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+    if (editing) {
+      updateSubscription.mutate();
+      return;
+    }
     createSubscription.mutate();
   };
 
@@ -300,6 +347,14 @@ export function OrganizationSubscriptionsTab() {
                       </span>
                       <div className="flex items-center justify-end gap-2">
                         <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEdit(subscription)}
+                          data-testid="subscriptions-edit"
+                        >
+                          Edit
+                        </Button>
+                        <Button
                           variant="destructive"
                           size="sm"
                           onClick={() => setPendingDelete({ id: subscriptionId, name: subscription.name })}
@@ -318,15 +373,18 @@ export function OrganizationSubscriptionsTab() {
       ) : null}
 
       <Dialog
-        open={createOpen}
+        open={createOpen || editing !== null}
         onOpenChange={(open) => {
-          if (!open) resetForm();
-          setCreateOpen(open);
+          if (!open) {
+            resetForm();
+            setEditing(null);
+          }
+          setCreateOpen(open && editing === null);
         }}
       >
         <DialogContent data-testid="subscriptions-create-dialog">
           <DialogHeader>
-            <DialogTitle>New subscription</DialogTitle>
+            <DialogTitle>{editing ? 'Edit subscription' : 'New subscription'}</DialogTitle>
             <DialogDescription>
               The token is held by reference to a secret. Nothing here reads it, and no view ever
               shows it.
@@ -351,6 +409,7 @@ export function OrganizationSubscriptionsTab() {
               <Select
                 value={String(vendor)}
                 onValueChange={(value) => setVendor(Number(value) as Vendor)}
+                disabled={editing !== null}
               >
                 <SelectTrigger id="subscription-vendor" data-testid="subscriptions-create-vendor">
                   <SelectValue />
@@ -417,15 +476,28 @@ export function OrganizationSubscriptionsTab() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCreateOpen(false);
+                setEditing(null);
+                resetForm();
+              }}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={createSubscription.isPending}
+              disabled={createSubscription.isPending || updateSubscription.isPending}
               data-testid="subscriptions-create-submit"
             >
-              {createSubscription.isPending ? 'Creating…' : 'Create'}
+              {editing
+                ? updateSubscription.isPending
+                  ? 'Saving…'
+                  : 'Save'
+                : createSubscription.isPending
+                  ? 'Creating…'
+                  : 'Create'}
             </Button>
           </DialogFooter>
         </DialogContent>

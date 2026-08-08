@@ -12,6 +12,7 @@ const {
   listSubscriptionAttachments,
   createSubscription,
   deleteSubscription,
+  updateSubscription,
   listSecrets,
   createSecret,
 } = vi.hoisted(() => ({
@@ -19,12 +20,19 @@ const {
   listSubscriptionAttachments: vi.fn(),
   createSubscription: vi.fn(),
   deleteSubscription: vi.fn(),
+  updateSubscription: vi.fn(),
   listSecrets: vi.fn(),
   createSecret: vi.fn(),
 }));
 
 vi.mock('@/api/client', () => ({
-  llmClient: { listSubscriptions, listSubscriptionAttachments, createSubscription, deleteSubscription },
+  llmClient: {
+    listSubscriptions,
+    listSubscriptionAttachments,
+    createSubscription,
+    updateSubscription,
+    deleteSubscription,
+  },
   secretsClient: { listSecrets, createSecret },
 }));
 
@@ -56,6 +64,7 @@ describe('OrganizationSubscriptionsTab', () => {
     createSubscription.mockResolvedValue({});
     createSecret.mockResolvedValue({ secret: { meta: { id: 'sec-new' } } });
     deleteSubscription.mockResolvedValue({});
+    updateSubscription.mockResolvedValue({});
   });
 
   afterEach(cleanup);
@@ -134,5 +143,45 @@ describe('OrganizationSubscriptionsTab', () => {
     // Driving the Select's value directly: the option list is portalled.
     const secretField = screen.getByTestId('subscriptions-create-secret');
     expect(secretField).toBeTruthy();
+  });
+
+  // Editing exists mostly to repoint at a rotated secret, so it prefills what
+  // is there and sends the id alongside.
+  it('edits a subscription in place', async () => {
+    listSubscriptions.mockResolvedValue({
+      subscriptions: [
+        { meta: { id: 'sub-1' }, name: 'Team plan', vendor: 1, secretId: 'sec-1', accountId: '' },
+      ],
+    });
+    renderTab();
+    await screen.findByTestId('subscriptions-table');
+
+    fireEvent.click(screen.getByTestId('subscriptions-edit'));
+    const nameField = screen.getByTestId('subscriptions-create-name') as HTMLInputElement;
+    expect(nameField.value).toBe('Team plan');
+
+    fireEvent.change(nameField, { target: { value: 'Renamed plan' } });
+    fireEvent.click(screen.getByTestId('subscriptions-create-submit'));
+
+    await waitFor(() => expect(updateSubscription).toHaveBeenCalledTimes(1));
+    expect(updateSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sub-1', name: 'Renamed plan', secretId: 'sec-1' }),
+    );
+    expect(createSubscription).not.toHaveBeenCalled();
+  });
+
+  // Changing a subscription's vendor would silently redirect every workload it
+  // serves, so it is fixed once created.
+  it('does not let the vendor change on edit', async () => {
+    listSubscriptions.mockResolvedValue({
+      subscriptions: [
+        { meta: { id: 'sub-1' }, name: 'Team plan', vendor: 1, secretId: 'sec-1', accountId: '' },
+      ],
+    });
+    renderTab();
+    await screen.findByTestId('subscriptions-table');
+
+    fireEvent.click(screen.getByTestId('subscriptions-edit'));
+    expect(screen.getByTestId('subscriptions-create-vendor').getAttribute('disabled')).not.toBeNull();
   });
 });
