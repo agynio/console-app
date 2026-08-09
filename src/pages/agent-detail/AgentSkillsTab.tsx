@@ -195,23 +195,17 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-skills-heading">
-            Skills
-          </h3>
-          <p className="text-sm text-muted-foreground">Reusable prompts and instructions.</p>
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search skills..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
         </div>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="agent-skills-create">
           Create skill
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search skills..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {skillsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading skills...</div> : null}
       {skillsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load skills.</div> : null}

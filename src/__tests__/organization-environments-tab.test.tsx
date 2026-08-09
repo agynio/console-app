@@ -1,5 +1,5 @@
 import { create } from '@bufbuild/protobuf';
-import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { EnvironmentAvailability, LLMMode } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -300,6 +300,7 @@ describe('OrganizationEnvironmentsTab', () => {
         workspaceImageTag: '1.2.0',
         agentRuntimeImageId: '',
         agentRuntimeImageTag: '',
+        llmMode: LLMMode.LLM_MODE_PLATFORM,
         runnerId: 'runner-1',
         flavor: 'large',
       });
@@ -345,6 +346,7 @@ describe('OrganizationEnvironmentsTab', () => {
         workspaceImageTag: '1.2.0',
         agentRuntimeImageId: '',
         agentRuntimeImageTag: '',
+        llmMode: LLMMode.LLM_MODE_PLATFORM,
         runnerId: 'runner-1',
         flavor: 'ram-4gb',
       });
@@ -383,6 +385,7 @@ describe('OrganizationEnvironmentsTab', () => {
         workspaceImageTag: '1.2.0',
         agentRuntimeImageId: '',
         agentRuntimeImageTag: '',
+        llmMode: LLMMode.LLM_MODE_PLATFORM,
         runnerId: 'runner-1',
         flavor: 'not-in-catalog',
       });
@@ -425,6 +428,7 @@ describe('OrganizationEnvironmentsTab', () => {
         workspaceImageTag: '1.2.0',
         agentRuntimeImageId: '',
         agentRuntimeImageTag: '',
+        llmMode: LLMMode.LLM_MODE_PLATFORM,
         runnerId: 'runner-1',
         flavor: '',
       });

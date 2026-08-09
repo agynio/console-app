@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { agentsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -29,12 +30,18 @@ import { NestedEnvsDialog } from '@/pages/agent-detail/NestedEnvsDialog';
 import { NestedInitScriptsDialog } from '@/pages/agent-detail/NestedInitScriptsDialog';
 import { toast } from 'sonner';
 
-type AgentMcpsTabProps = {
-  agentId: string;
+type McpsTabProps = {
+  target: DetailTarget;
   organizationId: string;
 };
 
-export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
+
+// Narrows the list to the target the tab is looking at.
+function listFilter(target: DetailTarget) {
+  return target.kind === 'agent' ? { agentId: target.id } : { environmentId: target.id };
+}
+
+export function McpsTab({ target, organizationId }: McpsTabProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -59,9 +66,9 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const mcpsQuery = useQuery({
-    queryKey: ['mcps', agentId, 'list'],
-    queryFn: () => agentsClient.listMcps({ agentId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    enabled: Boolean(agentId),
+    queryKey: ['mcps', target.kind, target.id, 'list'],
+    queryFn: () => agentsClient.listMcps({ ...listFilter(target), pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(target.id),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -91,7 +98,8 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
 
   const createMcpMutation = useMutation({
     mutationFn: (payload: {
-      agentId: string;
+      agentId?: string;
+      environmentId?: string;
       name: string;
       imageId: string;
       imageTag: string;
@@ -101,7 +109,7 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     }) => agentsClient.createMcp(payload),
     onSuccess: () => {
       toast.success('MCP created.');
-      void queryClient.invalidateQueries({ queryKey: ['mcps', agentId, 'list'] });
+      void queryClient.invalidateQueries({ queryKey: ['mcps', target.kind, target.id, 'list'] });
       setCreateOpen(false);
       setCreateName('');
       setCreateImageId('');
@@ -128,7 +136,7 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     }) => agentsClient.updateMcp(payload),
     onSuccess: () => {
       toast.success('MCP updated.');
-      void queryClient.invalidateQueries({ queryKey: ['mcps', agentId, 'list'] });
+      void queryClient.invalidateQueries({ queryKey: ['mcps', target.kind, target.id, 'list'] });
       setEditOpen(false);
       setEditMcpId(null);
     },
@@ -141,7 +149,7 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     mutationFn: (mcpId: string) => agentsClient.deleteMcp({ id: mcpId }),
     onSuccess: () => {
       toast.success('MCP deleted.');
-      void queryClient.invalidateQueries({ queryKey: ['mcps', agentId, 'list'] });
+      void queryClient.invalidateQueries({ queryKey: ['mcps', target.kind, target.id, 'list'] });
       setDeleteTargetId(null);
     },
     onError: (error) => {
@@ -159,7 +167,7 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
     }
     if (!trimmedName || !createImageId || !createImageTag) return;
     createMcpMutation.mutate({
-      agentId,
+      ...listFilter(target),
       name: trimmedName,
       imageId: createImageId,
       imageTag: createImageTag,
@@ -261,23 +269,17 @@ export function AgentMcpsTab({ agentId, organizationId }: AgentMcpsTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-mcps-heading">
-            MCPs
-          </h3>
-          <p className="text-sm text-muted-foreground">Model context providers for this agent.</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="agent-mcps-create">
-          Create MCP
-        </Button>
-      </div>
-      <div className="max-w-sm">
+        <div className="max-w-sm flex-1">
         <Input
           placeholder="Search MCPs..."
           value={listControls.searchTerm}
           onChange={(event) => listControls.setSearchTerm(event.target.value)}
           data-testid="list-search"
         />
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid="agent-mcps-create">
+          Create MCP
+        </Button>
       </div>
       {mcpsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading MCPs...</div> : null}
       {mcpsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load MCPs.</div> : null}

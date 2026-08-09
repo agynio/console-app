@@ -11,6 +11,7 @@ import { AgentDetailPage } from '@/pages/AgentDetailPage';
 import { OrganizationAppsTab } from '@/pages/OrganizationAppsTab';
 import { OrganizationLlmProvidersTab } from '@/pages/OrganizationLlmProvidersTab';
 import { OrganizationModelsTab } from '@/pages/OrganizationModelsTab';
+import { OrganizationSubscriptionsTab } from '@/pages/OrganizationSubscriptionsTab';
 import { OrganizationActivityStorageTab } from '@/pages/OrganizationActivityStorageTab';
 import { OrganizationActivityWorkloadsTab } from '@/pages/OrganizationActivityWorkloadsTab';
 import { OrganizationOverviewTab } from '@/pages/OrganizationOverviewTab';
@@ -99,6 +100,7 @@ export default function App() {
           <Route path="groups/:groupId" element={<OrganizationGroupDetailPage />} />
           <Route path="llm-providers" element={<OrganizationLlmProvidersTab />} />
           <Route path="models" element={<OrganizationModelsTab />} />
+          <Route path="subscriptions" element={<OrganizationSubscriptionsTab />} />
           <Route path="secrets" element={<OrganizationSecretsTab />} />
           <Route path="secret-providers" element={<OrganizationSecretProvidersTab />} />
           <Route path="runners" element={<OrganizationRunnersTab />} />

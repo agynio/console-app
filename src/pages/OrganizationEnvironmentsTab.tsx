@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { SortableHeader } from '@/components/SortableHeader';
 import { ComboboxInput, type ComboboxOption } from '@/components/ComboboxInput';
+import { describeResources } from '@/lib/flavors';
 import { ImageSelector } from '@/components/ImageSelector';
 import { ImageType } from '@/gen/agynio/api/images/v1/images_pb';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Environment } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { EnvironmentAvailability, LLMMode } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useImageRef } from '@/hooks/useImageRef';
 import { useListControls } from '@/hooks/useListControls';
@@ -31,7 +32,7 @@ import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
-type EnvironmentValues = {
+export type EnvironmentValues = {
   name: string;
   availability: EnvironmentAvailability;
   runnerId: string;
@@ -42,13 +43,14 @@ type EnvironmentValues = {
   // when creating an agent.
   agentRuntimeImageId: string;
   agentRuntimeImageTag: string;
+  llmMode: LLMMode;
 };
 
 type EnvironmentFieldErrors = Partial<
   Record<'name' | 'runnerId' | 'workspaceImageId' | 'workspaceImageTag', string>
 >;
 
-type RunnerOption = {
+export type RunnerOption = {
   value: string;
   label: string;
 };
@@ -80,17 +82,11 @@ const emptyEnvironmentValues: EnvironmentValues = {
   workspaceImageTag: '',
   agentRuntimeImageId: '',
   agentRuntimeImageTag: '',
+  llmMode: LLMMode.LLM_MODE_PLATFORM,
 };
 
-// Requests are what scheduling reserves, so they are the useful number when
-// choosing between flavors; limits are the ceiling and are left out.
-function describeResources(resources?: { requestsCpu: string; requestsMemory: string }): string | undefined {
-  if (!resources) return undefined;
-  const parts = [resources.requestsCpu, resources.requestsMemory].filter(Boolean);
-  return parts.length > 0 ? parts.join(' / ') : undefined;
-}
 
-function EnvironmentDialog({
+export function EnvironmentDialog({
   organizationId,
   open,
   onOpenChange,
@@ -144,7 +140,7 @@ function EnvironmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent data-testid={`${testIdPrefix}-dialog`}>
+      <DialogContent className="sm:max-w-2xl" data-testid={`${testIdPrefix}-dialog`}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -194,6 +190,30 @@ function EnvironmentDialog({
             }}
             testIdPrefix={`${testIdPrefix}-runtime`}
           />
+          <div className="space-y-2">
+            <Label htmlFor={`${testIdPrefix}-llm-mode`}>LLM access</Label>
+            <Select
+              value={String(values.llmMode)}
+              onValueChange={(value) => updateValue('llmMode', Number(value) as LLMMode)}
+            >
+              <SelectTrigger
+                id={`${testIdPrefix}-llm-mode`}
+                className="w-full"
+                data-testid={`${testIdPrefix}-llm-mode`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(LLMMode.LLM_MODE_PLATFORM)}>Platform</SelectItem>
+                <SelectItem value={String(LLMMode.LLM_MODE_NATIVE)}>Native</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {values.llmMode === LLMMode.LLM_MODE_NATIVE
+                ? "The agent CLI runs unmodified against the vendor's own plan, using a subscription."
+                : 'Models come from the catalog, through the platform.'}
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-availability`}>Availability</Label>
             <Select
@@ -611,6 +631,7 @@ export function OrganizationEnvironmentsTab() {
             workspaceImageTag: editTarget.workspaceImageTag,
             agentRuntimeImageId: editTarget.agentRuntimeImageId,
             agentRuntimeImageTag: editTarget.agentRuntimeImageTag,
+            llmMode: editTarget.llmMode,
           }}
           runnerOptions={runnerOptions}
           flavorsByRunner={flavorsByRunner}

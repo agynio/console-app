@@ -1,19 +1,25 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EnvironmentVolumesTab } from '@/pages/detail-tabs/EnvironmentVolumesTab';
 
-const listVolumes = vi.fn();
-
-vi.mock('@/api/client', () => ({
-  agentsClient: {
-    listVolumes: (...args: unknown[]) => listVolumes(...args),
-  },
+const { listVolumes, createVolume, deleteVolume } = vi.hoisted(() => ({
+  listVolumes: vi.fn(),
+  createVolume: vi.fn(),
+  deleteVolume: vi.fn(),
 }));
 
+vi.mock('@/api/client', () => ({
+  agentsClient: { listVolumes, createVolume, deleteVolume },
+}));
+
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
 function renderTab() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={queryClient}>
       <EnvironmentVolumesTab environmentId="env-1" />
@@ -21,8 +27,82 @@ function renderTab() {
   );
 }
 
-describe('environment volumes tab', () => {
-  it('lists the volumes the environment declares', async () => {
+// Radix positions the open listbox by scrolling the active item into view, which
+// jsdom does not implement.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
+describe('EnvironmentVolumesTab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listVolumes.mockResolvedValue({ volumes: [] });
+    createVolume.mockResolvedValue({});
+    deleteVolume.mockResolvedValue({});
+  });
+
+  afterEach(cleanup);
+
+  it('offers to add a volume even when the environment declares none', async () => {
+    renderTab();
+    await screen.findByTestId('environment-volumes-empty');
+    expect(screen.getByTestId('environment-volumes-add')).toBeTruthy();
+  });
+
+  // Persistence is chosen, not inferred from whether a size was typed. The
+  // resource still makes the two biconditional, so the form must not be able to
+  // send one without the other.
+  it('sends persistent with a size, and ephemeral with none', async () => {
+    renderTab();
+    await screen.findByTestId('environment-volumes-empty');
+
+    fireEvent.click(screen.getByTestId('environment-volumes-add'));
+    fireEvent.change(screen.getByTestId('create-volume-name'), { target: { value: 'workspace' } });
+    fireEvent.change(screen.getByTestId('create-volume-mount-path'), {
+      target: { value: '/workspace' },
+    });
+    fireEvent.click(screen.getByTestId('create-volume-persistence'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Persistent' }));
+    fireEvent.change(screen.getByTestId('create-volume-size'), { target: { value: '10Gi' } });
+    fireEvent.click(screen.getByTestId('create-volume-submit'));
+
+    await waitFor(() => expect(createVolume).toHaveBeenCalledTimes(1));
+    expect(createVolume).toHaveBeenCalledWith(
+      expect.objectContaining({ size: '10Gi', persistent: true, mountPath: '/workspace' }),
+    );
+
+    createVolume.mockClear();
+    fireEvent.click(screen.getByTestId('environment-volumes-add'));
+    fireEvent.change(screen.getByTestId('create-volume-name'), { target: { value: 'scratch' } });
+    fireEvent.change(screen.getByTestId('create-volume-mount-path'), {
+      target: { value: '/scratch' },
+    });
+    fireEvent.click(screen.getByTestId('create-volume-submit'));
+
+    await waitFor(() => expect(createVolume).toHaveBeenCalledTimes(1));
+    expect(createVolume).toHaveBeenCalledWith(
+      expect.objectContaining({ size: '', persistent: false }),
+    );
+  });
+
+  // A container path that is not absolute is not a mount, and the server would
+  // refuse it -- saying so here costs one round trip less.
+  it('refuses a relative mount path without calling the API', async () => {
+    renderTab();
+    await screen.findByTestId('environment-volumes-empty');
+
+    fireEvent.click(screen.getByTestId('environment-volumes-add'));
+    fireEvent.change(screen.getByTestId('create-volume-name'), { target: { value: 'workspace' } });
+    fireEvent.change(screen.getByTestId('create-volume-mount-path'), {
+      target: { value: 'workspace' },
+    });
+    fireEvent.click(screen.getByTestId('create-volume-submit'));
+
+    expect(await screen.findByText('Mount path must be absolute.')).toBeTruthy();
+    expect(createVolume).not.toHaveBeenCalled();
+  });
+
+  it('confirms before removing, and says what a persistent volume takes with it', async () => {
     listVolumes.mockResolvedValue({
       volumes: [
         {
@@ -31,27 +111,20 @@ describe('environment volumes tab', () => {
           mountPath: '/workspace',
           persistent: true,
           size: '10Gi',
+          storageClass: '',
+          ttl: '',
         },
       ],
     });
-
     renderTab();
+    await screen.findByTestId('environment-volumes-table');
 
-    expect(await screen.findByText('workspace')).toBeTruthy();
-    expect(screen.getByText('/workspace')).toBeTruthy();
-    expect(screen.getByText('Persistent')).toBeTruthy();
-    expect(listVolumes).toHaveBeenCalledWith({ environmentId: 'env-1', pageSize: 200 });
-  });
+    fireEvent.click(screen.getByTestId('environment-volumes-remove'));
+    expect(await screen.findByTestId('environment-volumes-remove-dialog')).toBeTruthy();
+    expect(screen.getByText(/not recoverable/i)).toBeTruthy();
+    expect(deleteVolume).not.toHaveBeenCalled();
 
-  // An empty table would read as "storage exists but is not shown". What an
-  // engineer needs to know is that nothing here survives a stop.
-  it('says nothing survives a stop when no volume is declared', async () => {
-    listVolumes.mockResolvedValue({ volumes: [] });
-
-    renderTab();
-
-    expect(await screen.findByTestId('environment-volumes-empty')).toBeTruthy();
-    expect(screen.getByText(/declares no volumes/i)).toBeTruthy();
-    expect(screen.getByText(/survives it stopping/i)).toBeTruthy();
+    fireEvent.click(screen.getByTestId('environment-volumes-remove-confirm'));
+    await waitFor(() => expect(deleteVolume).toHaveBeenCalledWith({ id: 'vol-1' }));
   });
 });

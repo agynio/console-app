@@ -1,13 +1,20 @@
+import { useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { useQuery } from '@tanstack/react-query';
 import { agentsClient, runnersClient } from '@/api/client';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
+import { EnvironmentSubscriptionsTab } from '@/pages/detail-tabs/EnvironmentSubscriptionsTab';
 import { EnvironmentVolumesTab } from '@/pages/detail-tabs/EnvironmentVolumesTab';
+import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { Button } from '@/components/ui/button';
+import { EditEnvironmentDialog } from '@/components/EditEnvironmentDialog';
+import { DetailPageHeader } from '@/components/DetailPageHeader';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
+import { InitScriptsTab } from '@/pages/detail-tabs/InitScriptsTab';
+import { McpsTab } from '@/pages/detail-tabs/McpsTab';
 import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useImageRef } from '@/hooks/useImageRef';
@@ -54,13 +61,10 @@ export function EnvironmentDetailPage() {
       ? `/organizations/${organizationId}/runners/${environment.runnerId}`
       : '';
 
+  const [editOpen, setEditOpen] = useState(false);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="link" asChild data-testid="environment-detail-back">
-          <NavLink to={backHref}>← Back to Environments</NavLink>
-        </Button>
-      </div>
       {environmentQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading environment...</div>
       ) : null}
@@ -71,19 +75,76 @@ export function EnvironmentDetailPage() {
         </div>
       ) : null}
       {environment && !showNotFound ? (
-        <Tabs defaultValue="overview" data-testid="environment-detail-tabs">
-          <TabsList>
+        <>
+        <DetailPageHeader
+          parentLabel="Environments"
+          parentHref={backHref}
+          title={environment.name || 'Environment'}
+          meta={[
+            environment.runnerId ? runnerName : '',
+            environment.flavor,
+            imageRef(environment.workspaceImageId, environment.workspaceImageTag, environment.image),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          badge={
+            environment.availability ? (
+              <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                {EnvironmentAvailability[environment.availability]?.toLowerCase() ?? ''}
+              </span>
+            ) : null
+          }
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+              data-testid="environment-detail-edit"
+            >
+              Edit
+            </Button>
+          }
+          testId="environment-detail-header"
+        />
+        <EditEnvironmentDialog
+          organizationId={organizationId}
+          environmentId={environment.meta?.id ?? ''}
+          values={{
+            name: environment.name,
+            availability: environment.availability,
+            runnerId: environment.runnerId,
+            flavor: environment.flavor,
+            workspaceImageId: environment.workspaceImageId,
+            workspaceImageTag: environment.workspaceImageTag,
+            agentRuntimeImageId: environment.agentRuntimeImageId,
+            agentRuntimeImageTag: environment.agentRuntimeImageTag,
+            llmMode: environment.llmMode,
+          }}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+        <Tabs defaultValue="overview" data-testid="environment-detail-tabs" className="mt-6">
+          <TabsList variant="line" className="w-full justify-start border-b border-border [&>*]:flex-none">
             <TabsTrigger value="overview" data-testid="environment-detail-overview-tab">
               Overview
             </TabsTrigger>
             <TabsTrigger value="volumes" data-testid="environment-detail-volumes-tab">
               Volumes
             </TabsTrigger>
+            <TabsTrigger value="mcps" data-testid="environment-detail-mcps-tab">
+              MCP Servers
+            </TabsTrigger>
+            <TabsTrigger value="init-scripts" data-testid="environment-detail-init-scripts-tab">
+              Init Scripts
+            </TabsTrigger>
             <TabsTrigger value="envs" data-testid="environment-detail-envs-tab">
               ENVs
             </TabsTrigger>
             <TabsTrigger value="egress-rules" data-testid="environment-detail-egress-rules-tab">
               Egress Rules
+            </TabsTrigger>
+            <TabsTrigger value="subscriptions" data-testid="environment-detail-subscriptions-tab">
+              Subscriptions
             </TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
@@ -163,15 +224,28 @@ export function EnvironmentDetailPage() {
             </Card>
           </TabsContent>
           <TabsContent value="volumes">
-            <EnvironmentVolumesTab environmentId={environment.meta?.id ?? ''} />
+            <EnvironmentVolumesTab
+              environmentId={environment.meta?.id ?? ''}
+              runnerId={environment.runnerId ?? ''}
+            />
+          </TabsContent>
+          <TabsContent value="mcps">
+            <McpsTab target={target} organizationId={organizationId} />
+          </TabsContent>
+          <TabsContent value="init-scripts">
+            <InitScriptsTab target={target} />
           </TabsContent>
           <TabsContent value="envs">
             <EnvsTab target={target} organizationId={organizationId} />
+          </TabsContent>
+          <TabsContent value="subscriptions">
+            <EnvironmentSubscriptionsTab environment={environment} />
           </TabsContent>
           <TabsContent value="egress-rules">
             <EgressRuleAttachmentsTab target={target} organizationId={organizationId} />
           </TabsContent>
         </Tabs>
+        </>
       ) : null}
     </div>
   );

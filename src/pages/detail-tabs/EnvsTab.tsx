@@ -323,23 +323,17 @@ export function EnvsTab({ target, organizationId }: EnvsTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid={`${prefix}-envs-heading`}>
-            ENVs
-          </h3>
-          <p className="text-sm text-muted-foreground">{copy.heading}</p>
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search envs..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
         </div>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} data-testid={`${prefix}-envs-create`}>
           Add ENV
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search envs..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {envsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading envs...</div> : null}
       {envsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load envs.</div> : null}

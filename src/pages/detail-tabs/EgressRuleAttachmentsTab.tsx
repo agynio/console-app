@@ -174,13 +174,8 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
   const renderRuleSummary = (attachment: EgressRuleAttachment, rules: Map<string, EgressRule>) => {
     const rule = rules.get(attachment.ruleId);
     return (
-      <div>
-        <div className="font-medium" data-testid={`${prefix}-egress-rule-attachment-name`}>
-          {rule?.name || attachment.ruleId}
-        </div>
-        <div className="text-xs text-muted-foreground" data-testid={`${prefix}-egress-rule-attachment-domain`}>
-          Domain: {rule?.matcher?.domainPattern || '-'}
-        </div>
+      <div className="font-medium" data-testid={`${prefix}-egress-rule-attachment-name`}>
+        {rule?.name || attachment.ruleId}
       </div>
     );
   };
@@ -191,11 +186,13 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid={`${prefix}-egress-rule-attachments-heading`}>
-            Egress Rules
-          </h3>
-          <p className="text-sm text-muted-foreground">{copy.heading}</p>
+        <div className="max-w-sm flex-1">
+        <Input
+          placeholder="Search egress rule attachments..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
         </div>
         <Button
           variant="outline"
@@ -205,14 +202,6 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
         >
           Attach egress rule
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search egress rule attachments..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {attachmentsQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading egress rule attachments...</div>
@@ -230,7 +219,7 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
       {attachments.length > 0 ? (
         <Card className="border-border" data-testid={`${prefix}-egress-rule-attachments-table`}>
           <CardContent className="px-0">
-            <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_120px]">
+            <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_1fr_140px_110px]">
               <SortableHeader
                 label="Rule"
                 sortKey="rule"
@@ -263,7 +252,7 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
                 visibleAttachments.map((attachment) => (
                   <div
                     key={attachment.meta?.id ?? attachment.ruleId}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_1fr_140px_110px]"
                     data-testid={`${prefix}-egress-rule-attachment-row`}
                   >
                     {renderRuleSummary(attachment, ruleMap)}
@@ -276,7 +265,7 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
                     </span>
                     <div className="text-right">
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleDetachOpen(attachment)}
                         data-testid={`${prefix}-egress-rule-attachment-detach`}

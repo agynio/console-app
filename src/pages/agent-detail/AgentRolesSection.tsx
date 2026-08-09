@@ -193,44 +193,33 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
     setDialogOpen(true);
   };
 
-  const sharingDescription =
-    availability === AgentAvailability.PRIVATE
-      ? 'Private agents are shared by assigning owner, maintainer, or participant roles to specific organization members.'
-      : 'Assign roles now to prepare specific-user sharing before switching this agent to Private availability.';
   const hasSearch = searchTerm.trim().length > 0;
 
   return (
     <div className="space-y-4" data-testid="agent-roles-section">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3
-            className="flex flex-wrap items-center gap-2 text-lg font-semibold text-foreground"
-            data-testid="agent-roles-heading"
-          >
-            Roles
-            <Badge variant={availability === AgentAvailability.PRIVATE ? 'default' : 'outline'} data-testid="agent-roles-availability">
-              {availability === AgentAvailability.PRIVATE ? 'Private sharing active' : 'Available when Private'}
-            </Badge>
-          </h3>
-          <p className="max-w-2xl text-sm text-muted-foreground">{sharingDescription}</p>
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search shared users..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            data-testid="agent-roles-search"
+          />
         </div>
-        <Button variant="outline" size="sm" onClick={() => openEdit()} data-testid="agent-roles-add">
-          Share agent
-        </Button>
+        <div className="flex items-center gap-2">
+          <Badge variant={availability === AgentAvailability.PRIVATE ? 'default' : 'outline'} data-testid="agent-roles-availability">
+            {availability === AgentAvailability.PRIVATE ? 'Private sharing active' : 'Available when Private'}
+          </Badge>
+          <Button variant="outline" size="sm" onClick={() => openEdit()} data-testid="agent-roles-add">
+            Share agent
+          </Button>
+        </div>
       </div>
       {availability !== AgentAvailability.PRIVATE ? (
         <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground" data-testid="agent-roles-private-hint">
           To limit thread access to only the users listed here, set Availability to Private in Configuration.
         </div>
       ) : null}
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search shared users..."
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          data-testid="agent-roles-search"
-        />
-      </div>
       {rolesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading roles...</div> : null}
       {rolesQuery.isError ? (
         <div className="text-sm text-destructive" data-testid="agent-roles-load-error">
