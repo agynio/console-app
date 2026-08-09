@@ -1,30 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useParams } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { useInfiniteQuery, useQuery, type InfiniteData, type UseInfiniteQueryResult } from '@tanstack/react-query';
+import { ChevronDownIcon, ChevronRightIcon, CopyIcon } from 'lucide-react';
 import { runnersClient } from '@/api/client';
+import { DetailPageHeader } from '@/components/DetailPageHeader';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Container, Volume } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { ContainerRole, ContainerStatus, VolumeStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
+import { copyText } from '@/lib/clipboard';
 import {
   EMPTY_PLACEHOLDER,
+  formatAge,
+  formatBytes,
   formatContainerStatus,
   formatDurationBetween,
+  formatMillicores,
   formatTimestamp,
   formatVolumeStatus,
   formatWorkloadStatus,
   truncate,
+  truncateMiddle,
 } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE } from '@/lib/pagination';
+import { cn } from '@/lib/utils';
 import { summarizeVolumeAttachments } from '@/lib/volume';
 
 type LogStreamState = 'loading' | 'streaming' | 'ended' | 'unavailable' | 'error';
+
+type ContainerEntry = {
+  container: Container;
+  displayName: string;
+  name: string;
+  roleLabel: string;
+};
 
 const formatContainerRole = (role: ContainerRole) => {
   if (role === ContainerRole.MAIN) return 'Main';
@@ -65,18 +82,89 @@ const resolveVolumeVariant = (status: VolumeStatus) => {
   return 'outline';
 };
 
-type WorkloadLogViewerProps = {
-  workloadId: string;
-  containerName: string;
+// WorkloadsTable is reached from five pages, so the breadcrumb names the one you left.
+const PARENT_SECTIONS = [
+  { segment: 'threads', list: 'Threads', detail: 'Thread' },
+  { segment: 'instances', list: 'Instances', detail: 'Instance' },
+  { segment: 'sandboxes', list: 'Sandboxes', detail: 'Sandbox' },
+  { segment: 'runners', list: 'Runners', detail: 'Runner' },
+  { segment: 'workloads', list: 'Workloads', detail: 'Workloads' },
+];
+
+const resolveParent = (fromPath: string | undefined, organizationId: string) => {
+  const fallback = organizationId
+    ? { label: 'Workloads', href: `/organizations/${organizationId}/workloads` }
+    : { label: 'Runners', href: '/runners' };
+  if (!fromPath) return fallback;
+  const segments = fromPath.split('/').filter(Boolean);
+  const section = PARENT_SECTIONS.find((entry) => segments.includes(entry.segment));
+  if (!section) return fallback;
+  const isList = segments[segments.length - 1] === section.segment;
+  return { label: isList ? section.list : section.detail, href: fromPath };
 };
 
-function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps) {
+function RailStat({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium tabular-nums text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function RailField({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="space-y-0.5">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-sm text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function CopyableId({ value, label, href }: { value: string; label: string; href?: string }) {
+  if (!value) return <span className="text-sm text-foreground">{EMPTY_PLACEHOLDER}</span>;
+  const shortened = truncateMiddle(value);
+  return (
+    <div className="flex items-center gap-1">
+      {href ? (
+        <NavLink to={href} className="font-mono text-sm hover:underline" title={value}>
+          {shortened}
+        </NavLink>
+      ) : (
+        <span className="font-mono text-sm text-foreground" title={value}>
+          {shortened}
+        </span>
+      )}
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label={`Copy ${label}`}
+        onClick={() => copyText(value, `${label} copied.`)}
+      >
+        <CopyIcon />
+      </Button>
+    </div>
+  );
+}
+
+type WorkloadLogViewerProps = {
+  workloadId: string;
+  containers: ContainerEntry[];
+  selectedName: string;
+  onSelectName: (name: string) => void;
+};
+
+function WorkloadLogViewer({ workloadId, containers, selectedName, onSelectName }: WorkloadLogViewerProps) {
   const [logText, setLogText] = useState('');
   const [streamState, setStreamState] = useState<LogStreamState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const [follow, setFollow] = useState(true);
+  const [wrap, setWrap] = useState(true);
+  const [filterText, setFilterText] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!workloadId || !containerName) {
+    if (!workloadId || !selectedName) {
       setLogText('');
       setErrorMessage('');
       setStreamState('unavailable');
@@ -105,7 +193,7 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
         for await (const response of runnersClient.streamWorkloadLogs(
           {
             workloadId,
-            containerName,
+            containerName: selectedName,
             tailLines: 1000,
             follow: true,
           },
@@ -159,17 +247,70 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
       clearTimeout(loadingTimeout);
       controller.abort();
     };
-  }, [containerName, workloadId]);
+  }, [selectedName, workloadId]);
 
+  const lines = useMemo(() => (logText ? logText.replace(/\n+$/, '').split('\n') : []), [logText]);
+  const needle = filterText.trim().toLowerCase();
+  const visibleLines = needle ? lines.filter((line) => line.toLowerCase().includes(needle)) : lines;
+  const visibleText = visibleLines.join('\n');
+
+  useEffect(() => {
+    if (!follow) return;
+    const node = scrollRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [follow, visibleText]);
+
+  const hasContainers = containers.length > 0;
   const isUnavailable = streamState === 'unavailable';
   const isError = streamState === 'error';
   const isLoading = streamState === 'loading';
   const isEnded = streamState === 'ended';
-  const hasContent = logText.trim().length > 0;
+  const countLabel = needle ? `${visibleLines.length} of ${lines.length} lines` : `${lines.length} lines`;
 
   return (
-    <div className="space-y-2" data-testid="workload-container-logs">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Logs</div>
+    <div className="space-y-3" data-testid="workload-container-logs">
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={selectedName} onValueChange={onSelectName} disabled={!hasContainers}>
+          <SelectTrigger className="w-[220px]" data-testid="workload-log-container-select">
+            <SelectValue placeholder={hasContainers ? 'Select container' : 'No containers available'} />
+          </SelectTrigger>
+          <SelectContent>
+            {containers.map((entry) => (
+              <SelectItem key={entry.name} value={entry.name}>
+                {entry.displayName} ({entry.roleLabel})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant={follow ? 'secondary' : 'outline'}
+          size="sm"
+          aria-pressed={follow}
+          onClick={() => setFollow((prev) => !prev)}
+          data-testid="workload-log-follow"
+        >
+          {follow ? 'Following' : 'Follow'}
+        </Button>
+        <Button
+          variant={wrap ? 'secondary' : 'outline'}
+          size="sm"
+          aria-pressed={wrap}
+          onClick={() => setWrap((prev) => !prev)}
+          data-testid="workload-log-wrap"
+        >
+          Wrap
+        </Button>
+        <Input
+          value={filterText}
+          onChange={(event) => setFilterText(event.target.value)}
+          placeholder="Filter lines"
+          aria-label="Filter log lines"
+          className="h-8 w-[200px]"
+          data-testid="workload-log-filter"
+        />
+        {lines.length > 0 ? <span className="text-xs text-muted-foreground">{countLabel}</span> : null}
+      </div>
+
       {isLoading ? <div className="text-sm text-muted-foreground">Loading logs...</div> : null}
       {isUnavailable ? <div className="text-sm text-muted-foreground">Log stream unavailable.</div> : null}
       {isError ? (
@@ -178,14 +319,22 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
         </div>
       ) : null}
       {!isUnavailable ? (
-        <div className="rounded-md border border-border bg-muted/30 p-3">
-          {hasContent ? (
+        <div
+          ref={scrollRef}
+          className="max-h-[32rem] overflow-auto rounded-md border border-border bg-muted/30 p-3"
+        >
+          {visibleLines.length > 0 ? (
             <pre
-              className="whitespace-pre-wrap text-xs font-mono text-foreground"
+              className={cn(
+                'font-mono text-xs text-foreground',
+                wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre',
+              )}
               data-testid="workload-container-log-output"
             >
-              {logText}
+              {visibleText}
             </pre>
+          ) : needle && lines.length > 0 ? (
+            <div className="text-xs text-muted-foreground">No lines match this filter.</div>
           ) : !isLoading && !isError ? (
             <div className="text-xs text-muted-foreground">No log output yet.</div>
           ) : null}
@@ -196,67 +345,63 @@ function WorkloadLogViewer({ workloadId, containerName }: WorkloadLogViewerProps
   );
 }
 
-type ContainerPanelProps = {
-  container: Container;
-  index: number;
-};
-
-function ContainerPanel({ container, index }: ContainerPanelProps) {
-  const statusLabel = formatContainerStatus(container.status);
-  const roleLabel = formatContainerRole(container.role);
+function ContainerRow({ entry }: { entry: ContainerEntry }) {
+  const [expanded, setExpanded] = useState(false);
+  const { container } = entry;
   const reasonLabel = container.reason?.trim();
   const messageLabel = container.message?.trim();
-  const displayName = resolveContainerDisplayName(container, index);
   const exitCodeLabel = container.exitCode === undefined ? EMPTY_PLACEHOLDER : `${container.exitCode}`;
 
   return (
-    <Card className="border-border" data-testid="workload-container-card">
-      <CardHeader className="space-y-1">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="text-base text-foreground">{displayName}</CardTitle>
-          <Badge variant={resolveContainerVariant(container.status)}>{statusLabel}</Badge>
-        </div>
-        {reasonLabel ? <p className="text-sm text-muted-foreground">Reason: {reasonLabel}</p> : null}
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Role</div>
-            <div className="text-sm text-foreground">{roleLabel}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Image</div>
-            <div className="text-sm text-foreground">{container.image || EMPTY_PLACEHOLDER}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Container ID</div>
-            <div className="text-sm text-foreground">{truncate(container.containerId, 32)}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Restart Count</div>
-            <div className="text-sm text-foreground">{container.restartCount.toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Exit Code</div>
-            <div className="text-sm text-foreground">{exitCodeLabel}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Started</div>
-            <div className="text-sm text-foreground">{formatTimestamp(container.startedAt)}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Finished</div>
-            <div className="text-sm text-foreground">{formatTimestamp(container.finishedAt)}</div>
-          </div>
-          {messageLabel ? (
-            <div className="md:col-span-2">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Message</div>
-              <div className="text-sm text-foreground whitespace-pre-wrap">{messageLabel}</div>
+    <>
+      <TableRow data-testid="workload-container-row">
+        <TableCell className="align-top">
+          <div className="flex items-start gap-2">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-expanded={expanded}
+              aria-label={expanded ? `Hide ${entry.displayName} details` : `Show ${entry.displayName} details`}
+              onClick={() => setExpanded((prev) => !prev)}
+            >
+              {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+            </Button>
+            <div className="space-y-0.5">
+              <div className="font-medium text-foreground">{entry.displayName}</div>
+              {reasonLabel ? <div className="text-xs text-muted-foreground">{reasonLabel}</div> : null}
             </div>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </TableCell>
+        <TableCell className="align-top text-muted-foreground">{entry.roleLabel}</TableCell>
+        <TableCell className="align-top">
+          <span className="font-mono text-xs text-muted-foreground" title={container.image}>
+            {truncate(container.image, 40)}
+          </span>
+        </TableCell>
+        <TableCell className="align-top tabular-nums">{container.restartCount.toLocaleString()}</TableCell>
+        <TableCell className="align-top tabular-nums">{exitCodeLabel}</TableCell>
+        <TableCell className="align-top">
+          <Badge variant={resolveContainerVariant(container.status)}>{formatContainerStatus(container.status)}</Badge>
+        </TableCell>
+      </TableRow>
+      {expanded ? (
+        <TableRow data-testid="workload-container-detail">
+          <TableCell colSpan={6} className="bg-muted/30">
+            <div className="grid gap-4 pl-8 md:grid-cols-3">
+              <RailField label="Container ID" value={truncateMiddle(container.containerId, 12, 8)} />
+              <RailField label="Started" value={formatTimestamp(container.startedAt)} />
+              <RailField label="Finished" value={formatTimestamp(container.finishedAt)} />
+              {messageLabel ? (
+                <div className="md:col-span-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Message</div>
+                  <div className="whitespace-pre-wrap text-sm text-foreground">{messageLabel}</div>
+                </div>
+              ) : null}
+            </div>
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </>
   );
 }
 
@@ -273,18 +418,15 @@ type ThreadStoragePanelProps = {
 function ThreadStoragePanel({ currentPath, organizationId, volumes, volumesQuery }: ThreadStoragePanelProps) {
   return (
     <Card className="border-border" data-testid="workload-thread-storage-card">
-      <CardContent className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">Attached storage</h3>
-          <p className="text-sm text-muted-foreground">Persistent storage associated with this workload's thread.</p>
-        </div>
+      <CardContent className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">Attached storage</h3>
         {volumesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading storage volumes...</div> : null}
         {volumesQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load storage.</div> : null}
         {volumes.length === 0 && !volumesQuery.isPending && !volumesQuery.isError ? (
-          <div className="text-sm text-muted-foreground">No storage volumes found for this thread.</div>
+          <div className="text-sm text-muted-foreground">No volumes on this thread.</div>
         ) : null}
         {volumes.length > 0 ? (
-          <div className="divide-y divide-border rounded-md border border-border" data-testid="workload-thread-storage-list">
+          <div className="divide-y divide-border" data-testid="workload-thread-storage-list">
             {volumes.map((volume) => {
               const volumeId = volume.volumeId || volume.meta?.id || '';
               const volumeName = volume.volumeName?.trim() || EMPTY_PLACEHOLDER;
@@ -294,27 +436,28 @@ function ThreadStoragePanel({ currentPath, organizationId, volumes, volumesQuery
               return (
                 <div
                   key={volume.meta?.id ?? volume.volumeId}
-                  className="grid items-center gap-2 px-4 py-3 text-sm text-foreground md:grid-cols-[2fr_1fr_2fr_140px]"
+                  className="space-y-1 py-2 first:pt-0 last:pb-0"
                   data-testid="workload-thread-storage-row"
                 >
-                  <div className="font-medium" data-testid="workload-thread-storage-name">
-                    {volumeLink ? (
-                      <NavLink to={volumeLink} state={{ from: currentPath }} className="text-foreground hover:underline">
-                        {truncate(volumeName, 24)}
-                      </NavLink>
-                    ) : (
-                      truncate(volumeName, 24)
-                    )}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium" data-testid="workload-thread-storage-name">
+                      {volumeLink ? (
+                        <NavLink to={volumeLink} state={{ from: currentPath }} className="text-foreground hover:underline">
+                          {truncate(volumeName, 20)}
+                        </NavLink>
+                      ) : (
+                        truncate(volumeName, 20)
+                      )}
+                    </span>
+                    <Badge variant={resolveVolumeVariant(volume.status)} data-testid="workload-thread-storage-status">
+                      {formatVolumeStatus(volume.status)}
+                    </Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground" data-testid="workload-thread-storage-size">
-                    {sizeLabel}
-                  </span>
-                  <span className="text-xs text-muted-foreground" data-testid="workload-thread-storage-attached">
-                    {attachedLabel}
-                  </span>
-                  <Badge variant={resolveVolumeVariant(volume.status)} data-testid="workload-thread-storage-status">
-                    {formatVolumeStatus(volume.status)}
-                  </Badge>
+                  <div className="text-xs text-muted-foreground">
+                    <span data-testid="workload-thread-storage-size">{sizeLabel}</span>
+                    {' · '}
+                    <span data-testid="workload-thread-storage-attached">{attachedLabel}</span>
+                  </div>
                 </div>
               );
             })}
@@ -415,7 +558,7 @@ export function WorkloadDetailPage() {
     const rightName = right.name?.trim() || right.containerId || '';
     return leftName.localeCompare(rightName);
   });
-  const containerEntries = sortedContainers.map((container, index) => ({
+  const containerEntries: ContainerEntry[] = sortedContainers.map((container, index) => ({
     container,
     displayName: resolveContainerDisplayName(container, index),
     name: container.name?.trim() ?? '',
@@ -435,11 +578,7 @@ export function WorkloadDetailPage() {
     const hasSelection = logContainers.some((entry) => entry.name === selectedContainerName);
     if (!hasSelection) setSelectedContainerName(defaultLogContainerName);
   }, [defaultLogContainerName, logContainers, selectedContainerName]);
-  const selectedLogContainer = logContainers.find((entry) => entry.name === selectedContainerName);
-  const selectedLogLabel = selectedLogContainer
-    ? `${selectedLogContainer.displayName} (${selectedLogContainer.roleLabel})`
-    : undefined;
-  const hasLogContainers = logContainers.length > 0;
+
   const fromState =
     typeof location.state === 'object' &&
     location.state !== null &&
@@ -447,200 +586,245 @@ export function WorkloadDetailPage() {
     typeof (location.state as { from?: unknown }).from === 'string'
       ? (location.state as { from: string }).from
       : undefined;
-  const fallbackBack = organizationId ? `/organizations/${organizationId}/monitoring` : '/runners';
-  const backHref = fromState || fallbackBack;
-  const backLabel = fromState
-    ? '← Back'
-    : organizationId
-      ? '← Back to Monitoring'
-      : '← Back to Runners';
+  const parent = resolveParent(fromState, organizationId);
 
-  const workloadIdLabel = workload?.meta?.id ?? EMPTY_PLACEHOLDER;
   const agentName = workload?.agentName?.trim();
   const runnerName = workload?.runnerName?.trim();
   const agentId = workload?.agentId ?? '';
   const runnerId = workload?.runnerId ?? '';
   const agentLink = organizationId && agentId && agentName ? `/organizations/${organizationId}/agents/${agentId}` : '';
   const runnerLink = organizationId && runnerId && runnerName ? `/organizations/${organizationId}/runners/${runnerId}` : '';
+  const threadLink =
+    organizationId && workload?.threadId ? `/organizations/${organizationId}/threads/${workload.threadId}` : '';
   const agentLabel = agentName || EMPTY_PLACEHOLDER;
   const runnerLabel = runnerName || EMPTY_PLACEHOLDER;
-  const durationEnd = workload
-    ? workload.removedAt ??
-      (workload.status === WorkloadStatus.STOPPED || workload.status === WorkloadStatus.FAILED
-        ? workload.lastActivityAt
-        : undefined)
-    : undefined;
+  const isTerminal = workload
+    ? workload.status === WorkloadStatus.STOPPED || workload.status === WorkloadStatus.FAILED
+    : false;
+  const durationEnd = workload ? (workload.removedAt ?? (isTerminal ? workload.lastActivityAt : undefined)) : undefined;
   const durationLabel = workload ? formatDurationBetween(workload.meta?.createdAt, durationEnd) : EMPTY_PLACEHOLDER;
-  const allocatedCpu = workload ? `${workload.allocatedCpuMillicores.toLocaleString()} m` : EMPTY_PLACEHOLDER;
-  const allocatedRam = workload ? `${workload.allocatedRamBytes.toString()} bytes` : EMPTY_PLACEHOLDER;
+  const totalRestarts = containers.reduce((sum, container) => sum + container.restartCount, 0);
+
+  // A failed workload states its cause in the header; the container carrying it is below.
+  const failedContainer =
+    workload?.status === WorkloadStatus.FAILED
+      ? sortedContainers.find((container) => container.reason?.trim() || (container.exitCode ?? 0) !== 0)
+      : undefined;
+  const failureReason = failedContainer?.reason?.trim() ?? '';
+  const failureName = failedContainer?.name?.trim() || 'container';
+  const failureNote = failedContainer
+    ? failureReason
+      ? `${failureName}: ${failureReason}`
+      : `${failureName} exited ${failedContainer.exitCode}`
+    : '';
+
+  const metaLine = [
+    agentName,
+    runnerName,
+    durationLabel === EMPTY_PLACEHOLDER ? '' : isTerminal ? `ran ${durationLabel}` : `up ${durationLabel}`,
+    failureNote,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="link" asChild data-testid="workload-detail-back">
-          <NavLink to={backHref}>{backLabel}</NavLink>
-        </Button>
-      </div>
       {workloadQuery.isPending ? <div className="text-sm text-muted-foreground">Loading workload...</div> : null}
       {showError ? <div className="text-sm text-muted-foreground">Failed to load workload.</div> : null}
       {showNotFound ? <div className="text-sm text-muted-foreground">Workload not found.</div> : null}
       {workload && !showNotFound ? (
-        <div className="space-y-6">
-          <Card className="border-border" data-testid="workload-detail-card">
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Details</h3>
-                <p className="text-sm text-muted-foreground">Identifiers and status signals.</p>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Workload ID</div>
-                  <div className="text-sm text-foreground">{workloadIdLabel}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Status</div>
-                  <Badge variant={resolveWorkloadVariant(workload.status)}>{formatWorkloadStatus(workload.status)}</Badge>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Organization ID</div>
-                  <div className="text-sm text-foreground">{workload.organizationId || EMPTY_PLACEHOLDER}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Runner</div>
-                  <div className="text-sm text-foreground">
-                    {runnerLink ? (
-                      <NavLink to={runnerLink} className="hover:underline">
-                        {runnerLabel}
-                      </NavLink>
-                    ) : (
-                      runnerLabel
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Thread ID</div>
-                  <div className="text-sm text-foreground">{workload.threadId || EMPTY_PLACEHOLDER}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Agent</div>
-                  <div className="text-sm text-foreground">
-                    {agentLink ? (
-                      <NavLink to={agentLink} className="hover:underline">
-                        {agentLabel}
-                      </NavLink>
-                    ) : (
-                      agentLabel
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Instance ID</div>
-                  <div className="text-sm text-foreground">{workload.instanceId || EMPTY_PLACEHOLDER}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Ziti Identity ID</div>
-                  <div className="text-sm text-foreground">{workload.zitiIdentityId || EMPTY_PLACEHOLDER}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Created</div>
-                  <div className="text-sm text-foreground">{formatTimestamp(workload.meta?.createdAt)}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Duration</div>
-                  <div className="text-sm text-foreground">{durationLabel}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Last Activity</div>
-                  <div className="text-sm text-foreground">{formatTimestamp(workload.lastActivityAt)}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Last Metering Sample</div>
-                  <div className="text-sm text-foreground">{formatTimestamp(workload.lastMeteringSampledAt)}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Removed At</div>
-                  <div className="text-sm text-foreground">{formatTimestamp(workload.removedAt)}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Allocated CPU</div>
-                  <div className="text-sm text-foreground">{allocatedCpu}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Allocated RAM</div>
-                  <div className="text-sm text-foreground">{allocatedRam}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <ThreadStoragePanel
-            currentPath={location.pathname}
-            organizationId={organizationId}
-            volumes={volumes}
-            volumesQuery={volumesQuery}
+        <>
+          <DetailPageHeader
+            parentLabel={parent.label}
+            parentHref={parent.href}
+            title={truncateMiddle(workload.meta?.id, 8, 6)}
+            meta={metaLine}
+            badge={
+              <Badge variant={resolveWorkloadVariant(workload.status)}>{formatWorkloadStatus(workload.status)}</Badge>
+            }
+            actions={
+              <>
+                {threadLink ? (
+                  <Button variant="outline" size="sm" asChild data-testid="workload-detail-thread">
+                    <NavLink to={threadLink}>Open thread</NavLink>
+                  </Button>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyText(workload.meta?.id ?? '', 'Workload ID copied.')}
+                  data-testid="workload-detail-copy"
+                >
+                  Copy ID
+                </Button>
+              </>
+            }
+            testId="workload-detail-header"
           />
-          <div className="space-y-3" data-testid="workload-container-section">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">Containers</h3>
-              <p className="text-sm text-muted-foreground">Runtime status per container.</p>
-            </div>
-            {containerEntries.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No containers reported.</div>
-            ) : (
-              <div className="space-y-4">
-                {containerEntries.map((entry, index) => (
-                  <ContainerPanel
-                    key={entry.container.containerId || entry.container.name || `${index}`}
-                    container={entry.container}
-                    index={index}
+
+          <div className="grid items-start gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
+            <div className="space-y-4 lg:sticky lg:top-20">
+              <Card className="border-border" data-testid="workload-detail-card">
+                <CardContent className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Summary</h3>
+                  <RailStat label="Duration" value={durationLabel} />
+                  <RailStat label="CPU" value={formatMillicores(workload.allocatedCpuMillicores)} />
+                  <RailStat label="Memory" value={formatBytes(workload.allocatedRamBytes)} />
+                  <RailStat label="Restarts" value={totalRestarts.toLocaleString()} />
+                  <RailStat label="Containers" value={containerEntries.length.toLocaleString()} />
+                  <RailStat label="Last metered" value={formatTimestamp(workload.lastMeteringSampledAt)} />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border" data-testid="workload-identity-card">
+                <CardContent className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Identity</h3>
+                  <RailField
+                    label="Agent"
+                    value={
+                      agentLink ? (
+                        <NavLink to={agentLink} className="hover:underline">
+                          {agentLabel}
+                        </NavLink>
+                      ) : (
+                        agentLabel
+                      )
+                    }
                   />
-                ))}
-                <Card className="border-border" data-testid="workload-log-viewer">
-                  <CardHeader className="space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <CardTitle className="text-base text-foreground">Logs</CardTitle>
-                        <p className="text-sm text-muted-foreground">Streaming the last 1000 lines.</p>
-                      </div>
-                      <div className="min-w-[220px] space-y-1">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Container
-                        </span>
-                        <Select
-                          value={selectedContainerName}
-                          onValueChange={(value) => setSelectedContainerName(value)}
-                          disabled={!hasLogContainers}
-                        >
-                          <SelectTrigger data-testid="workload-log-container-select">
-                            <SelectValue
-                              placeholder={hasLogContainers ? 'Select container' : 'No containers available'}
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {logContainers.map((entry) => (
-                              <SelectItem key={entry.name} value={entry.name}>
-                                {entry.displayName} ({entry.roleLabel})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    {selectedLogLabel ? (
-                      <p className="text-sm text-muted-foreground">Viewing {selectedLogLabel}.</p>
-                    ) : null}
-                  </CardHeader>
-                  <CardContent>
-                    {hasLogContainers && selectedContainerName ? (
-                      <WorkloadLogViewer workloadId={workloadId} containerName={selectedContainerName} />
-                    ) : (
-                      <div className="text-sm text-muted-foreground">No containers available for log streaming.</div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                  <RailField
+                    label="Runner"
+                    value={
+                      runnerLink ? (
+                        <NavLink to={runnerLink} className="hover:underline">
+                          {runnerLabel}
+                        </NavLink>
+                      ) : (
+                        runnerLabel
+                      )
+                    }
+                  />
+                  <RailField
+                    label="Thread"
+                    value={<CopyableId value={workload.threadId} label="Thread ID" href={threadLink || undefined} />}
+                  />
+                  <RailField
+                    label="Workload"
+                    value={<CopyableId value={workload.meta?.id ?? ''} label="Workload ID" />}
+                  />
+                  {workload.instanceId && workload.instanceId !== workload.meta?.id ? (
+                    <RailField
+                      label="Instance"
+                      value={<CopyableId value={workload.instanceId} label="Instance ID" />}
+                    />
+                  ) : null}
+                  <RailField label="Ziti identity" value={workload.zitiIdentityId || EMPTY_PLACEHOLDER} />
+                  {organizationId ? null : (
+                    <RailField
+                      label="Organization"
+                      value={<CopyableId value={workload.organizationId} label="Organization ID" />}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border" data-testid="workload-lifecycle-card">
+                <CardContent className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Lifecycle</h3>
+                  <RailField
+                    label="Created"
+                    value={
+                      <>
+                        {formatTimestamp(workload.meta?.createdAt)}
+                        <span className="ml-2 text-xs text-muted-foreground">{formatAge(workload.meta?.createdAt)}</span>
+                      </>
+                    }
+                  />
+                  <RailField
+                    label="Last activity"
+                    value={
+                      <>
+                        {formatTimestamp(workload.lastActivityAt)}
+                        <span className="ml-2 text-xs text-muted-foreground">{formatAge(workload.lastActivityAt)}</span>
+                      </>
+                    }
+                  />
+                  <RailField
+                    label="Removed"
+                    value={
+                      <>
+                        {formatTimestamp(workload.removedAt)}
+                        {workload.removedAt ? (
+                          <span className="ml-2 text-xs text-muted-foreground">{formatAge(workload.removedAt)}</span>
+                        ) : null}
+                      </>
+                    }
+                  />
+                </CardContent>
+              </Card>
+
+              <ThreadStoragePanel
+                currentPath={location.pathname}
+                organizationId={organizationId}
+                volumes={volumes}
+                volumesQuery={volumesQuery}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <Card className="border-border" data-testid="workload-container-section">
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-foreground">Containers</h3>
+                    <span className="text-xs text-muted-foreground">sorted init, main, sidecar</span>
+                  </div>
+                  {containerEntries.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No containers reported.</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Image</TableHead>
+                          <TableHead>Restarts</TableHead>
+                          <TableHead>Exit</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {containerEntries.map((entry, index) => (
+                          <ContainerRow
+                            key={entry.container.containerId || entry.name || `${index}`}
+                            entry={entry}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border" data-testid="workload-log-viewer">
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-foreground">Logs</h3>
+                    <span className="text-xs text-muted-foreground">last 1000 lines</span>
+                  </div>
+                  {logContainers.length > 0 && selectedContainerName ? (
+                    <WorkloadLogViewer
+                      workloadId={workloadId}
+                      containers={logContainers}
+                      selectedName={selectedContainerName}
+                      onSelectName={setSelectedContainerName}
+                    />
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No containers available for log streaming.</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
