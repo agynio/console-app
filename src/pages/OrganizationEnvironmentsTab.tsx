@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Environment } from '@/gen/agynio/api/agents/v1/agents_pb';
-import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { EnvironmentAvailability, LLMMode } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useImageRef } from '@/hooks/useImageRef';
 import { useListControls } from '@/hooks/useListControls';
@@ -42,6 +42,11 @@ type EnvironmentValues = {
   // when creating an agent.
   agentRuntimeImageId: string;
   agentRuntimeImageTag: string;
+  llmMode: LLMMode;
+  // Vendor model names a native-mode workload may request. Empty is no
+  // restriction, and the field is meaningless in platform mode, where access is
+  // governed by the Model resource instead.
+  llmAllowedModels: string[];
 };
 
 type EnvironmentFieldErrors = Partial<
@@ -80,6 +85,8 @@ const emptyEnvironmentValues: EnvironmentValues = {
   workspaceImageTag: '',
   agentRuntimeImageId: '',
   agentRuntimeImageTag: '',
+  llmMode: LLMMode.PLATFORM,
+  llmAllowedModels: [],
 };
 
 // Requests are what scheduling reserves, so they are the useful number when
@@ -194,6 +201,52 @@ function EnvironmentDialog({
             }}
             testIdPrefix={`${testIdPrefix}-runtime`}
           />
+          <div className="space-y-2">
+            <Label htmlFor={`${testIdPrefix}-llm-mode`}>LLM access</Label>
+            <Select
+              value={String(values.llmMode)}
+              onValueChange={(value) => updateValue('llmMode', Number(value) as LLMMode)}
+            >
+              <SelectTrigger
+                id={`${testIdPrefix}-llm-mode`}
+                className="w-full"
+                data-testid={`${testIdPrefix}-llm-mode`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(LLMMode.PLATFORM)}>
+                  Platform — models from the catalog
+                </SelectItem>
+                <SelectItem value={String(LLMMode.NATIVE)}>
+                  Native — the vendor's own plan, via a subscription
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {values.llmMode === LLMMode.NATIVE ? (
+            <div className="space-y-2">
+              <Label htmlFor={`${testIdPrefix}-allowed-models`}>Allowed models</Label>
+              <Input
+                id={`${testIdPrefix}-allowed-models`}
+                value={values.llmAllowedModels.join(', ')}
+                onChange={(event) =>
+                  updateValue(
+                    'llmAllowedModels',
+                    event.target.value
+                      .split(',')
+                      .map((entry) => entry.trim())
+                      .filter(Boolean),
+                  )
+                }
+                placeholder="Leave empty for no restriction"
+                data-testid={`${testIdPrefix}-allowed-models`}
+              />
+              <p className="text-xs text-muted-foreground">
+                Vendor model names, comma separated. A request naming anything else is refused.
+              </p>
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-availability`}>Availability</Label>
             <Select
@@ -611,6 +664,8 @@ export function OrganizationEnvironmentsTab() {
             workspaceImageTag: editTarget.workspaceImageTag,
             agentRuntimeImageId: editTarget.agentRuntimeImageId,
             agentRuntimeImageTag: editTarget.agentRuntimeImageTag,
+            llmMode: editTarget.llmMode,
+            llmAllowedModels: [...editTarget.llmAllowedModels],
           }}
           runnerOptions={runnerOptions}
           flavorsByRunner={flavorsByRunner}

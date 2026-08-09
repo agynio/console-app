@@ -2,11 +2,12 @@ import { NavLink, useParams } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { useQuery } from '@tanstack/react-query';
 import { agentsClient, runnersClient } from '@/api/client';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
 import { EnvironmentVolumesTab } from '@/pages/detail-tabs/EnvironmentVolumesTab';
+import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { DetailPageHeader } from '@/components/DetailPageHeader';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
 import { InitScriptsTab } from '@/pages/detail-tabs/InitScriptsTab';
 import { McpsTab } from '@/pages/detail-tabs/McpsTab';
@@ -58,11 +59,6 @@ export function EnvironmentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="link" asChild data-testid="environment-detail-back">
-          <NavLink to={backHref}>← Back to Environments</NavLink>
-        </Button>
-      </div>
       {environmentQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading environment...</div>
       ) : null}
@@ -73,24 +69,45 @@ export function EnvironmentDetailPage() {
         </div>
       ) : null}
       {environment && !showNotFound ? (
-        <Tabs defaultValue="overview" data-testid="environment-detail-tabs">
-          <TabsList>
-            <TabsTrigger value="overview" data-testid="environment-detail-overview-tab">
+        <>
+        <DetailPageHeader
+          parentLabel="Environments"
+          parentHref={backHref}
+          title={environment.name || 'Environment'}
+          meta={[
+            environment.runnerId ? runnerName : '',
+            environment.flavor,
+            imageRef(environment.workspaceImageId, environment.workspaceImageTag, environment.image),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          badge={
+            environment.availability ? (
+              <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                {EnvironmentAvailability[environment.availability]?.toLowerCase() ?? ''}
+              </span>
+            ) : null
+          }
+          testId="environment-detail-header"
+        />
+        <Tabs defaultValue="overview" data-testid="environment-detail-tabs" className="mt-6">
+          <TabsList className="h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0">
+            <TabsTrigger value="overview" data-testid="environment-detail-overview-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="volumes" data-testid="environment-detail-volumes-tab">
+            <TabsTrigger value="volumes" data-testid="environment-detail-volumes-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               Volumes
             </TabsTrigger>
-            <TabsTrigger value="mcps" data-testid="environment-detail-mcps-tab">
+            <TabsTrigger value="mcps" data-testid="environment-detail-mcps-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               MCP Servers
             </TabsTrigger>
-            <TabsTrigger value="init-scripts" data-testid="environment-detail-init-scripts-tab">
+            <TabsTrigger value="init-scripts" data-testid="environment-detail-init-scripts-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               Init Scripts
             </TabsTrigger>
-            <TabsTrigger value="envs" data-testid="environment-detail-envs-tab">
+            <TabsTrigger value="envs" data-testid="environment-detail-envs-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               ENVs
             </TabsTrigger>
-            <TabsTrigger value="egress-rules" data-testid="environment-detail-egress-rules-tab">
+            <TabsTrigger value="egress-rules" data-testid="environment-detail-egress-rules-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               Egress Rules
             </TabsTrigger>
           </TabsList>
@@ -189,6 +206,7 @@ export function EnvironmentDetailPage() {
             <EgressRuleAttachmentsTab target={target} organizationId={organizationId} />
           </TabsContent>
         </Tabs>
+        </>
       ) : null}
     </div>
   );

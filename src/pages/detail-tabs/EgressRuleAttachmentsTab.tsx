@@ -186,11 +186,13 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid={`${prefix}-egress-rule-attachments-heading`}>
-            Egress Rules
-          </h3>
-          <p className="text-sm text-muted-foreground">{copy.heading}</p>
+        <div className="max-w-sm flex-1">
+        <Input
+          placeholder="Search egress rule attachments..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
         </div>
         <Button
           variant="outline"
@@ -200,14 +202,6 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
         >
           Attach egress rule
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search egress rule attachments..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {attachmentsQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading egress rule attachments...</div>

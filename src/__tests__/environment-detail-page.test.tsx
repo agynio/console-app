@@ -293,4 +293,13 @@ describe('EnvironmentDetailPage', () => {
       ),
     );
   });
+
+  // The environment is the subject of its own page: without a title the largest
+  // text on screen was the tab you had just clicked.
+  it('names the environment and breadcrumbs back to the list', async () => {
+    renderDetailPage();
+
+    expect((await screen.findByTestId('environment-detail-header-title')).textContent).toBe('default');
+    expect(screen.getByTestId('environment-detail-header-parent').textContent).toBe('Environments');
+  });
 });

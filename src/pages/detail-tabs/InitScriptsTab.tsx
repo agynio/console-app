@@ -188,11 +188,13 @@ export function InitScriptsTab({ target }: InitScriptsTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground" data-testid="agent-init-scripts-heading">
-            Init Scripts
-          </h3>
-          <p className="text-sm text-muted-foreground">Scripts executed when the agent starts.</p>
+        <div className="max-w-sm flex-1">
+        <Input
+          placeholder="Search init scripts..."
+          value={listControls.searchTerm}
+          onChange={(event) => listControls.setSearchTerm(event.target.value)}
+          data-testid="list-search"
+        />
         </div>
         <Button
           variant="outline"
@@ -202,14 +204,6 @@ export function InitScriptsTab({ target }: InitScriptsTabProps) {
         >
           Add init script
         </Button>
-      </div>
-      <div className="max-w-sm">
-        <Input
-          placeholder="Search init scripts..."
-          value={listControls.searchTerm}
-          onChange={(event) => listControls.setSearchTerm(event.target.value)}
-          data-testid="list-search"
-        />
       </div>
       {initScriptsQuery.isPending ? (
         <div className="text-sm text-muted-foreground">Loading init scripts...</div>
