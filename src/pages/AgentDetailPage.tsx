@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { NavLink, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { agentsClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { DetailPageHeader } from '@/components/DetailPageHeader';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentConfigurationTab } from '@/pages/agent-detail/AgentConfigurationTab';
 import { AgentRolesSection } from '@/pages/agent-detail/AgentRolesSection';
 import { InitScriptsTab } from '@/pages/detail-tabs/InitScriptsTab';
@@ -50,49 +52,74 @@ export function AgentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Button variant="link" asChild data-testid="agent-detail-back">
-            <NavLink to={`/organizations/${organizationId}/agents`}>← Back to Agents</NavLink>
-          </Button>
-        </div>
-        {agent ? (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setDeleteOpen(true)}
-            data-testid="agent-detail-delete"
-          >
-            Delete agent
-          </Button>
-        ) : null}
-      </div>
       {agentQuery.isPending ? <div className="text-sm text-muted-foreground">Loading agent...</div> : null}
       {agentQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load agent.</div> : null}
       {agent ? (
-        <div className="space-y-8">
-          <section data-testid="agent-detail-section-configuration">
+        <>
+        <DetailPageHeader
+          parentLabel="Agents"
+          parentHref={`/organizations/${organizationId}/agents`}
+          title={agent.name || 'Agent'}
+          meta={[agent.model, agent.environmentId ? 'environment set' : ''].filter(Boolean).join(' · ')}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteOpen(true)}
+              data-testid="agent-detail-delete"
+            >
+              Delete agent
+            </Button>
+          }
+          testId="agent-detail-header"
+        />
+        <Tabs defaultValue="overview" data-testid="agent-detail-tabs" className="mt-6">
+          <TabsList className="h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0">
+            <TabsTrigger value="overview" data-testid="agent-detail-overview-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="mcps" data-testid="agent-detail-mcps-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              MCP Servers
+            </TabsTrigger>
+            <TabsTrigger value="skills" data-testid="agent-detail-skills-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              Skills
+            </TabsTrigger>
+            <TabsTrigger value="init-scripts" data-testid="agent-detail-init-scripts-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              Init Scripts
+            </TabsTrigger>
+            <TabsTrigger value="envs" data-testid="agent-detail-envs-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              ENVs
+            </TabsTrigger>
+            <TabsTrigger value="egress-rules" data-testid="agent-detail-egress-rules-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              Egress Rules
+            </TabsTrigger>
+            <TabsTrigger value="roles" data-testid="agent-detail-roles-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              Roles
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview">
             <AgentConfigurationTab agent={agent} organizationId={organizationId} />
-          </section>
-          <section data-testid="agent-detail-section-roles">
-            <AgentRolesSection agentId={resolvedAgentId} organizationId={organizationId} availability={agent.availability} />
-          </section>
-          <section data-testid="agent-detail-section-mcps">
+          </TabsContent>
+          <TabsContent value="mcps">
             <McpsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
-          </section>
-          <section data-testid="agent-detail-section-skills">
+          </TabsContent>
+          <TabsContent value="skills">
             <AgentSkillsTab agentId={resolvedAgentId} />
-          </section>
-          <section data-testid="agent-detail-section-envs">
-            <EnvsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
-          </section>
-          <section data-testid="agent-detail-section-init-scripts">
+          </TabsContent>
+          <TabsContent value="init-scripts">
             <InitScriptsTab target={{ kind: 'agent', id: resolvedAgentId }} />
-          </section>
-          <section data-testid="agent-detail-section-egress-rules">
+          </TabsContent>
+          <TabsContent value="envs">
+            <EnvsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
+          </TabsContent>
+          <TabsContent value="egress-rules">
             <EgressRuleAttachmentsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
-          </section>
-        </div>
+          </TabsContent>
+          <TabsContent value="roles">
+            <AgentRolesSection agentId={resolvedAgentId} organizationId={organizationId} availability={agent.availability} />
+          </TabsContent>
+        </Tabs>
+        </>
       ) : null}
       <ConfirmDialog
         open={deleteOpen}
