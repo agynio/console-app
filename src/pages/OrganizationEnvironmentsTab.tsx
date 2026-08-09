@@ -43,10 +43,6 @@ type EnvironmentValues = {
   agentRuntimeImageId: string;
   agentRuntimeImageTag: string;
   llmMode: LLMMode;
-  // Vendor model names a native-mode workload may request. Empty is no
-  // restriction, and the field is meaningless in platform mode, where access is
-  // governed by the Model resource instead.
-  llmAllowedModels: string[];
 };
 
 type EnvironmentFieldErrors = Partial<
@@ -86,7 +82,6 @@ const emptyEnvironmentValues: EnvironmentValues = {
   agentRuntimeImageId: '',
   agentRuntimeImageTag: '',
   llmMode: LLMMode.LLM_MODE_PLATFORM,
-  llmAllowedModels: [],
 };
 
 // Requests are what scheduling reserves, so they are the useful number when
@@ -225,29 +220,6 @@ function EnvironmentDialog({
                 : 'Models come from the catalog, through the platform.'}
             </p>
           </div>
-          {values.llmMode === LLMMode.LLM_MODE_NATIVE ? (
-            <div className="space-y-2">
-              <Label htmlFor={`${testIdPrefix}-allowed-models`}>Allowed models</Label>
-              <Input
-                id={`${testIdPrefix}-allowed-models`}
-                value={values.llmAllowedModels.join(', ')}
-                onChange={(event) =>
-                  updateValue(
-                    'llmAllowedModels',
-                    event.target.value
-                      .split(',')
-                      .map((entry) => entry.trim())
-                      .filter(Boolean),
-                  )
-                }
-                placeholder="Leave empty for no restriction"
-                data-testid={`${testIdPrefix}-allowed-models`}
-              />
-              <p className="text-xs text-muted-foreground">
-                Vendor model names, comma separated. A request naming anything else is refused.
-              </p>
-            </div>
-          ) : null}
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-availability`}>Availability</Label>
             <Select
@@ -666,7 +638,6 @@ export function OrganizationEnvironmentsTab() {
             agentRuntimeImageId: editTarget.agentRuntimeImageId,
             agentRuntimeImageTag: editTarget.agentRuntimeImageTag,
             llmMode: editTarget.llmMode,
-            llmAllowedModels: [...editTarget.llmAllowedModels],
           }}
           runnerOptions={runnerOptions}
           flavorsByRunner={flavorsByRunner}

@@ -5,6 +5,7 @@ import { agentsClient, runnersClient } from '@/api/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
+import { EnvironmentSubscriptionsTab } from '@/pages/detail-tabs/EnvironmentSubscriptionsTab';
 import { EnvironmentVolumesTab } from '@/pages/detail-tabs/EnvironmentVolumesTab';
 import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { DetailPageHeader } from '@/components/DetailPageHeader';
@@ -110,6 +111,9 @@ export function EnvironmentDetailPage() {
             <TabsTrigger value="egress-rules" data-testid="environment-detail-egress-rules-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               Egress Rules
             </TabsTrigger>
+            <TabsTrigger value="subscriptions" data-testid="environment-detail-subscriptions-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              LLM
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
             <Card className="border-border" data-testid="environment-detail-card">
@@ -201,6 +205,9 @@ export function EnvironmentDetailPage() {
           </TabsContent>
           <TabsContent value="envs">
             <EnvsTab target={target} organizationId={organizationId} />
+          </TabsContent>
+          <TabsContent value="subscriptions">
+            <EnvironmentSubscriptionsTab environment={environment} />
           </TabsContent>
           <TabsContent value="egress-rules">
             <EgressRuleAttachmentsTab target={target} organizationId={organizationId} />

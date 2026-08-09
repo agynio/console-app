@@ -301,7 +301,6 @@ describe('OrganizationEnvironmentsTab', () => {
         agentRuntimeImageId: '',
         agentRuntimeImageTag: '',
         llmMode: LLMMode.LLM_MODE_PLATFORM,
-        llmAllowedModels: [],
         runnerId: 'runner-1',
         flavor: 'large',
       });
@@ -348,7 +347,6 @@ describe('OrganizationEnvironmentsTab', () => {
         agentRuntimeImageId: '',
         agentRuntimeImageTag: '',
         llmMode: LLMMode.LLM_MODE_PLATFORM,
-        llmAllowedModels: [],
         runnerId: 'runner-1',
         flavor: 'ram-4gb',
       });
@@ -388,7 +386,6 @@ describe('OrganizationEnvironmentsTab', () => {
         agentRuntimeImageId: '',
         agentRuntimeImageTag: '',
         llmMode: LLMMode.LLM_MODE_PLATFORM,
-        llmAllowedModels: [],
         runnerId: 'runner-1',
         flavor: 'not-in-catalog',
       });
@@ -432,7 +429,6 @@ describe('OrganizationEnvironmentsTab', () => {
         agentRuntimeImageId: '',
         agentRuntimeImageTag: '',
         llmMode: LLMMode.LLM_MODE_PLATFORM,
-        llmAllowedModels: [],
         runnerId: 'runner-1',
         flavor: '',
       });
