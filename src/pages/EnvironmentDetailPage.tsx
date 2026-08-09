@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
 import { EnvironmentVolumesTab } from '@/pages/detail-tabs/EnvironmentVolumesTab';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
+import { InitScriptsTab } from '@/pages/detail-tabs/InitScriptsTab';
+import { McpsTab } from '@/pages/detail-tabs/McpsTab';
 import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useImageRef } from '@/hooks/useImageRef';
@@ -78,6 +80,12 @@ export function EnvironmentDetailPage() {
             </TabsTrigger>
             <TabsTrigger value="volumes" data-testid="environment-detail-volumes-tab">
               Volumes
+            </TabsTrigger>
+            <TabsTrigger value="mcps" data-testid="environment-detail-mcps-tab">
+              MCP Servers
+            </TabsTrigger>
+            <TabsTrigger value="init-scripts" data-testid="environment-detail-init-scripts-tab">
+              Init Scripts
             </TabsTrigger>
             <TabsTrigger value="envs" data-testid="environment-detail-envs-tab">
               ENVs
@@ -167,6 +175,12 @@ export function EnvironmentDetailPage() {
               environmentId={environment.meta?.id ?? ''}
               runnerId={environment.runnerId ?? ''}
             />
+          </TabsContent>
+          <TabsContent value="mcps">
+            <McpsTab target={target} organizationId={organizationId} />
+          </TabsContent>
+          <TabsContent value="init-scripts">
+            <InitScriptsTab target={target} />
           </TabsContent>
           <TabsContent value="envs">
             <EnvsTab target={target} organizationId={organizationId} />

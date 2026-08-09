@@ -8,7 +8,7 @@ import {
   ImageType,
   ImageVersionSchema,
 } from '@/gen/agynio/api/images/v1/images_pb';
-import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
+import { McpsTab } from '@/pages/detail-tabs/McpsTab';
 
 const { listMcps, createMcp } = vi.hoisted(() => ({
   listMcps: vi.fn(),
@@ -33,12 +33,12 @@ function renderTab() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <AgentMcpsTab agentId="agent-1" organizationId="org-1" />
+      <McpsTab target={{ kind: 'agent', id: 'agent-1' }} organizationId="org-1" />
     </QueryClientProvider>,
   );
 }
 
-describe('AgentMcpsTab image selection', () => {
+describe('McpsTab image selection', () => {
   beforeAll(() => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
   });

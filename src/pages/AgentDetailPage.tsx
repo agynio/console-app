@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AgentConfigurationTab } from '@/pages/agent-detail/AgentConfigurationTab';
 import { AgentRolesSection } from '@/pages/agent-detail/AgentRolesSection';
-import { AgentInitScriptsTab } from '@/pages/agent-detail/AgentInitScriptsTab';
-import { AgentMcpsTab } from '@/pages/agent-detail/AgentMcpsTab';
+import { InitScriptsTab } from '@/pages/detail-tabs/InitScriptsTab';
+import { McpsTab } from '@/pages/detail-tabs/McpsTab';
 import { AgentSkillsTab } from '@/pages/agent-detail/AgentSkillsTab';
 import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachmentsTab';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
@@ -78,7 +78,7 @@ export function AgentDetailPage() {
             <AgentRolesSection agentId={resolvedAgentId} organizationId={organizationId} availability={agent.availability} />
           </section>
           <section data-testid="agent-detail-section-mcps">
-            <AgentMcpsTab agentId={resolvedAgentId} organizationId={organizationId} />
+            <McpsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-skills">
             <AgentSkillsTab agentId={resolvedAgentId} />
@@ -87,7 +87,7 @@ export function AgentDetailPage() {
             <EnvsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </section>
           <section data-testid="agent-detail-section-init-scripts">
-            <AgentInitScriptsTab agentId={resolvedAgentId} />
+            <InitScriptsTab target={{ kind: 'agent', id: resolvedAgentId }} />
           </section>
           <section data-testid="agent-detail-section-egress-rules">
             <EgressRuleAttachmentsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />

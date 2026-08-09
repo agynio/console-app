@@ -33,6 +33,11 @@ const { listEgressRules, listEgressRuleAttachments, createEgressRuleAttachment }
   createEgressRuleAttachment: vi.fn(),
 }));
 
+const { listMcps, listInitScripts } = vi.hoisted(() => ({
+  listMcps: vi.fn(),
+  listInitScripts: vi.fn(),
+}));
+
 const { getRunner, listSecrets } = vi.hoisted(() => ({
   getRunner: vi.fn(),
   listSecrets: vi.fn(),
@@ -43,6 +48,8 @@ vi.mock('@/api/client', () => ({
     getEnvironment,
     listEnvs,
     createEnv,
+    listMcps,
+    listInitScripts,
   },
   egressClient: {
     listEgressRules,
@@ -101,6 +108,10 @@ describe('EnvironmentDetailPage', () => {
     getEnvironment.mockReset();
     listEnvs.mockReset();
     createEnv.mockReset();
+    listMcps.mockReset();
+    listMcps.mockResolvedValue({ mcps: [], nextPageToken: '' });
+    listInitScripts.mockReset();
+    listInitScripts.mockResolvedValue({ initScripts: [], nextPageToken: '' });
     listEgressRules.mockReset();
     listEgressRuleAttachments.mockReset();
     createEgressRuleAttachment.mockReset();
@@ -262,4 +273,24 @@ describe('EnvironmentDetailPage', () => {
     expect(createEgressRuleAttachment.mock.calls[0][0]).not.toHaveProperty('agentId');
   });
 
+
+  // Both moved onto environments, and the console showed neither -- an
+  // environment-level server or script could be declared everywhere except the
+  // surface meant for declaring it.
+  it('lists the environment\'s MCP servers and init scripts scoped to it', async () => {
+    renderDetailPage();
+    expect(await screen.findByTestId('environment-detail-card')).toBeTruthy();
+
+    selectTab('environment-detail-mcps-tab');
+    await waitFor(() =>
+      expect(listMcps).toHaveBeenCalledWith(expect.objectContaining({ environmentId: 'env-1' })),
+    );
+
+    selectTab('environment-detail-init-scripts-tab');
+    await waitFor(() =>
+      expect(listInitScripts).toHaveBeenCalledWith(
+        expect.objectContaining({ environmentId: 'env-1' }),
+      ),
+    );
+  });
 });

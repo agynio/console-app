@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { DetailTarget } from '@/pages/detail-tabs/target';
 import { agentsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
@@ -23,11 +24,23 @@ import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
-type AgentInitScriptsTabProps = {
-  agentId: string;
+type InitScriptsTabProps = {
+  target: DetailTarget;
 };
 
-export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
+
+// Narrows the list to the target, and names it on create.
+function listFilter(target: DetailTarget) {
+  return target.kind === 'agent' ? { agentId: target.id } : { environmentId: target.id };
+}
+
+function createTarget(target: DetailTarget) {
+  return target.kind === 'agent'
+    ? ({ case: 'agentId', value: target.id } as const)
+    : ({ case: 'environmentId', value: target.id } as const);
+}
+
+export function InitScriptsTab({ target }: InitScriptsTabProps) {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [createScript, setCreateScript] = useState('');
@@ -41,9 +54,10 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const initScriptsQuery = useQuery({
-    queryKey: ['initScripts', agentId, 'list'],
-    queryFn: () => agentsClient.listInitScripts({ agentId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
-    enabled: Boolean(agentId),
+    queryKey: ['initScripts', target.kind, target.id, 'list'],
+    queryFn: () =>
+      agentsClient.listInitScripts({ ...listFilter(target), pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(target.id),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -68,11 +82,11 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
   const hasSearch = listControls.searchTerm.trim().length > 0;
 
   const createInitScriptMutation = useMutation({
-    mutationFn: (payload: { script: string; description: string; target: { case: 'agentId'; value: string } }) =>
+    mutationFn: (payload: { script: string; description: string; target: ReturnType<typeof createTarget> }) =>
       agentsClient.createInitScript(payload),
     onSuccess: () => {
       toast.success('Init script created.');
-      void queryClient.invalidateQueries({ queryKey: ['initScripts', agentId, 'list'] });
+      void queryClient.invalidateQueries({ queryKey: ['initScripts', target.kind, target.id, 'list'] });
       setCreateOpen(false);
       setCreateScript('');
       setCreateDescription('');
@@ -88,7 +102,7 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
       agentsClient.updateInitScript(payload),
     onSuccess: () => {
       toast.success('Init script updated.');
-      void queryClient.invalidateQueries({ queryKey: ['initScripts', agentId, 'list'] });
+      void queryClient.invalidateQueries({ queryKey: ['initScripts', target.kind, target.id, 'list'] });
       setEditOpen(false);
       setEditInitScriptId(null);
     },
@@ -101,7 +115,7 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
     mutationFn: (initId: string) => agentsClient.deleteInitScript({ id: initId }),
     onSuccess: () => {
       toast.success('Init script deleted.');
-      void queryClient.invalidateQueries({ queryKey: ['initScripts', agentId, 'list'] });
+      void queryClient.invalidateQueries({ queryKey: ['initScripts', target.kind, target.id, 'list'] });
       setDeleteTargetId(null);
     },
     onError: (error) => {
@@ -118,7 +132,7 @@ export function AgentInitScriptsTab({ agentId }: AgentInitScriptsTabProps) {
     createInitScriptMutation.mutate({
       script: trimmedScript,
       description: createDescription.trim(),
-      target: { case: 'agentId', value: agentId },
+      target: createTarget(target),
     });
   };
 
