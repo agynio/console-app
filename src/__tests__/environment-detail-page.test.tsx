@@ -302,4 +302,12 @@ describe('EnvironmentDetailPage', () => {
     expect((await screen.findByTestId('environment-detail-header-title')).textContent).toBe('default');
     expect(screen.getByTestId('environment-detail-header-parent').textContent).toBe('Environments');
   });
+
+  // The overview used to send you back to the list to change anything.
+  it('opens the edit dialog from the header', async () => {
+    renderDetailPage();
+
+    fireEvent.click(await screen.findByTestId('environment-detail-edit'));
+    expect(await screen.findByTestId('environment-detail-edit-dialog')).toBeTruthy();
+  });
 });

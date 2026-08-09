@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { agentsClient, runnersClient } from '@/api/client';
-import type { ComboboxOption } from '@/components/ui/combobox';
+import type { ComboboxOption } from '@/components/ComboboxInput';
+import { describeResources } from '@/lib/flavors';
 import {
   EnvironmentDialog,
-  describeResources,
   type EnvironmentValues,
 } from '@/pages/OrganizationEnvironmentsTab';
 
@@ -70,8 +70,8 @@ export function EditEnvironmentDialog({
   const runnerOptions = useMemo(
     () =>
       (runnersQuery.data?.runners ?? []).map((runner) => ({
-        id: runner.meta?.id ?? '',
-        name: runner.name,
+        value: runner.meta?.id ?? '',
+        label: runner.name,
       })),
     [runnersQuery.data],
   );

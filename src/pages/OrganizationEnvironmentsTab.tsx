@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { LoadMoreButton } from '@/components/LoadMoreButton';
 import { SortableHeader } from '@/components/SortableHeader';
 import { ComboboxInput, type ComboboxOption } from '@/components/ComboboxInput';
+import { describeResources } from '@/lib/flavors';
 import { ImageSelector } from '@/components/ImageSelector';
 import { ImageType } from '@/gen/agynio/api/images/v1/images_pb';
 import { Button } from '@/components/ui/button';
@@ -84,13 +85,6 @@ const emptyEnvironmentValues: EnvironmentValues = {
   llmMode: LLMMode.LLM_MODE_PLATFORM,
 };
 
-// Requests are what scheduling reserves, so they are the useful number when
-// choosing between flavors; limits are the ceiling and are left out.
-export function describeResources(resources?: { requestsCpu: string; requestsMemory: string }): string | undefined {
-  if (!resources) return undefined;
-  const parts = [resources.requestsCpu, resources.requestsMemory].filter(Boolean);
-  return parts.length > 0 ? parts.join(' / ') : undefined;
-}
 
 export function EnvironmentDialog({
   organizationId,
