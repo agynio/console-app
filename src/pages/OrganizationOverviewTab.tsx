@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { NavLink, useParams } from 'react-router-dom';
+import { Navigate, NavLink, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CopyIcon } from 'lucide-react';
 import { agentsClient, appsClient, organizationsClient, runnersClient, secretsClient } from '@/api/client';
@@ -12,6 +12,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { copyText } from '@/lib/clipboard';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { isSetupSkipped } from '@/pages/setup/skipped';
 
 export function OrganizationOverviewTab() {
   useDocumentTitle('Overview');
@@ -109,6 +110,25 @@ export function OrganizationOverviewTab() {
     refetchOnWindowFocus: false,
   });
 
+  const sandboxesQuery = useQuery({
+    queryKey: ['sandboxes', organizationId, 'overview'],
+    queryFn: () => agentsClient.listSandboxes({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Counters on an organization that has produced nothing yet are a grid of
+  // zeroes, so an empty organization opens setup instead of offering it. Once
+  // it holds an agent or a sandbox — or the user has skipped — this is an
+  // ordinary Overview again.
+  const preSetup =
+    !agentsQuery.isPending &&
+    !sandboxesQuery.isPending &&
+    (agentsQuery.data?.agents.length ?? 0) === 0 &&
+    (sandboxesQuery.data?.sandboxes.length ?? 0) === 0 &&
+    !isSetupSkipped(organizationId);
+
   const base = `/organizations/${organizationId}`;
   const summary: Array<{ label: string; value: number; to: string }> = [
     { label: 'Active members', value: membersQuery.data?.memberships.length ?? 0, to: `${base}/members` },
@@ -119,6 +139,10 @@ export function OrganizationOverviewTab() {
     { label: 'Active workloads', value: workloadsQuery.data?.workloads.length ?? 0, to: `${base}/workloads` },
     { label: 'App installations', value: installationsQuery.data?.installations.length ?? 0, to: `${base}/apps` },
   ];
+
+  if (preSetup) {
+    return <Navigate to={`${base}/setup`} replace />;
+  }
 
   return (
     <div className="space-y-4">

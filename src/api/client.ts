@@ -4,6 +4,7 @@ import { authInterceptor } from '@/auth';
 import { config } from '@/config';
 import { AgentsGateway } from '@/gen/agynio/api/gateway/v1/agents_pb';
 import { AppsGateway } from '@/gen/agynio/api/gateway/v1/apps_pb';
+import { ChatGateway } from '@/gen/agynio/api/gateway/v1/chat_pb';
 import { EgressRulesGateway } from '@/gen/agynio/api/gateway/v1/egress_pb';
 import { FilesGateway } from '@/gen/agynio/api/gateway/v1/files_pb';
 import { GroupsGateway } from '@/gen/agynio/api/gateway/v1/groups_pb';
@@ -27,6 +28,9 @@ const transport = createConnectTransport({
 export const usersClient = createClient(UsersGateway, transport);
 export const agentsClient = createClient(AgentsGateway, transport);
 export const appsClient = createClient(AppsGateway, transport);
+// Only the setup wizard uses this: it opens the conversation its finish overlay
+// sends the user to, so Chat is entered on a thread rather than on its home.
+export const chatClient = createClient(ChatGateway, transport);
 export const egressClient = createClient(EgressRulesGateway, transport);
 export const groupsClient = createClient(GroupsGateway, transport);
 export const imagesClient = createClient(ImagesGateway, transport);
