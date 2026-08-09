@@ -4,7 +4,9 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { SortableHeader } from '@/components/SortableHeader';
+import { useListControls } from '@/hooks/useListControls';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +65,24 @@ export function EnvironmentVolumesTab({ environmentId, runnerId }: EnvironmentVo
     },
   });
 
+  const volumes = data?.volumes ?? [];
+
+  const listControls = useListControls({
+    items: volumes,
+    searchFields: [
+      (volume) => volume.name,
+      (volume) => volume.mountPath,
+      (volume) => volume.storageClass ?? '',
+    ],
+    sortOptions: {
+      name: (volume) => volume.name,
+      mountPath: (volume) => volume.mountPath,
+      persistence: (volume) => (volume.persistent ? 'persistent' : 'ephemeral'),
+      size: (volume) => volume.size ?? '',
+    },
+    defaultSortKey: 'name',
+  });
+
   const addButton = (
     <Button size="sm" onClick={() => setCreateOpen(true)} data-testid="environment-volumes-add">
       Add volume
@@ -87,11 +107,19 @@ export function EnvironmentVolumesTab({ environmentId, runnerId }: EnvironmentVo
     );
   }
 
-  const volumes = data?.volumes ?? [];
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">{addButton}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search volumes..."
+            value={listControls.searchTerm}
+            onChange={(event) => listControls.setSearchTerm(event.target.value)}
+            data-testid="list-search"
+          />
+        </div>
+        {addButton}
+      </div>
 
       {/* An environment declaring nothing persistent gives its workloads a
           container filesystem discarded when they stop, which is easy to walk
@@ -107,78 +135,93 @@ export function EnvironmentVolumesTab({ environmentId, runnerId }: EnvironmentVo
         </Card>
       ) : (
         <Card className="border-border" data-testid="environment-volumes-table">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Mount path</TableHead>
-                  <TableHead>Persistence</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Storage class</TableHead>
-                  <TableHead>TTL</TableHead>
-                  <TableHead className="w-0" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {volumes.map((volume) => (
-                  <TableRow key={volume.meta?.id} data-testid="environment-volumes-row">
-                    <TableCell className="font-medium text-foreground">
-                      {volume.name || EMPTY_PLACEHOLDER}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {volume.mountPath || EMPTY_PLACEHOLDER}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {volume.persistent ? 'Persistent' : 'Ephemeral'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {volume.size || EMPTY_PLACEHOLDER}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {volume.storageClass || EMPTY_PLACEHOLDER}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {volume.ttl || EMPTY_PLACEHOLDER}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setEditing({
-                            id: volume.meta?.id ?? '',
-                            name: volume.name,
-                            mountPath: volume.mountPath,
-                            persistent: volume.persistent,
-                            size: volume.size,
-                            storageClass: volume.storageClass ?? '',
-                            ttl: volume.ttl ?? '',
-                          })
-                        }
-                        data-testid="environment-volumes-edit"
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setPendingRemoval({
-                            id: volume.meta?.id ?? '',
-                            name: volume.name,
-                            persistent: volume.persistent,
-                          })
-                        }
-                        data-testid="environment-volumes-remove"
-                      >
-                        Remove
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <CardContent className="px-0">
+            <div
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1.2fr_1.5fr_1fr_0.8fr_1fr_0.8fr_160px]"
+              data-testid="environment-volumes-header"
+            >
+              <SortableHeader
+                label="Name"
+                sortKey="name"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Mount path"
+                sortKey="mountPath"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Persistence"
+                sortKey="persistence"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Size"
+                sortKey="size"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <span>Storage class</span>
+              <span>TTL</span>
+              <span className="text-right">Actions</span>
+            </div>
+            {listControls.filteredItems.map((volume) => (
+              <div
+                key={volume.meta?.id}
+                className="grid items-center gap-2 border-t border-border px-6 py-4 text-sm md:grid-cols-[1.2fr_1.5fr_1fr_0.8fr_1fr_0.8fr_160px]"
+                data-testid="environment-volumes-row"
+              >
+                <span className="font-medium text-foreground">{volume.name || EMPTY_PLACEHOLDER}</span>
+                <span className="text-muted-foreground">{volume.mountPath || EMPTY_PLACEHOLDER}</span>
+                <span className="text-muted-foreground">
+                  {volume.persistent ? 'Persistent' : 'Ephemeral'}
+                </span>
+                <span className="text-muted-foreground">{volume.size || EMPTY_PLACEHOLDER}</span>
+                <span className="text-muted-foreground">{volume.storageClass || EMPTY_PLACEHOLDER}</span>
+                <span className="text-muted-foreground">{volume.ttl || EMPTY_PLACEHOLDER}</span>
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setEditing({
+                        id: volume.meta?.id ?? '',
+                        name: volume.name,
+                        mountPath: volume.mountPath,
+                        persistent: volume.persistent,
+                        size: volume.size,
+                        storageClass: volume.storageClass ?? '',
+                        ttl: volume.ttl ?? '',
+                      })
+                    }
+                    data-testid="environment-volumes-edit"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() =>
+                      setPendingRemoval({
+                        id: volume.meta?.id ?? '',
+                        name: volume.name,
+                        persistent: volume.persistent,
+                      })
+                    }
+                    data-testid="environment-volumes-remove"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
