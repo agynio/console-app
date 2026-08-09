@@ -124,26 +124,26 @@ export function EnvironmentDetailPage() {
           onOpenChange={setEditOpen}
         />
         <Tabs defaultValue="overview" data-testid="environment-detail-tabs" className="mt-6">
-          <TabsList className="h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0">
-            <TabsTrigger value="overview" data-testid="environment-detail-overview-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+          <TabsList variant="line" className="w-full justify-start border-b border-border [&>*]:flex-none">
+            <TabsTrigger value="overview" data-testid="environment-detail-overview-tab">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="volumes" data-testid="environment-detail-volumes-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+            <TabsTrigger value="volumes" data-testid="environment-detail-volumes-tab">
               Volumes
             </TabsTrigger>
-            <TabsTrigger value="mcps" data-testid="environment-detail-mcps-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+            <TabsTrigger value="mcps" data-testid="environment-detail-mcps-tab">
               MCP Servers
             </TabsTrigger>
-            <TabsTrigger value="init-scripts" data-testid="environment-detail-init-scripts-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+            <TabsTrigger value="init-scripts" data-testid="environment-detail-init-scripts-tab">
               Init Scripts
             </TabsTrigger>
-            <TabsTrigger value="envs" data-testid="environment-detail-envs-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+            <TabsTrigger value="envs" data-testid="environment-detail-envs-tab">
               ENVs
             </TabsTrigger>
-            <TabsTrigger value="egress-rules" data-testid="environment-detail-egress-rules-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+            <TabsTrigger value="egress-rules" data-testid="environment-detail-egress-rules-tab">
               Egress Rules
             </TabsTrigger>
-            <TabsTrigger value="subscriptions" data-testid="environment-detail-subscriptions-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+            <TabsTrigger value="subscriptions" data-testid="environment-detail-subscriptions-tab">
               Subscriptions
             </TabsTrigger>
           </TabsList>
