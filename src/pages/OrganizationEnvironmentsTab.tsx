@@ -85,7 +85,7 @@ const emptyEnvironmentValues: EnvironmentValues = {
   workspaceImageTag: '',
   agentRuntimeImageId: '',
   agentRuntimeImageTag: '',
-  llmMode: LLMMode.PLATFORM,
+  llmMode: LLMMode.LLM_MODE_PLATFORM,
   llmAllowedModels: [],
 };
 
@@ -151,7 +151,7 @@ function EnvironmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent data-testid={`${testIdPrefix}-dialog`}>
+      <DialogContent className="sm:max-w-2xl" data-testid={`${testIdPrefix}-dialog`}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -215,16 +215,17 @@ function EnvironmentDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={String(LLMMode.PLATFORM)}>
-                  Platform — models from the catalog
-                </SelectItem>
-                <SelectItem value={String(LLMMode.NATIVE)}>
-                  Native — the vendor's own plan, via a subscription
-                </SelectItem>
+                <SelectItem value={String(LLMMode.LLM_MODE_PLATFORM)}>Platform</SelectItem>
+                <SelectItem value={String(LLMMode.LLM_MODE_NATIVE)}>Native</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              {values.llmMode === LLMMode.LLM_MODE_NATIVE
+                ? "The agent CLI runs unmodified against the vendor's own plan, using a subscription."
+                : 'Models come from the catalog, through the platform.'}
+            </p>
           </div>
-          {values.llmMode === LLMMode.NATIVE ? (
+          {values.llmMode === LLMMode.LLM_MODE_NATIVE ? (
             <div className="space-y-2">
               <Label htmlFor={`${testIdPrefix}-allowed-models`}>Allowed models</Label>
               <Input
