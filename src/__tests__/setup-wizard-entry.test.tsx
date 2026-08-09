@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   listAgents: vi.fn(),
   listSandboxes: vi.fn(),
   listInstallations: vi.fn(),
+  listOrganizationThreads: vi.fn(),
+  getMessages: vi.fn(),
+  queryUsage: vi.fn(),
 }));
 
 const organizations = vi.hoisted(() => ({ current: [] as { id: string; name: string }[] }));
@@ -26,6 +29,11 @@ vi.mock('@/api/client', () => ({
   runnersClient: { listRunners: mocks.listRunners, listWorkloads: mocks.listWorkloads },
   agentsClient: { listAgents: mocks.listAgents, listSandboxes: mocks.listSandboxes },
   appsClient: { listInstallations: mocks.listInstallations },
+  threadsClient: {
+    listOrganizationThreads: mocks.listOrganizationThreads,
+    getMessages: mocks.getMessages,
+  },
+  meteringClient: { queryUsage: mocks.queryUsage },
 }));
 
 vi.mock('@/context/OrganizationContext', () => ({
@@ -107,6 +115,9 @@ describe('setup wizard entry points', () => {
     mocks.listAgents.mockResolvedValue({ agents: [] });
     mocks.listSandboxes.mockResolvedValue({ sandboxes: [] });
     mocks.listInstallations.mockResolvedValue({ installations: [] });
+    mocks.listOrganizationThreads.mockResolvedValue({ threads: [] });
+    mocks.getMessages.mockResolvedValue({ messages: [] });
+    mocks.queryUsage.mockResolvedValue({ buckets: [] });
   });
 
   it('starts setup on the first organization a user creates', async () => {

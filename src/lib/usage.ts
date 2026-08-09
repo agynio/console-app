@@ -6,6 +6,7 @@ const SECONDS_PER_HOUR = 3600;
 const usageFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const hoursFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const hoursSmallFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const compactFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
 
 export function microsToNumber(value: bigint): number {
   return Number(value) / MICRO_UNITS;
@@ -26,6 +27,15 @@ export function formatUsageHoursNumber(value?: number | null): string {
     return hoursSmallFormatter.format(value);
   }
   return hoursFormatter.format(value);
+}
+
+/** For a headline figure, where the exact token count says less than its size. */
+export function formatUsageCompact(value?: bigint | null): string {
+  if (value === null || value === undefined) return EMPTY_PLACEHOLDER;
+  const number = microsToNumber(value);
+  if (!Number.isFinite(number)) return EMPTY_PLACEHOLDER;
+  if (number < 1000) return usageFormatter.format(number);
+  return compactFormatter.format(number);
 }
 
 export function formatUsageValue(value?: bigint | null): string {

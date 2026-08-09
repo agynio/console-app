@@ -1,10 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
-import { Code, ConnectError } from '@connectrpc/connect';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { create } from '@bufbuild/protobuf';
-import { TimestampSchema, type Timestamp } from '@bufbuild/protobuf/wkt';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import {
   Bar,
   BarChart,
@@ -15,14 +13,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { llmClient, meteringClient } from '@/api/client';
+import { llmClient } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Granularity,
-  QueryUsageResponseSchema,
   Unit,
   type QueryUsageResponse,
   type UsageBucket,
@@ -30,6 +27,7 @@ import {
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useIdentityHandles } from '@/hooks/useIdentityHandles';
 import { formatDateOnly, formatTimestamp, timestampToMillis, truncate } from '@/lib/format';
+import { queryUsage } from '@/lib/metering';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import {
   formatUsageHours,
@@ -206,18 +204,7 @@ const llmKindLabels: Record<string, string> = {
   output: 'Output',
 };
 
-function toTimestamp(date: Date): Timestamp {
-  return create(TimestampSchema, {
-    seconds: BigInt(Math.floor(date.getTime() / 1000)),
-    nanos: 0,
-  });
-}
-
-function isUsageUnavailable(error: unknown): boolean {
-  return error instanceof ConnectError && (error.code === Code.Unimplemented || error.code === Code.NotFound);
-}
-
-async function queryUsageSafely({
+function queryUsageSafely({
   organizationId,
   start,
   end,
@@ -226,30 +213,22 @@ async function queryUsageSafely({
   timeZone,
 }: {
   organizationId: string;
-  start: Timestamp;
-  end: Timestamp;
+  start: Date;
+  end: Date;
   config: UsageQueryConfig;
   rangeGranularity: Granularity;
   timeZone: string;
 }): Promise<QueryUsageResponse> {
-  const granularity = config.useRangeGranularity ? rangeGranularity : config.granularity;
-  try {
-    return await meteringClient.queryUsage({
-      orgId: organizationId,
-      start,
-      end,
-      unit: config.unit,
-      labelFilters: config.labelFilters ?? {},
-      groupBy: config.groupBy ?? '',
-      granularity,
-      timeZone,
-    });
-  } catch (error) {
-    if (isUsageUnavailable(error)) {
-      return create(QueryUsageResponseSchema, { buckets: [] });
-    }
-    throw error;
-  }
+  return queryUsage({
+    organizationId,
+    start,
+    end,
+    unit: config.unit,
+    labelFilters: config.labelFilters,
+    groupBy: config.groupBy,
+    granularity: config.useRangeGranularity ? rangeGranularity : config.granularity,
+    timeZone,
+  });
 }
 
 function formatDateInput(date: Date): string {
@@ -579,21 +558,19 @@ export function OrganizationUsageTab() {
   );
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
-  const startTimestamp = range ? toTimestamp(range.start) : undefined;
-  const endTimestamp = range ? toTimestamp(range.end) : undefined;
   const isRangeReady = Boolean(range && organizationId);
 
   const usageQueries = useQueries({
     queries: usageQueryConfigs.map((config) => ({
       queryKey: ['metering', organizationId, rangeKey, rangeGranularity, timeZone, config.key],
       queryFn: () => {
-        if (!startTimestamp || !endTimestamp) {
+        if (!range) {
           throw new Error('Usage range not available.');
         }
         return queryUsageSafely({
           organizationId,
-          start: startTimestamp,
-          end: endTimestamp,
+          start: range.start,
+          end: range.end,
           config,
           rangeGranularity,
           timeZone,
