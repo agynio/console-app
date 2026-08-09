@@ -14,6 +14,8 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-chart-axis: var(--chart-axis);
+  --color-chart-grid: var(--chart-grid);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -68,11 +70,20 @@
   --border: #E2E8F0;
   --input: #E2E8F0;
   --ring: #3B82F6;
-  --chart-1: #7ba7e8;
-  --chart-2: #f58ca5;
-  --chart-3: #a8d89a;
-  --chart-4: #c9a0dc;
-  --chart-5: #f5a572;
+  /* Series colours are ordered, not decorative: the order is what keeps
+     adjacent slots apart under colour blindness. The pastels these replaced sat
+     outside the lightness band, under the chroma floor, and below 3:1 against
+     the surface, which is why every chart read washed out. Dark has its own
+     steps below rather than reusing these. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  /* Chart chrome. Gridlines sit one step off the surface and are drawn solid;
+     dashing reads as "threshold" when it is only a grid. */
+  --chart-grid: #EDF1F6;
+  --chart-axis: #94A3B8;
   --radius: 0.625rem;
   --sidebar: #F1F5F9;
   --sidebar-foreground: #0F172A;
@@ -104,11 +115,15 @@
   --border: #334155;
   --input: #334155;
   --ring: #60A5FA;
-  --chart-1: #7ba7e8;
-  --chart-2: #f58ca5;
-  --chart-3: #a8d89a;
-  --chart-4: #c9a0dc;
-  --chart-5: #f5a572;
+  /* The same five hues stepped for the dark surface, not an inversion of the
+     light set: each clears 3:1 against #1E293B on its own. */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-grid: #263449;
+  --chart-axis: #7789A0;
   --sidebar: #1E293B;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #60A5FA;
