@@ -110,7 +110,7 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl" data-testid={`${testIdPrefix}-dialog`}>
+      <DialogContent className="sm:max-w-3xl" data-testid={`${testIdPrefix}-dialog`}>
         <DialogHeader>
           <DialogTitle>{mode === 'create' ? 'Create egress rule' : 'Edit egress rule'}</DialogTitle>
           <DialogDescription>
@@ -231,7 +231,10 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
           ) : (
             <div className="space-y-3">
               {values.headers.map((header, index) => (
-                <div key={index} className="grid gap-3 rounded-lg border border-border p-3 md:grid-cols-[1fr_120px_130px_1fr_auto]">
+                <div
+                  key={index}
+                  className="grid grid-cols-1 items-start gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_120px_130px] lg:grid-cols-[minmax(0,1fr)_120px_130px_minmax(0,1fr)_auto]"
+                >
                   <Input
                     aria-label="Header name"
                     placeholder="Authorization"
@@ -259,7 +262,7 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                     </SelectContent>
                   </Select>
                   {header.source === 'secretId' ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 sm:col-span-3 lg:col-span-1">
                       <Input
                         aria-label="Search secrets"
                         placeholder="Search secrets"
@@ -285,6 +288,7 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                     </div>
                   ) : (
                     <Input
+                      className="sm:col-span-3 lg:col-span-1"
                       aria-label="Header value"
                       type="password"
                       placeholder={header.requiresValueReentry ? 'Re-enter literal value' : 'header value'}
@@ -297,6 +301,7 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="justify-self-start sm:col-span-3 lg:col-span-1 lg:justify-self-auto"
                     onClick={() => setValues((prev) => ({ ...prev, headers: prev.headers.filter((_, currentIndex) => currentIndex !== index) }))}
                     data-testid={`${testIdPrefix}-remove-header`}
                   >
