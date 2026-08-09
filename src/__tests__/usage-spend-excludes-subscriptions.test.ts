@@ -4,7 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = readFileSync(join(here, '../pages/OrganizationUsageTab.tsx'), 'utf8');
+// Token queries are declared in two places -- the LLM section's fixed set and
+// the consumer rankings built per level -- so both are scanned: a filter
+// dropped in either one bills subscription tokens that cost nothing.
+const source = [
+  readFileSync(join(here, '../pages/usage/LlmSection.tsx'), 'utf8'),
+  readFileSync(join(here, '../lib/usageConsumers.ts'), 'utf8'),
+].join('\n');
 
 // A subscription is a flat fee: its tokens have no marginal cost, and summing
 // them alongside API tokens produces a bill that does not exist. The only thing
