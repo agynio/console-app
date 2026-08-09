@@ -39,7 +39,8 @@ export function formatDateOnly(timestamp?: Timestamp | null): string {
   return formatTimestamp(timestamp, { dateStyle: 'medium' });
 }
 
-export function formatDuration(milliseconds: number): string {
+/** maxParts=1 gives the single coarsest unit, which is how an age reads in a list. */
+export function formatDuration(milliseconds: number, maxParts = 2): string {
   if (!Number.isFinite(milliseconds) || milliseconds <= 0) return EMPTY_PLACEHOLDER;
   let remainingSeconds = Math.max(1, Math.floor(milliseconds / 1000));
   const units = [
@@ -51,7 +52,7 @@ export function formatDuration(milliseconds: number): string {
   const parts: string[] = [];
 
   for (const unit of units) {
-    if (parts.length >= 2) break;
+    if (parts.length >= maxParts) break;
     if (remainingSeconds < unit.seconds && unit.label !== 's') continue;
     const value = Math.floor(remainingSeconds / unit.seconds);
     if (value <= 0) continue;
@@ -62,14 +63,27 @@ export function formatDuration(milliseconds: number): string {
   return parts.length > 0 ? parts.join(' ') : EMPTY_PLACEHOLDER;
 }
 
-export function formatDurationBetween(start?: Timestamp | null, end?: Timestamp | null): string {
+export function formatDurationBetween(
+  start?: Timestamp | null,
+  end?: Timestamp | null,
+  maxParts = 2,
+): string {
   if (!start) return EMPTY_PLACEHOLDER;
   const startMillis = timestampToMillis(start);
   if (!startMillis) return EMPTY_PLACEHOLDER;
   const endMillis = end ? timestampToMillis(end) : Date.now();
   if (!endMillis) return EMPTY_PLACEHOLDER;
   const duration = Math.max(0, endMillis - startMillis);
-  return formatDuration(duration);
+  return formatDuration(duration, maxParts);
+}
+
+/** How long ago, in one unit. Anything under a minute is not worth a number. */
+export function formatAge(timestamp?: Timestamp | null): string {
+  if (!timestamp) return EMPTY_PLACEHOLDER;
+  const millis = timestampToMillis(timestamp);
+  if (!millis) return EMPTY_PLACEHOLDER;
+  if (Date.now() - millis < 60_000) return 'just now';
+  return formatDurationBetween(timestamp, null, 1);
 }
 
 export function formatLabelPairs(labels: Record<string, string>): string {

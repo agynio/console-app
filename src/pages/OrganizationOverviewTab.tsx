@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { CopyIcon } from 'lucide-react';
 import { agentsClient, appsClient, organizationsClient, runnersClient, secretsClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
@@ -12,6 +11,9 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotifications } from '@/hooks/useNotifications';
 import { copyText } from '@/lib/clipboard';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { OverviewActivity } from '@/pages/overview/OverviewActivity';
+import { RecentThreads } from '@/pages/overview/RecentThreads';
+import { RunningNow } from '@/pages/overview/RunningNow';
 import { isSetupSkipped } from '@/pages/setup/skipped';
 
 export function OrganizationOverviewTab() {
@@ -146,57 +148,67 @@ export function OrganizationOverviewTab() {
 
   return (
     <div className="space-y-4">
-      <Card className="border-border" data-testid="organization-overview-identity">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            {organizationName || 'Organization'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Organization ID</div>
-              <div
-                className="mt-1 font-mono text-sm break-all text-foreground"
-                data-testid="organization-overview-id"
-              >
-                {organizationId}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                The <code className="font-mono">organization_id</code> required by the Terraform provider and the API.
-              </p>
+      {/* The identity is a lookup, not a headline: it earns a row, and the
+          activity below it earns the rest of the page. */}
+      <div
+        className="flex flex-wrap items-start justify-between gap-3"
+        data-testid="organization-overview-identity"
+      >
+        <h2 className="text-lg font-semibold text-foreground">{organizationName || 'Organization'}</h2>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <div className="font-mono text-xs break-all text-muted-foreground" data-testid="organization-overview-id">
+              {organizationId}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => copyText(organizationId, 'Organization ID copied.')}
-              data-testid="organization-overview-id-copy"
-            >
-              <CopyIcon className="h-4 w-4" />
-              Copy ID
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              The <code className="font-mono">organization_id</code> the Terraform provider and the API take.
+            </p>
           </div>
-        </CardContent>
-      </Card>
-      <div className="grid gap-4 md:grid-cols-2" data-testid="organization-overview-summary">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => copyText(organizationId, 'Organization ID copied.')}
+            data-testid="organization-overview-id-copy"
+          >
+            <CopyIcon className="h-4 w-4" />
+            Copy ID
+          </Button>
+        </div>
+      </div>
+
+      <OverviewActivity
+        organizationId={organizationId}
+        runnerCount={runnersQuery.data?.runners.length ?? 0}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RunningNow
+          organizationId={organizationId}
+          workloads={workloadsQuery.data?.workloads ?? []}
+          isPending={workloadsQuery.isPending}
+          isError={workloadsQuery.isError}
+        />
+        <RecentThreads organizationId={organizationId} />
+      </div>
+
+      {/* The counters keep their links; they no longer keep the page. */}
+      <div
+        className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"
+        data-testid="organization-overview-summary"
+      >
         {summary.map((item) => (
           <NavLink
             key={item.label}
             to={item.to}
-            className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-lg border border-border bg-card px-3 py-2 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             data-testid="organization-overview-card-link"
           >
-            <Card
-              className="cursor-pointer border-border transition-colors hover:bg-muted"
-              data-testid="organization-overview-card"
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{item.label}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-semibold text-foreground">{item.value}</div>
-              </CardContent>
-            </Card>
+            <div className="truncate text-xs text-muted-foreground" title={item.label}>
+              {item.label}
+            </div>
+            <div className="text-lg font-semibold text-foreground" data-testid="organization-overview-card">
+              {item.value}
+            </div>
           </NavLink>
         ))}
       </div>
