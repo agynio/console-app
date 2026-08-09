@@ -8,6 +8,8 @@ import { EgressRuleAttachmentsTab } from '@/pages/detail-tabs/EgressRuleAttachme
 import { EnvironmentSubscriptionsTab } from '@/pages/detail-tabs/EnvironmentSubscriptionsTab';
 import { EnvironmentVolumesTab } from '@/pages/detail-tabs/EnvironmentVolumesTab';
 import { EnvironmentAvailability } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { Button } from '@/components/ui/button';
+import { EditEnvironmentDialog } from '@/components/EditEnvironmentDialog';
 import { DetailPageHeader } from '@/components/DetailPageHeader';
 import { EnvsTab } from '@/pages/detail-tabs/EnvsTab';
 import { InitScriptsTab } from '@/pages/detail-tabs/InitScriptsTab';
@@ -58,6 +60,8 @@ export function EnvironmentDetailPage() {
       ? `/organizations/${organizationId}/runners/${environment.runnerId}`
       : '';
 
+  const [editOpen, setEditOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       {environmentQuery.isPending ? (
@@ -89,7 +93,34 @@ export function EnvironmentDetailPage() {
               </span>
             ) : null
           }
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+              data-testid="environment-detail-edit"
+            >
+              Edit
+            </Button>
+          }
           testId="environment-detail-header"
+        />
+        <EditEnvironmentDialog
+          organizationId={organizationId}
+          environmentId={environment.meta?.id ?? ''}
+          values={{
+            name: environment.name,
+            availability: environment.availability,
+            runnerId: environment.runnerId,
+            flavor: environment.flavor,
+            workspaceImageId: environment.workspaceImageId,
+            workspaceImageTag: environment.workspaceImageTag,
+            agentRuntimeImageId: environment.agentRuntimeImageId,
+            agentRuntimeImageTag: environment.agentRuntimeImageTag,
+            llmMode: environment.llmMode,
+          }}
+          open={editOpen}
+          onOpenChange={setEditOpen}
         />
         <Tabs defaultValue="overview" data-testid="environment-detail-tabs" className="mt-6">
           <TabsList className="h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0">
@@ -112,7 +143,7 @@ export function EnvironmentDetailPage() {
               Egress Rules
             </TabsTrigger>
             <TabsTrigger value="subscriptions" data-testid="environment-detail-subscriptions-tab" className="rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
-              LLM
+              Subscriptions
             </TabsTrigger>
           </TabsList>
           <TabsContent value="overview">

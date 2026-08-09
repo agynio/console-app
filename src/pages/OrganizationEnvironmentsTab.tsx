@@ -31,7 +31,7 @@ import { formatDateOnly, timestampToMillis } from '@/lib/format';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
-type EnvironmentValues = {
+export type EnvironmentValues = {
   name: string;
   availability: EnvironmentAvailability;
   runnerId: string;
@@ -49,7 +49,7 @@ type EnvironmentFieldErrors = Partial<
   Record<'name' | 'runnerId' | 'workspaceImageId' | 'workspaceImageTag', string>
 >;
 
-type RunnerOption = {
+export type RunnerOption = {
   value: string;
   label: string;
 };
@@ -86,13 +86,13 @@ const emptyEnvironmentValues: EnvironmentValues = {
 
 // Requests are what scheduling reserves, so they are the useful number when
 // choosing between flavors; limits are the ceiling and are left out.
-function describeResources(resources?: { requestsCpu: string; requestsMemory: string }): string | undefined {
+export function describeResources(resources?: { requestsCpu: string; requestsMemory: string }): string | undefined {
   if (!resources) return undefined;
   const parts = [resources.requestsCpu, resources.requestsMemory].filter(Boolean);
   return parts.length > 0 ? parts.join(' / ') : undefined;
 }
 
-function EnvironmentDialog({
+export function EnvironmentDialog({
   organizationId,
   open,
   onOpenChange,
