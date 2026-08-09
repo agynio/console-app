@@ -49,6 +49,7 @@ import { ApiTokensPage } from '@/pages/ApiTokensPage';
 import { AppDetailPage } from '@/pages/AppDetailPage';
 import { DevicesPage } from '@/pages/DevicesPage';
 import { InstallationDetailPage } from '@/pages/InstallationDetailPage';
+import { SetupWizardPage } from '@/pages/setup/SetupWizardPage';
 
 /** Redirects a superseded organization-scoped path to its canonical one. */
 function OrganizationRedirect({ to }: { to: string }) {
@@ -83,6 +84,7 @@ export default function App() {
           }
         >
           <Route index element={<OrganizationOverviewTab />} />
+          <Route path="setup" element={<SetupWizardPage />} />
           <Route path="members" element={<OrganizationMembersTab />} />
           <Route path="agents/new" element={<AgentCreatePage />} />
           <Route path="agents/:agentId" element={<AgentDetailPage />} />

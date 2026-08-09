@@ -6,9 +6,21 @@ import { PRODUCTS, productUrl, type Product } from '@/lib/products';
 
 const cardClasses = 'flex min-w-36 flex-col gap-0.5 rounded-lg p-3 text-left';
 
-function ProductCard({ product, isCurrent }: { product: Product; isCurrent: boolean }) {
+function ProductCard({
+  product,
+  isCurrent,
+  highlighted,
+  href,
+}: {
+  product: Product;
+  isCurrent: boolean;
+  highlighted?: boolean;
+  href?: string;
+}) {
   const Icon = product.icon;
-  const url = isCurrent ? null : productUrl(product);
+  // An override points this entry at a specific destination for one run — a
+  // conversation, a running sandbox — rather than at the product's home.
+  const url = href ?? (isCurrent ? null : productUrl(product));
 
   const body = (
     <>
@@ -38,7 +50,11 @@ function ProductCard({ product, isCurrent }: { product: Product; isCurrent: bool
   return (
     <a
       href={url}
-      className={cn(cardClasses, 'transition-colors hover:bg-muted')}
+      className={cn(
+        cardClasses,
+        'transition-colors hover:bg-muted',
+        highlighted && 'bg-muted ring-2 ring-ring',
+      )}
       data-testid={`product-${product.id}`}
     >
       {body}
@@ -46,11 +62,28 @@ function ProductCard({ product, isCurrent }: { product: Product; isCurrent: bool
   );
 }
 
-export function ProductSwitcher({ currentProductId }: { currentProductId: string }) {
+type ProductSwitcherProps = {
+  currentProductId: string;
+  /** Controlled open state. Left unset, the popover manages its own. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Marks one entry as the destination, for a flow that ends by sending the user there. */
+  highlightProductId?: string;
+  /** Per-product destination overrides, keyed by product id. */
+  hrefOverrides?: Record<string, string>;
+};
+
+export function ProductSwitcher({
+  currentProductId,
+  open,
+  onOpenChange,
+  highlightProductId,
+  hrefOverrides,
+}: ProductSwitcherProps) {
   const current = PRODUCTS.find((product) => product.id === currentProductId) ?? PRODUCTS[0];
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
       {/* Anchored to the whole row so the panel lines up with the wordmark
           rather than the button it hangs off. */}
       <PopoverAnchor asChild>
@@ -77,7 +110,13 @@ export function ProductSwitcher({ currentProductId }: { currentProductId: string
       </PopoverAnchor>
       <PopoverContent align="start" className="grid w-auto grid-cols-2 gap-1 rounded-xl p-2 shadow-lg">
         {PRODUCTS.map((product) => (
-          <ProductCard key={product.id} product={product} isCurrent={product.id === current.id} />
+          <ProductCard
+            key={product.id}
+            product={product}
+            isCurrent={product.id === current.id}
+            highlighted={product.id === highlightProductId}
+            href={hrefOverrides?.[product.id]}
+          />
         ))}
       </PopoverContent>
     </Popover>

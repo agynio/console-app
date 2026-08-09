@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDownIcon,
   ChevronsUpDownIcon,
@@ -16,11 +16,14 @@ import { ProductSwitcher } from '@/components/ProductSwitcher';
 import { ThemeMenuItems } from '@/components/ThemeMenuItems';
 import { PendingInvitesMenu } from '@/components/PendingInvitesMenu';
 import { useOrganizationContext } from '@/context/OrganizationContext';
+import { useSetupOverlay } from '@/context/SetupOverlayContext';
 import { useUserContext } from '@/context/UserContext';
 import { OrganizationMenuItems } from '@/components/OrganizationSwitcher';
 import { useCreateOrganization } from '@/hooks/useCreateOrganization';
 import { useSidebarGroups } from '@/hooks/useSidebarGroups';
 import { usePageTitle } from '@/context/PageTitleContext';
+import { SetupFinish } from '@/pages/setup/SetupFinish';
+import { setupDestination, type SetupDestination } from '@/pages/setup/destination';
 import { CLUSTER_NAV_GROUPS, ORGANIZATION_NAV_GROUPS, type NavGroup } from '@/layout/navigation';
 import {
   DropdownMenu,
@@ -93,6 +96,23 @@ function SidebarNav({ groups, basePath }: SidebarNavProps) {
         );
       })}
     </div>
+  );
+}
+
+/**
+ * The switcher in its ordinary place, plus the one state the setup wizard needs
+ * from it. Its panel is portaled above everything, so on the wizard's dimmed
+ * finish screen it is the only lit, interactive thing — anchored where the user
+ * will look for it every day after this one.
+ */
+function SidebarProductSwitcher({ target }: { target: SetupDestination | null }) {
+  return (
+    <ProductSwitcher
+      currentProductId="console"
+      open={target ? true : undefined}
+      highlightProductId={target?.productId}
+      hrefOverrides={target ? { [target.productId]: target.href } : undefined}
+    />
   );
 }
 
@@ -180,6 +200,13 @@ export function AppLayout() {
   const createOrganization = useCreateOrganization();
   const pageTitle = usePageTitle();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { finish, setFinish } = useSetupOverlay();
+
+  // The wizard is a flow, not a section: navigation away from it is the one
+  // thing it does not want to offer while it is running.
+  const inSetup = location.pathname.endsWith('/setup');
+  const target = finish ? setupDestination(finish.state, finish.organizationId) : null;
 
   if (userStatus === 'loading' || orgStatus === 'loading') {
     return (
@@ -288,26 +315,36 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen bg-muted/40">
-      <aside
-        className="sticky top-0 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
-        data-testid="console-sidebar"
-      >
-        {/* Pinned: only the navigation below it scrolls. */}
-        <div className="shrink-0 px-4 py-4">
-          <ProductSwitcher currentProductId="console" />
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
-          {isClusterContext ? <SidebarNav groups={CLUSTER_NAV_GROUPS} basePath="" /> : null}
-          {isOrganizationContext ? (
-            <SidebarNav groups={ORGANIZATION_NAV_GROUPS} basePath={organizationBase} />
-          ) : null}
-        </div>
-      </aside>
+      {inSetup ? null : (
+        <aside
+          className="sticky top-0 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+          data-testid="console-sidebar"
+        >
+          {/* Pinned: only the navigation below it scrolls. */}
+          <div className="shrink-0 px-4 py-4">
+            <SidebarProductSwitcher target={target} />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+            {isClusterContext ? <SidebarNav groups={CLUSTER_NAV_GROUPS} basePath="" /> : null}
+            {isOrganizationContext ? (
+              <SidebarNav groups={ORGANIZATION_NAV_GROUPS} basePath={organizationBase} />
+            ) : null}
+          </div>
+        </aside>
+      )}
       <main className="flex flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-6 py-4">
-          <h1 className="text-lg font-semibold text-foreground" data-testid="page-title">
-            {pageTitle}
-          </h1>
+          {/* The wizard hides the sidebar, which is where the switcher normally
+              lives. It takes the title's place rather than going missing: every
+              app on this platform is reached from it, including on the screen
+              the flow ends on. */}
+          {inSetup ? (
+            <SidebarProductSwitcher target={target} />
+          ) : (
+            <h1 className="text-lg font-semibold text-foreground" data-testid="page-title">
+              {pageTitle}
+            </h1>
+          )}
           <div className="flex items-center gap-3">{userMenu}</div>
         </header>
         <div className="flex-1 p-6">
@@ -324,6 +361,11 @@ export function AppLayout() {
         isSubmitting={createOrganization.isSubmitting}
         testIdPrefix="org-switcher-create"
       />
+      {/* Rendered here rather than by the wizard: by the time it shows, the
+          wizard is gone and the ordinary Console is what gets dimmed. */}
+      {finish ? (
+        <SetupFinish state={finish.state} target={target} onDismiss={() => setFinish(null)} />
+      ) : null}
       <Toaster richColors position="top-right" />
     </div>
   );
