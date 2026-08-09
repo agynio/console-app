@@ -174,13 +174,8 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
   const renderRuleSummary = (attachment: EgressRuleAttachment, rules: Map<string, EgressRule>) => {
     const rule = rules.get(attachment.ruleId);
     return (
-      <div>
-        <div className="font-medium" data-testid={`${prefix}-egress-rule-attachment-name`}>
-          {rule?.name || attachment.ruleId}
-        </div>
-        <div className="text-xs text-muted-foreground" data-testid={`${prefix}-egress-rule-attachment-domain`}>
-          Domain: {rule?.matcher?.domainPattern || '-'}
-        </div>
+      <div className="font-medium" data-testid={`${prefix}-egress-rule-attachment-name`}>
+        {rule?.name || attachment.ruleId}
       </div>
     );
   };
@@ -230,7 +225,7 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
       {attachments.length > 0 ? (
         <Card className="border-border" data-testid={`${prefix}-egress-rule-attachments-table`}>
           <CardContent className="px-0">
-            <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_120px]">
+            <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1fr_1fr_140px_110px]">
               <SortableHeader
                 label="Rule"
                 sortKey="rule"
@@ -263,7 +258,7 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
                 visibleAttachments.map((attachment) => (
                   <div
                     key={attachment.meta?.id ?? attachment.ruleId}
-                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
+                    className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[1fr_1fr_140px_110px]"
                     data-testid={`${prefix}-egress-rule-attachment-row`}
                   >
                     {renderRuleSummary(attachment, ruleMap)}
@@ -276,7 +271,7 @@ export function EgressRuleAttachmentsTab({ target, organizationId }: EgressRuleA
                     </span>
                     <div className="text-right">
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleDetachOpen(attachment)}
                         data-testid={`${prefix}-egress-rule-attachment-detach`}
