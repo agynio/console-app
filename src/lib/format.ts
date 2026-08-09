@@ -101,6 +101,35 @@ export function truncate(value?: string | null, maxLength = 100): string {
   return `${value.slice(0, maxLength)}...`;
 }
 
+/** The head and tail of an id are what gets matched against; the middle never is. */
+export function truncateMiddle(value?: string | null, head = 8, tail = 6): string {
+  if (!value) return EMPTY_PLACEHOLDER;
+  if (value.length <= head + tail + 1) return value;
+  return `${value.slice(0, head)}…${value.slice(-tail)}`;
+}
+
+const BYTE_UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+
+/** Zero means unallocated, not measured, so it reads as blank rather than as a quantity. */
+export function formatBytes(bytes?: bigint | number | null): string {
+  const value = typeof bytes === 'bigint' ? Number(bytes) : (bytes ?? 0);
+  if (!Number.isFinite(value) || value <= 0) return EMPTY_PLACEHOLDER;
+  let scaled = value;
+  let unitIndex = 0;
+  while (scaled >= 1024 && unitIndex < BYTE_UNITS.length - 1) {
+    scaled /= 1024;
+    unitIndex += 1;
+  }
+  const decimals = unitIndex === 0 || scaled >= 100 ? 0 : 1;
+  return `${scaled.toFixed(decimals)} ${BYTE_UNITS[unitIndex]}`;
+}
+
+/** Same reasoning as formatBytes: an unallocated workload has no CPU figure to show. */
+export function formatMillicores(millicores?: number | null): string {
+  if (!millicores || millicores <= 0) return EMPTY_PLACEHOLDER;
+  return `${millicores.toLocaleString()} m`;
+}
+
 export function formatRunnerStatus(status: RunnerStatus): string {
   if (status === RunnerStatus.ENROLLED) return 'Enrolled';
   if (status === RunnerStatus.PENDING) return 'Pending';
