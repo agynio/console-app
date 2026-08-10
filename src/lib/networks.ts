@@ -1,3 +1,5 @@
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+
 import {
   PrivateResourceAccessPrincipalType,
   PrivateResourceProtocol,
@@ -6,6 +8,7 @@ import {
   TunnelEnrollmentState,
   type PrivateResource,
 } from '@/gen/agynio/api/networks/v1/networks_pb';
+import { formatDuration, timestampToMillis } from '@/lib/format';
 
 export function formatProvisioningState(state: ProvisioningState): string {
   if (state === ProvisioningState.ACTIVE) return 'Active';
@@ -55,6 +58,18 @@ export function parsePorts(value: string): number[] {
     .split(',')
     .map((port) => Number(port.trim()))
     .filter((port) => Number.isInteger(port) && port > 0 && port <= 65535);
+}
+
+/**
+ * The enrollment window. It only bounds enrolling, so it says nothing once a
+ * tunnel has enrolled — callers show this for pending tunnels alone.
+ */
+export function formatEnrollmentExpiry(expiresAt?: Timestamp | null): { label: string; expired: boolean } | null {
+  const millis = timestampToMillis(expiresAt);
+  if (!millis) return null;
+  const remaining = millis - Date.now();
+  if (remaining <= 0) return { label: 'enrollment expired', expired: true };
+  return { label: `enrollment expires in ${formatDuration(remaining, 1)}`, expired: false };
 }
 
 export function buildConnectionString(resource: PrivateResource): string {

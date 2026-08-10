@@ -13,6 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { copyText } from '@/lib/clipboard';
+import { downloadTextFile } from '@/lib/download';
 import { toast } from 'sonner';
 
 type CreateDeviceDialogProps = {
@@ -20,16 +22,18 @@ type CreateDeviceDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
+type IssuedDevice = { id: string; jwt: string };
+
 export function CreateDeviceDialog({ open, onOpenChange }: CreateDeviceDialogProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
-  const [enrollmentJwt, setEnrollmentJwt] = useState('');
+  const [issued, setIssued] = useState<IssuedDevice | null>(null);
 
   const createDeviceMutation = useMutation({
     mutationFn: (payload: { name: string }) => usersClient.createDevice(payload),
     onSuccess: (response) => {
-      setEnrollmentJwt(response.enrollmentJwt);
+      setIssued({ id: response.device?.meta?.id ?? '', jwt: response.enrollmentJwt });
       void queryClient.invalidateQueries({ queryKey: ['devices'] });
       toast.success('Device created.');
     },
@@ -41,7 +45,7 @@ export function CreateDeviceDialog({ open, onOpenChange }: CreateDeviceDialogPro
   const resetState = () => {
     setName('');
     setNameError('');
-    setEnrollmentJwt('');
+    setIssued(null);
   };
 
   const closeDialog = () => {
@@ -49,8 +53,9 @@ export function CreateDeviceDialog({ open, onOpenChange }: CreateDeviceDialogPro
     resetState();
   };
 
+  // A shown-once JWT leaves on an explicit Done, not on a stray click outside.
   const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen && enrollmentJwt) return;
+    if (!nextOpen && issued) return;
     if (!nextOpen) {
       resetState();
     }
@@ -67,43 +72,46 @@ export function CreateDeviceDialog({ open, onOpenChange }: CreateDeviceDialogPro
     createDeviceMutation.mutate({ name: trimmedName });
   };
 
-  const handleCopyJwt = async () => {
-    try {
-      await navigator.clipboard.writeText(enrollmentJwt);
-      toast.success('JWT copied to clipboard.');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to copy JWT.');
-    }
+  const handleDownloadJwt = () => {
+    if (!issued) return;
+    downloadTextFile(issued.jwt, issued.id ? `device-${issued.id}.jwt` : 'device.jwt');
+    toast.success('Enrollment JWT downloaded.');
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent data-testid="devices-create-dialog">
+      <DialogContent
+        className={issued ? 'sm:max-w-2xl' : undefined}
+        showCloseButton={!issued}
+        data-testid="devices-create-dialog"
+      >
         <DialogHeader>
-          <DialogTitle data-testid="devices-create-title">Add device</DialogTitle>
+          <DialogTitle data-testid="devices-create-title">{issued ? 'Enrollment JWT' : 'Add device'}</DialogTitle>
           <DialogDescription data-testid="devices-create-description">
-            Register a device for OpenZiti network access.
+            {issued
+              ? 'Shown once — copy or download it before closing.'
+              : 'Register a device for OpenZiti network access.'}
           </DialogDescription>
         </DialogHeader>
-        {enrollmentJwt ? (
+        {issued ? (
           <div className="space-y-4">
-            <div>
-              <div className="text-sm font-medium text-foreground" data-testid="devices-jwt-label">
-                Enrollment JWT
-              </div>
-              <div
-                className="mt-2 rounded-md border border-border bg-muted p-3 text-xs font-mono text-foreground break-all"
-                data-testid="devices-jwt-value"
-              >
-                {enrollmentJwt}
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground" data-testid="devices-jwt-warning">
-              This JWT will not be shown again.
-            </p>
+            <pre
+              className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-md border border-border bg-muted p-3 font-mono text-xs text-foreground"
+              data-testid="devices-jwt-value"
+            >
+              {issued.jwt}
+            </pre>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopyJwt} data-testid="devices-jwt-copy">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyText(issued.jwt, 'Enrollment JWT copied.')}
+                data-testid="devices-jwt-copy"
+              >
                 Copy JWT
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadJwt} data-testid="devices-jwt-download">
+                Download .jwt
               </Button>
               <Button size="sm" onClick={closeDialog} data-testid="devices-jwt-done">
                 Done
@@ -128,7 +136,7 @@ export function CreateDeviceDialog({ open, onOpenChange }: CreateDeviceDialogPro
             </div>
           </div>
         )}
-        {enrollmentJwt ? null : (
+        {issued ? null : (
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" size="sm" data-testid="devices-cancel">

@@ -11,7 +11,7 @@ import { MembershipRole, MembershipStatus } from '@/gen/agynio/api/organizations
 import { ContainerStatus, RunnerStatus, VolumeStatus, WorkloadStatus } from '@/gen/agynio/api/runners/v1/runners_pb';
 import { SecretProviderType } from '@/gen/agynio/api/secrets/v1/secrets_pb';
 import { ThreadStatus } from '@/gen/agynio/api/threads/v1/threads_pb';
-import { ClusterRole, DeviceStatus } from '@/gen/agynio/api/users/v1/users_pb';
+import { ClusterRole, DeviceConnectivity, DeviceStatus } from '@/gen/agynio/api/users/v1/users_pb';
 
 export const EMPTY_PLACEHOLDER = '—';
 
@@ -140,6 +140,12 @@ export function formatRunnerStatus(status: RunnerStatus): string {
 export function formatDeviceStatus(status: DeviceStatus): string {
   if (status === DeviceStatus.PENDING) return 'Pending';
   if (status === DeviceStatus.ENROLLED) return 'Enrolled';
+  return 'Unspecified';
+}
+
+export function formatDeviceConnectivity(connectivity: DeviceConnectivity): string {
+  if (connectivity === DeviceConnectivity.ONLINE) return 'Online';
+  if (connectivity === DeviceConnectivity.OFFLINE) return 'Offline';
   return 'Unspecified';
 }
 

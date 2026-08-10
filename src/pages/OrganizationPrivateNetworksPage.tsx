@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { MoreHorizontalIcon } from 'lucide-react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { networksClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { DetailField } from '@/components/DetailField';
+import { DetailPageHeader } from '@/components/DetailPageHeader';
 import {
   Dialog,
   DialogContent,
@@ -13,18 +16,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ConnectivityBadge, EnrollmentBadge, ProvisioningBadge } from '@/components/NetworkBadges';
 import { SortableHeader } from '@/components/SortableHeader';
+import { ProvisioningState, TunnelEnrollmentState } from '@/gen/agynio/api/networks/v1/networks_pb';
 import type { Network, TunnelCredential } from '@/gen/agynio/api/networks/v1/networks_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { copyText } from '@/lib/clipboard';
-import { formatDateOnly, timestampToMillis } from '@/lib/format';
-import { formatProvisioningState } from '@/lib/networks';
+import { downloadTextFile } from '@/lib/download';
+import { EMPTY_PLACEHOLDER, formatAge, formatDateOnly, timestampToMillis } from '@/lib/format';
+import { formatEnrollmentExpiry, formatProvisioningState } from '@/lib/networks';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/pagination';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type NetworkDialogValues = {
@@ -32,27 +44,42 @@ type NetworkDialogValues = {
   description: string;
 };
 
+const emptyNetworkValues: NetworkDialogValues = { name: '', description: '' };
+
+/** The dialog the list creates with and the detail page edits with, so both take the same form. */
 function NetworkDialog({
   open,
   onOpenChange,
+  title,
+  description,
+  submitLabel,
+  pendingLabel,
+  initialValues,
   onSubmit,
   isSubmitting,
+  testIdPrefix,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  submitLabel: string;
+  pendingLabel: string;
+  initialValues: NetworkDialogValues;
   onSubmit: (values: NetworkDialogValues) => void;
   isSubmitting: boolean;
+  testIdPrefix: string;
 }) {
-  const [values, setValues] = useState<NetworkDialogValues>({ name: '', description: '' });
+  const [values, setValues] = useState<NetworkDialogValues>(initialValues);
   const [error, setError] = useState('');
+  const { name: initialName, description: initialDescription } = initialValues;
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    onOpenChange(nextOpen);
-    if (!nextOpen) {
-      setValues({ name: '', description: '' });
-      setError('');
-    }
-  };
+  // Each opening starts from the network as it is now, not from the last edit.
+  useEffect(() => {
+    if (!open) return;
+    setValues({ name: initialName, description: initialDescription });
+    setError('');
+  }, [open, initialName, initialDescription]);
 
   const handleSubmit = () => {
     const name = values.name.trim();
@@ -64,44 +91,44 @@ function NetworkDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent data-testid="private-networks-create-dialog">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid={`${testIdPrefix}-dialog`}>
         <DialogHeader>
-          <DialogTitle>Create private network</DialogTitle>
-          <DialogDescription>Create a logical network that can be reached by one or more tunnels.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="network-name">Name</Label>
+            <Label htmlFor={`${testIdPrefix}-name`}>Name</Label>
             <Input
-              id="network-name"
+              id={`${testIdPrefix}-name`}
               value={values.name}
               onChange={(event) => {
                 setValues((current) => ({ ...current, name: event.target.value }));
                 setError('');
               }}
               placeholder="production-vpc"
-              data-testid="private-networks-create-name"
+              data-testid={`${testIdPrefix}-name`}
             />
             {error ? <p className="text-xs text-destructive">{error}</p> : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="network-description">Description</Label>
+            <Label htmlFor={`${testIdPrefix}-description`}>Description</Label>
             <Textarea
-              id="network-description"
+              id={`${testIdPrefix}-description`}
               value={values.description}
               onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
               placeholder="Private resources reachable through this network"
-              data-testid="private-networks-create-description"
+              data-testid={`${testIdPrefix}-description`}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="private-networks-create-submit">
-            {isSubmitting ? 'Creating...' : 'Create network'}
+          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid={`${testIdPrefix}-submit`}>
+            {isSubmitting ? pendingLabel : submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -240,8 +267,14 @@ export function OrganizationPrivateNetworksPage() {
       <NetworkDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
+        title="Create private network"
+        description="Create a logical network that can be reached by one or more tunnels."
+        submitLabel="Create network"
+        pendingLabel="Creating..."
+        initialValues={emptyNetworkValues}
         onSubmit={(values) => createMutation.mutate(values)}
         isSubmitting={createMutation.isPending}
+        testIdPrefix="private-networks-create"
       />
     </div>
   );
@@ -278,6 +311,7 @@ export function OrganizationPrivateNetworkDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const networkQuery = useQuery({
     queryKey: ['private-networks', organizationId, resolvedNetworkId],
@@ -292,6 +326,7 @@ export function OrganizationPrivateNetworkDetailPage() {
       networksClient.updateNetwork({ id: resolvedNetworkId, name: values.name, description: values.description }),
     onSuccess: () => {
       toast.success('Private network updated.');
+      setEditOpen(false);
       void queryClient.invalidateQueries({ queryKey: ['private-networks', organizationId] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Failed to update private network.'),
@@ -313,37 +348,68 @@ export function OrganizationPrivateNetworkDetailPage() {
   if (networkQuery.isError || !network) return <div className="text-sm text-muted-foreground">Failed to load private network.</div>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" asChild>
-          <NavLink to={`/organizations/${organizationId}/private-networks`}>Back to private networks</NavLink>
-        </Button>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild data-testid="private-network-resources-link">
-            <NavLink to={`/organizations/${organizationId}/private-resources?network=${resolvedNetworkId}`}>
-              Private resources
-            </NavLink>
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} data-testid="private-network-delete">
-            Delete network
-          </Button>
-        </div>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            {network.name}
-            <ProvisioningBadge state={network.provisioningState} />
-          </CardTitle>
-        </CardHeader>
+    <div className="space-y-3">
+      <DetailPageHeader
+        parentLabel="Private networks"
+        parentHref={`/organizations/${organizationId}/private-networks`}
+        title={network.name}
+        badge={<ProvisioningBadge state={network.provisioningState} />}
+        meta={<span data-testid="network-detail-description">{network.description || 'No description'}</span>}
+        actions={
+          <>
+            <Button variant="outline" size="sm" asChild data-testid="private-network-resources-link">
+              <NavLink to={`/organizations/${organizationId}/private-resources?network=${resolvedNetworkId}`}>
+                Private resources
+              </NavLink>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} data-testid="network-detail-edit">
+              Edit
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" aria-label="More actions" data-testid="private-network-actions">
+                  <MoreHorizontalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => setDeleteOpen(true)}
+                  data-testid="private-network-delete"
+                >
+                  Delete network
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+        testId="private-network-header"
+        className="mb-4"
+      />
+      <Card className="py-4">
         <CardContent>
-          <NetworkSettingsForm
-            network={network}
-            onSubmit={(values) => updateMutation.mutate(values)}
-            isSubmitting={updateMutation.isPending}
-          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <DetailField label="Created" testId="network-detail-created">
+              {formatDateOnly(network.meta?.createdAt)}
+            </DetailField>
+            <DetailField label="Network ID" testId="network-detail-id">
+              <span className="font-mono text-xs text-muted-foreground">{network.meta?.id || EMPTY_PLACEHOLDER}</span>
+            </DetailField>
+          </div>
         </CardContent>
       </Card>
+      <NetworkDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Edit private network"
+        description="The name and description this network is listed under."
+        submitLabel="Save changes"
+        pendingLabel="Saving..."
+        initialValues={{ name: network.name, description: network.description }}
+        onSubmit={(values) => updateMutation.mutate(values)}
+        isSubmitting={updateMutation.isPending}
+        testIdPrefix="network-detail-edit"
+      />
       {/* Tunnels are the only thing a network contains directly; resources have
           their own organization-scoped list and detail pages. */}
       <NetworkTunnelsTab networkId={resolvedNetworkId} />
@@ -351,7 +417,7 @@ export function OrganizationPrivateNetworkDetailPage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete private network?"
-        description="This cascades through its tunnel credentials, private resources, and resource grants."
+        description="This cascades through its tunnels, private resources, and resource grants."
         confirmLabel="Delete network"
         variant="danger"
         onConfirm={() => deleteMutation.mutate()}
@@ -361,67 +427,11 @@ export function OrganizationPrivateNetworkDetailPage() {
   );
 }
 
-function NetworkSettingsForm({
-  network,
-  onSubmit,
-  isSubmitting,
-}: {
-  network: Network;
-  onSubmit: (values: NetworkDialogValues) => void;
-  isSubmitting: boolean;
-}) {
-  const [values, setValues] = useState({ name: network.name, description: network.description });
-  const [error, setError] = useState('');
-
-  const handleSubmit = () => {
-    const name = values.name.trim();
-    if (!name) {
-      setError('Name is required.');
-      return;
-    }
-    onSubmit({ name, description: values.description.trim() });
-  };
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="space-y-2">
-        <Label htmlFor="network-detail-name">Name</Label>
-        <Input
-          id="network-detail-name"
-          value={values.name}
-          onChange={(event) => {
-            setValues((current) => ({ ...current, name: event.target.value }));
-            setError('');
-          }}
-          data-testid="network-detail-name"
-        />
-        {error ? <p className="text-xs text-destructive">{error}</p> : null}
-      </div>
-      <div className="space-y-2">
-        <Label>Created</Label>
-        <div className="rounded-md border border-input px-3 py-2 text-sm">{formatDateOnly(network.meta?.createdAt)}</div>
-      </div>
-      <div className="space-y-2 md:col-span-2">
-        <Label htmlFor="network-detail-description">Description</Label>
-        <Textarea
-          id="network-detail-description"
-          value={values.description}
-          onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
-          data-testid="network-detail-description"
-        />
-      </div>
-      <div className="md:col-span-2">
-        <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="network-detail-save">
-          {isSubmitting ? 'Saving...' : 'Save changes'}
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 function NetworkTunnelsTab({ networkId }: { networkId: string }) {
   const queryClient = useQueryClient();
-  const [revealedJwt, setRevealedJwt] = useState('');
+  const [issued, setIssued] = useState<IssuedCredential | null>(null);
+  const [issueOpen, setIssueOpen] = useState(false);
 
   const tunnelsQuery = useQuery({
     queryKey: ['private-networks', networkId, 'tunnels'],
@@ -434,56 +444,66 @@ function NetworkTunnelsTab({ networkId }: { networkId: string }) {
   const createMutation = useMutation({
     mutationFn: () => networksClient.createTunnelCredential({ networkId }),
     onSuccess: (response) => {
-      toast.success('Tunnel credential created. Copy the enrollment JWT now.');
-      setRevealedJwt(response.enrollmentJwt);
+      toast.success('Tunnel added.');
+      setIssued({ id: response.tunnelCredential?.meta?.id ?? '', jwt: response.enrollmentJwt });
       void queryClient.invalidateQueries({ queryKey: ['private-networks', networkId, 'tunnels'] });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : 'Failed to create tunnel credential.'),
+    onError: (error) => {
+      setIssueOpen(false);
+      toast.error(error instanceof Error ? error.message : 'Failed to add tunnel.');
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => networksClient.deleteTunnelCredential({ id }),
     onSuccess: () => {
-      toast.success('Tunnel credential revoked.');
+      toast.success('Tunnel revoked.');
       void queryClient.invalidateQueries({ queryKey: ['private-networks', networkId, 'tunnels'] });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : 'Failed to revoke tunnel credential.'),
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Failed to revoke tunnel.'),
   });
+
+  // Issued from the click, not from the dialog opening: an effect would fire
+  // twice under StrictMode and hand out two credentials.
+  const handleIssue = () => {
+    setIssued(null);
+    setIssueOpen(true);
+    createMutation.mutate();
+  };
 
   const tunnels = tunnelsQuery.data?.tunnelCredentials ?? [];
 
   return (
-    <Card>
+    <Card className="gap-4 py-4">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle>Tunnel credentials</CardTitle>
-        <Button size="sm" onClick={() => createMutation.mutate()} disabled={createMutation.isPending} data-testid="tunnels-create">
-          {createMutation.isPending ? 'Creating...' : 'Issue credential'}
+        <CardTitle>Tunnels</CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleIssue}
+          disabled={createMutation.isPending}
+          data-testid="tunnels-create"
+        >
+          {createMutation.isPending ? 'Adding...' : 'Add tunnel'}
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {revealedJwt ? (
-          <div className="rounded-md border border-border bg-muted/40 p-4" data-testid="tunnel-jwt-reveal">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="text-sm font-medium text-foreground">Enrollment JWT</div>
-                <p className="text-xs text-muted-foreground">This token is shown once. Copy it before leaving this page.</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => copyText(revealedJwt, 'Enrollment JWT copied.')}>
-                Copy JWT
-              </Button>
-            </div>
-            <pre className="mt-3 max-h-40 overflow-auto rounded-md bg-background p-3 text-xs text-foreground">{revealedJwt}</pre>
-          </div>
-        ) : null}
-        {tunnelsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading tunnel credentials...</div> : null}
-        {tunnelsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load tunnel credentials.</div> : null}
-        {tunnels.length === 0 && !tunnelsQuery.isPending ? (
-          <div className="rounded-md border border-border p-6 text-center text-sm text-muted-foreground">
-            No tunnel credentials issued.
+      <CardContent>
+        {tunnelsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading tunnels...</div> : null}
+        {tunnelsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load tunnels.</div> : null}
+        {tunnels.length === 0 && !tunnelsQuery.isPending && !tunnelsQuery.isError ? (
+          <div className="border-t border-border pt-3 text-sm text-muted-foreground" data-testid="tunnels-empty">
+            No tunnels yet. A tunnel enrols with the JWT issued when you add it.
           </div>
         ) : null}
         {tunnels.length > 0 ? (
-          <div className="divide-y divide-border rounded-md border border-border" data-testid="tunnels-list">
+          <div data-testid="tunnels-list">
+            <div className={cn(TUNNEL_GRID, 'border-t border-border pb-2 pt-3 text-xs text-muted-foreground')}>
+              <span>Tunnel</span>
+              <span>Enrollment</span>
+              <span>Connection</span>
+              <span>Last seen</span>
+              <span />
+            </div>
             {tunnels.map((tunnel) => (
               <TunnelRow
                 key={tunnel.meta?.id ?? tunnel.networkId}
@@ -494,10 +514,86 @@ function NetworkTunnelsTab({ networkId }: { networkId: string }) {
             ))}
           </div>
         ) : null}
+        <TunnelCredentialDialog
+          open={issueOpen}
+          issued={issued}
+          isIssuing={createMutation.isPending}
+          onDone={() => {
+            setIssueOpen(false);
+            setIssued(null);
+          }}
+        />
       </CardContent>
     </Card>
   );
 }
+
+type IssuedCredential = { id: string; jwt: string };
+
+/**
+ * The credential is already issued when this opens: the dialog exists to show
+ * a JWT that is returned once, so it only leaves on an explicit Done.
+ */
+function TunnelCredentialDialog({
+  open,
+  issued,
+  isIssuing,
+  onDone,
+}: {
+  open: boolean;
+  issued: IssuedCredential | null;
+  isIssuing: boolean;
+  onDone: () => void;
+}) {
+  const handleDownload = () => {
+    if (!issued) return;
+    downloadTextFile(issued.jwt, issued.id ? `tunnel-${issued.id}.jwt` : 'tunnel-credential.jwt');
+    toast.success('Enrollment JWT downloaded.');
+  };
+
+  return (
+    <Dialog open={open}>
+      <DialogContent className="sm:max-w-2xl" showCloseButton={false} data-testid="tunnel-credential-dialog">
+        <DialogHeader>
+          <DialogTitle>Enrollment JWT</DialogTitle>
+          <DialogDescription>Shown once — copy or download it before closing.</DialogDescription>
+        </DialogHeader>
+        {issued ? (
+          <div className="space-y-4" data-testid="tunnel-jwt-reveal">
+            <pre
+              className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-md border border-border bg-muted p-3 font-mono text-xs text-foreground"
+              data-testid="tunnel-jwt-value"
+            >
+              {issued.jwt}
+            </pre>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyText(issued.jwt, 'Enrollment JWT copied.')}
+                data-testid="tunnel-jwt-copy"
+              >
+                Copy JWT
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownload} data-testid="tunnel-jwt-download">
+                Download .jwt
+              </Button>
+              <Button size="sm" onClick={onDone} data-testid="tunnel-jwt-done">
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="py-6 text-sm text-muted-foreground" data-testid="tunnel-jwt-pending">
+            {isIssuing ? 'Issuing credential...' : 'No credential issued.'}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const TUNNEL_GRID = 'grid grid-cols-1 items-center gap-2 md:grid-cols-[minmax(0,2fr)_110px_110px_minmax(0,1fr)_40px]';
 
 function TunnelRow({
   tunnel,
@@ -508,24 +604,48 @@ function TunnelRow({
   onDelete: () => void;
   isDeleting: boolean;
 }) {
+  // The enrollment window bounds enrolling only, so an enrolled tunnel is past it.
+  const expiry =
+    tunnel.enrollmentState === TunnelEnrollmentState.ENROLLED
+      ? null
+      : formatEnrollmentExpiry(tunnel.enrollmentJwtExpiresAt);
+
   return (
-    <div className="grid gap-3 p-3 text-sm md:grid-cols-[2fr_1fr_1fr_1fr_120px]" data-testid="tunnels-row">
-      <div>
-        <div className="font-medium text-foreground">{tunnel.meta?.id ?? 'Tunnel credential'}</div>
-        <div className="text-xs text-muted-foreground">
-          JWT {tunnel.enrollmentJwtRevealed ? 'issued' : 'not issued'} · expires {formatDateOnly(tunnel.enrollmentJwtExpiresAt)}
+    <div className={cn(TUNNEL_GRID, 'border-t border-border py-3 text-sm')} data-testid="tunnels-row">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate font-mono text-xs text-foreground">{tunnel.meta?.id ?? EMPTY_PLACEHOLDER}</span>
+          {tunnel.provisioningState === ProvisioningState.ACTIVE ? null : (
+            <ProvisioningBadge state={tunnel.provisioningState} />
+          )}
         </div>
+        {expiry ? (
+          <div className={cn('mt-1 text-xs', expiry.expired ? 'text-destructive' : 'text-muted-foreground')}>
+            {expiry.label}
+          </div>
+        ) : null}
       </div>
       <div><EnrollmentBadge state={tunnel.enrollmentState} /></div>
       <div><ConnectivityBadge state={tunnel.connectivity} /></div>
-      <div>
-        <ProvisioningBadge state={tunnel.provisioningState} />
-        <div className="mt-1 text-xs text-muted-foreground">Last seen {formatDateOnly(tunnel.lastSeenAt)}</div>
-      </div>
-      <div className="text-right">
-        <Button variant="ghost" size="sm" onClick={onDelete} disabled={isDeleting || !tunnel.meta?.id}>
-          Revoke
-        </Button>
+      <div className="text-muted-foreground">{formatAge(tunnel.lastSeenAt)}</div>
+      <div className="flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Tunnel actions" data-testid="tunnels-row-actions">
+              <MoreHorizontalIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={isDeleting || !tunnel.meta?.id}
+              onSelect={onDelete}
+              data-testid="tunnels-row-revoke"
+            >
+              Revoke tunnel
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

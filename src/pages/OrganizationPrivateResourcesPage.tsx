@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useParams, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -250,9 +250,15 @@ export function OrganizationPrivateResourcesPage() {
       <ResourceDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
+        title="Add private resource"
+        description="Expose a private target through a network using an intercept hostname."
+        submitLabel="Create resource"
+        pendingLabel="Creating..."
         networks={networkOptions}
+        initialValues={emptyResourceValues}
         onSubmit={(values) => createMutation.mutate(values)}
         isSubmitting={createMutation.isPending}
+        testIdPrefix="resource-create"
       />
     </div>
   );
@@ -302,37 +308,73 @@ function ResourceRow({
   );
 }
 
-function ResourceDialog({
+const emptyResourceValues: ResourceDialogValues = {
+  networkId: '',
+  name: '',
+  protocol: PrivateResourceProtocol.TCP,
+  targetHost: '',
+  targetPorts: [],
+  interceptHost: '',
+  interceptPorts: [],
+};
+
+/** Ports are edited as the comma-separated lists they are typed in. */
+function toFormValues(values: ResourceDialogValues) {
+  return {
+    networkId: values.networkId,
+    name: values.name,
+    protocol: `${values.protocol}`,
+    targetHost: values.targetHost,
+    targetPorts: values.targetPorts.join(', '),
+    interceptHost: values.interceptHost,
+    interceptPorts: values.interceptPorts.join(', '),
+  };
+}
+
+/** The dialog the list creates with and the detail page edits with, so both take the same form. */
+export function ResourceDialog({
   open,
   onOpenChange,
+  title,
+  description,
+  submitLabel,
+  pendingLabel,
   networks,
+  // Set when the network cannot change: an update keeps the resource where it is.
+  networkName,
+  initialValues,
   onSubmit,
   isSubmitting,
+  testIdPrefix,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  networks: NetworkOption[];
+  title: string;
+  description: string;
+  submitLabel: string;
+  pendingLabel: string;
+  networks?: NetworkOption[];
+  networkName?: string;
+  initialValues: ResourceDialogValues;
   onSubmit: (values: ResourceDialogValues) => void;
   isSubmitting: boolean;
+  testIdPrefix: string;
 }) {
-  const emptyValues = {
-    networkId: '',
-    name: '',
-    protocol: `${PrivateResourceProtocol.TCP}`,
-    targetHost: '',
-    targetPorts: '',
-    interceptHost: '',
-    interceptPorts: '',
-  };
-  const [values, setValues] = useState(emptyValues);
+  const [values, setValues] = useState(() => toFormValues(initialValues));
   const [error, setError] = useState('');
+  const signature = JSON.stringify(initialValues);
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    onOpenChange(nextOpen);
-    if (!nextOpen) {
-      setValues(emptyValues);
-      setError('');
-    }
+  // Each opening starts from the resource as it is now, not from the last edit.
+  // Read back from the signature so this follows the values, not the object.
+  useEffect(() => {
+    if (!open) return;
+    setValues(toFormValues(JSON.parse(signature) as ResourceDialogValues));
+    setError('');
+  }, [open, signature]);
+
+  const update = (patch: Partial<typeof values>) => {
+    setValues((current) => ({ ...current, ...patch }));
+    setError('');
   };
 
   const handleSubmit = () => {
@@ -362,39 +404,48 @@ function ResourceDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent data-testid="resource-create-dialog">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid={`${testIdPrefix}-dialog`}>
         <DialogHeader>
-          <DialogTitle>Add private resource</DialogTitle>
-          <DialogDescription>Expose a private target through a network using an intercept hostname.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-2">
             <Label>Network</Label>
-            <Select
-              value={values.networkId}
-              onValueChange={(networkId) => setValues((current) => ({ ...current, networkId }))}
-            >
-              <SelectTrigger className="w-full" data-testid="resource-create-network">
-                <SelectValue placeholder="Select a network" />
-              </SelectTrigger>
-              <SelectContent>
-                {networks.map((network) => (
-                  <SelectItem key={network.id} value={network.id}>
-                    {network.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {networkName ? (
+              <div className="flex h-9 items-center text-sm text-muted-foreground" data-testid={`${testIdPrefix}-network`}>
+                {networkName}
+              </div>
+            ) : (
+              <Select value={values.networkId} onValueChange={(networkId) => update({ networkId })}>
+                <SelectTrigger className="w-full" data-testid={`${testIdPrefix}-network`}>
+                  <SelectValue placeholder="Select a network" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(networks ?? []).map((network) => (
+                    <SelectItem key={network.id} value={network.id}>
+                      {network.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Name</Label>
-            <Input value={values.name} onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))} />
+            <Input
+              value={values.name}
+              onChange={(event) => update({ name: event.target.value })}
+              data-testid={`${testIdPrefix}-name`}
+            />
           </div>
           <div className="space-y-2">
             <Label>Protocol</Label>
-            <Select value={values.protocol} onValueChange={(protocol) => setValues((current) => ({ ...current, protocol }))}>
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <Select value={values.protocol} onValueChange={(protocol) => update({ protocol })}>
+              <SelectTrigger className="w-full" data-testid={`${testIdPrefix}-protocol`}>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value={`${PrivateResourceProtocol.TCP}`}>TCP</SelectItem>
                 <SelectItem value={`${PrivateResourceProtocol.HTTP}`}>HTTP</SelectItem>
@@ -402,28 +453,51 @@ function ResourceDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Target host</Label>
-            <Input value={values.targetHost} onChange={(event) => setValues((current) => ({ ...current, targetHost: event.target.value }))} placeholder="postgres.internal" />
-          </div>
-          <div className="space-y-2">
-            <Label>Target ports</Label>
-            <Input value={values.targetPorts} onChange={(event) => setValues((current) => ({ ...current, targetPorts: event.target.value }))} placeholder="5432" />
-          </div>
+          {/* Host beside its own ports: the two lists pair by position. */}
           <div className="space-y-2">
             <Label>Intercept host</Label>
-            <Input value={values.interceptHost} onChange={(event) => setValues((current) => ({ ...current, interceptHost: event.target.value }))} placeholder="postgres.private.example" />
+            <Input
+              value={values.interceptHost}
+              onChange={(event) => update({ interceptHost: event.target.value })}
+              placeholder="postgres.private.example"
+              data-testid={`${testIdPrefix}-intercept-host`}
+            />
           </div>
           <div className="space-y-2">
             <Label>Intercept ports</Label>
-            <Input value={values.interceptPorts} onChange={(event) => setValues((current) => ({ ...current, interceptPorts: event.target.value }))} placeholder="5432" />
+            <Input
+              value={values.interceptPorts}
+              onChange={(event) => update({ interceptPorts: event.target.value })}
+              placeholder="5432"
+              data-testid={`${testIdPrefix}-intercept-ports`}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Target host</Label>
+            <Input
+              value={values.targetHost}
+              onChange={(event) => update({ targetHost: event.target.value })}
+              placeholder="postgres.internal"
+              data-testid={`${testIdPrefix}-target-host`}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Target ports</Label>
+            <Input
+              value={values.targetPorts}
+              onChange={(event) => update({ targetPorts: event.target.value })}
+              placeholder="5432"
+              data-testid={`${testIdPrefix}-target-ports`}
+            />
           </div>
           {error ? <p className="text-xs text-destructive md:col-span-2">{error}</p> : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="resource-create-submit">
-            {isSubmitting ? 'Creating...' : 'Create resource'}
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting} data-testid={`${testIdPrefix}-submit`}>
+            {isSubmitting ? pendingLabel : submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
