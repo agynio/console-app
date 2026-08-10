@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import type { Device } from '@/gen/agynio/api/users/v1/users_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
-import { formatDateOnly, formatDeviceStatus, timestampToMillis } from '@/lib/format';
+import { DeviceConnectivityBadge, DeviceStatusBadge } from '@/components/DeviceBadges';
+import { formatDateOnly, formatDeviceConnectivity, formatDeviceStatus, timestampToMillis } from '@/lib/format';
 import { toast } from 'sonner';
 
 export function DevicesPage() {
@@ -45,11 +46,13 @@ export function DevicesPage() {
     searchFields: [
       (device) => device.name,
       (device) => formatDeviceStatus(device.status),
+      (device) => formatDeviceConnectivity(device.connectivity),
       (device) => formatDateOnly(device.meta?.createdAt),
     ],
     sortOptions: {
       name: (device) => device.name,
       status: (device) => formatDeviceStatus(device.status),
+      connectivity: (device) => formatDeviceConnectivity(device.connectivity),
       created: (device) => timestampToMillis(device.meta?.createdAt),
     },
     defaultSortKey: 'name',
@@ -86,7 +89,7 @@ export function DevicesPage() {
         <Card className="border-border" data-testid="devices-table">
           <CardContent className="px-0">
             <div
-              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
+              className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[2fr_1fr_1fr_1fr_120px]"
               data-testid="devices-header"
             >
               <SortableHeader
@@ -99,6 +102,13 @@ export function DevicesPage() {
               <SortableHeader
                 label="Status"
                 sortKey="status"
+                activeSortKey={listControls.sortKey}
+                sortDirection={listControls.sortDirection}
+                onSort={listControls.handleSort}
+              />
+              <SortableHeader
+                label="Connectivity"
+                sortKey="connectivity"
                 activeSortKey={listControls.sortKey}
                 sortDirection={listControls.sortDirection}
                 onSort={listControls.handleSort}
@@ -123,14 +133,17 @@ export function DevicesPage() {
                   return (
                     <div
                       key={deviceId ?? device.name}
-                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_120px]"
+                      className="grid items-center gap-2 px-6 py-4 text-sm text-foreground md:grid-cols-[2fr_1fr_1fr_1fr_120px]"
                       data-testid="devices-row"
                     >
                       <span className="font-medium" data-testid="devices-name">
                         {device.name}
                       </span>
-                      <span className="text-xs text-muted-foreground" data-testid="devices-status">
-                        {formatDeviceStatus(device.status)}
+                      <span data-testid="devices-status">
+                        <DeviceStatusBadge status={device.status} />
+                      </span>
+                      <span data-testid="devices-connectivity">
+                        <DeviceConnectivityBadge connectivity={device.connectivity} />
                       </span>
                       <span className="text-xs text-muted-foreground" data-testid="devices-created">
                         {formatDateOnly(device.meta?.createdAt)}

@@ -1,36 +1,30 @@
 import { useState } from 'react';
+import { CopyIcon, MoreHorizontalIcon } from 'lucide-react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { networksClient } from '@/api/client';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { DetailField } from '@/components/DetailField';
+import { DetailPageHeader } from '@/components/DetailPageHeader';
 import { GrantDialog } from '@/components/GrantDialog';
 import { ProvisioningBadge } from '@/components/NetworkBadges';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  PrivateResourceProtocol,
-  type PrivateResource,
-  type PrivateResourceAccess,
-} from '@/gen/agynio/api/networks/v1/networks_pb';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import type { PrivateResource, PrivateResourceAccess } from '@/gen/agynio/api/networks/v1/networks_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { usePrincipalOptions, type PrincipalOption } from '@/hooks/usePrincipalOptions';
 import { copyText } from '@/lib/clipboard';
 import { EMPTY_PLACEHOLDER, formatDateOnly } from '@/lib/format';
-import { buildConnectionString, formatPrincipalType, formatProtocol, parsePorts } from '@/lib/networks';
+import { buildConnectionString, formatPrincipalType, formatProtocol } from '@/lib/networks';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
-
-type ResourceFormValues = {
-  name: string;
-  protocol: PrivateResourceProtocol;
-  targetHost: string;
-  targetPorts: number[];
-  interceptHost: string;
-  interceptPorts: number[];
-};
+import { ResourceDialog, type ResourceDialogValues } from '@/pages/OrganizationPrivateResourcesPage';
 
 export function PrivateResourceDetailPage() {
   useDocumentTitle('Private Resource');
@@ -41,6 +35,7 @@ export function PrivateResourceDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const resourcesBase = `/organizations/${organizationId}/private-resources`;
 
@@ -63,7 +58,7 @@ export function PrivateResourceDetailPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (values: ResourceFormValues) =>
+    mutationFn: (values: ResourceDialogValues) =>
       networksClient.updatePrivateResource({
         id: privateResourceId,
         name: values.name,
@@ -75,6 +70,7 @@ export function PrivateResourceDetailPage() {
       }),
     onSuccess: () => {
       toast.success('Private resource updated.');
+      setEditOpen(false);
       void queryClient.invalidateQueries({ queryKey: ['private-resources', organizationId] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Failed to update private resource.'),
@@ -99,22 +95,14 @@ export function PrivateResourceDetailPage() {
   const networkName = networkQuery.data?.network?.name ?? resource.networkId;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" asChild data-testid="private-resource-back">
-          <NavLink to={resourcesBase}>Back to private resources</NavLink>
-        </Button>
-        <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} data-testid="private-resource-delete">
-          Delete resource
-        </Button>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            {resource.name}
-            <ProvisioningBadge state={resource.provisioningState} />
-          </CardTitle>
-          <div className="text-sm text-muted-foreground">
+    <div className="space-y-3">
+      <DetailPageHeader
+        parentLabel="Private resources"
+        parentHref={resourcesBase}
+        title={resource.name}
+        badge={<ProvisioningBadge state={resource.provisioningState} />}
+        meta={
+          <>
             {formatProtocol(resource.protocol)} · reached through{' '}
             <NavLink
               to={`/organizations/${organizationId}/private-networks/${resource.networkId}`}
@@ -123,37 +111,94 @@ export function PrivateResourceDetailPage() {
             >
               {networkName}
             </NavLink>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-md border border-border p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Connection string
-                </div>
-                <div className="mt-1 break-all text-sm" data-testid="resource-connection-string">
-                  {connectionString}
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => copyText(connectionString, 'Connection string copied.')}
-                data-testid="resource-connection-string-copy"
-              >
-                Copy connection string
-              </Button>
-            </div>
-          </div>
-          <ResourceSettingsForm
-            key={resource.meta?.id ?? privateResourceId}
-            resource={resource}
-            onSubmit={(values) => updateMutation.mutate(values)}
-            isSubmitting={updateMutation.isPending}
-          />
+          </>
+        }
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} data-testid="private-resource-edit">
+              Edit
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" aria-label="More actions" data-testid="private-resource-actions">
+                  <MoreHorizontalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => setDeleteOpen(true)}
+                  data-testid="private-resource-delete"
+                >
+                  Delete resource
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+        testId="private-resource-header"
+        className="mb-4"
+      />
+      <Card className="py-4">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <DetailField label="Connection string" testId="resource-connection-string">
+            <span className="font-mono">{connectionString}</span>
+          </DetailField>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Copy connection string"
+            onClick={() => copyText(connectionString, 'Connection string copied.')}
+            data-testid="resource-connection-string-copy"
+          >
+            <CopyIcon />
+          </Button>
         </CardContent>
       </Card>
+      <Card className="py-4">
+        <CardContent className="space-y-4">
+          <DetailField label="Mapping" testId="resource-detail-mapping">
+            <ResourceMapping resource={resource} />
+          </DetailField>
+          <div className="grid gap-4 border-t border-border pt-4 md:grid-cols-3">
+            <DetailField label="Network" testId="resource-detail-network">
+              <NavLink
+                to={`/organizations/${organizationId}/private-networks/${resource.networkId}`}
+                className="text-primary hover:underline"
+              >
+                {networkName}
+              </NavLink>
+            </DetailField>
+            <DetailField label="Created" testId="resource-detail-created">
+              {formatDateOnly(resource.meta?.createdAt)}
+            </DetailField>
+            <DetailField label="Resource ID" testId="resource-detail-id">
+              <span className="font-mono text-xs text-muted-foreground">{resource.meta?.id || EMPTY_PLACEHOLDER}</span>
+            </DetailField>
+          </div>
+        </CardContent>
+      </Card>
+      <ResourceDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Edit private resource"
+        description="The target this resource reaches and the intercept it is reached on."
+        submitLabel="Save changes"
+        pendingLabel="Saving..."
+        networkName={networkName}
+        initialValues={{
+          networkId: resource.networkId,
+          name: resource.name,
+          protocol: resource.protocol,
+          targetHost: resource.targetHost,
+          targetPorts: resource.targetPorts,
+          interceptHost: resource.interceptHost,
+          interceptPorts: resource.interceptPorts,
+        }}
+        onSubmit={(values) => updateMutation.mutate(values)}
+        isSubmitting={updateMutation.isPending}
+        testIdPrefix="resource-detail-edit"
+      />
       <ResourceGrantsCard organizationId={organizationId} privateResourceId={privateResourceId} />
       <ConfirmDialog
         open={deleteOpen}
@@ -169,127 +214,24 @@ export function PrivateResourceDetailPage() {
   );
 }
 
-function ResourceSettingsForm({
-  resource,
-  onSubmit,
-  isSubmitting,
-}: {
-  resource: PrivateResource;
-  onSubmit: (values: ResourceFormValues) => void;
-  isSubmitting: boolean;
-}) {
-  const [values, setValues] = useState({
-    name: resource.name,
-    protocol: `${resource.protocol}`,
-    targetHost: resource.targetHost,
-    targetPorts: resource.targetPorts.join(', '),
-    interceptHost: resource.interceptHost,
-    interceptPorts: resource.interceptPorts.join(', '),
-  });
-  const [error, setError] = useState('');
-
-  const update = (patch: Partial<typeof values>) => {
-    setValues((current) => ({ ...current, ...patch }));
-    setError('');
-  };
-
-  const handleSubmit = () => {
-    const targetPorts = parsePorts(values.targetPorts);
-    const interceptPorts = parsePorts(values.interceptPorts);
-    if (!values.name.trim() || !values.targetHost.trim() || !values.interceptHost.trim()) {
-      setError('Name, target host, and intercept host are required.');
-      return;
-    }
-    if (targetPorts.length === 0 || interceptPorts.length === 0 || targetPorts.length !== interceptPorts.length) {
-      setError('Target and intercept ports must be non-empty lists with matching length.');
-      return;
-    }
-    onSubmit({
-      name: values.name.trim(),
-      protocol: Number(values.protocol) as PrivateResourceProtocol,
-      targetHost: values.targetHost.trim(),
-      targetPorts,
-      interceptHost: values.interceptHost.trim(),
-      interceptPorts,
-    });
-  };
+/** Intercept and target are one relationship, paired by position, so they are stated as pairs. */
+function ResourceMapping({ resource }: { resource: PrivateResource }) {
+  if (resource.interceptPorts.length === 0) return <span>{EMPTY_PLACEHOLDER}</span>;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="space-y-2">
-        <Label htmlFor="resource-detail-name">Name</Label>
-        <Input
-          id="resource-detail-name"
-          value={values.name}
-          onChange={(event) => update({ name: event.target.value })}
-          data-testid="resource-detail-name"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Protocol</Label>
-        <Select value={values.protocol} onValueChange={(protocol) => update({ protocol })}>
-          <SelectTrigger className="w-full" data-testid="resource-detail-protocol">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={`${PrivateResourceProtocol.TCP}`}>TCP</SelectItem>
-            <SelectItem value={`${PrivateResourceProtocol.HTTP}`}>HTTP</SelectItem>
-            <SelectItem value={`${PrivateResourceProtocol.HTTPS}`}>HTTPS</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="resource-detail-target-host">Target host</Label>
-        <Input
-          id="resource-detail-target-host"
-          value={values.targetHost}
-          onChange={(event) => update({ targetHost: event.target.value })}
-          data-testid="resource-detail-target-host"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="resource-detail-target-ports">Target ports</Label>
-        <Input
-          id="resource-detail-target-ports"
-          value={values.targetPorts}
-          onChange={(event) => update({ targetPorts: event.target.value })}
-          data-testid="resource-detail-target-ports"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="resource-detail-intercept-host">Intercept host</Label>
-        <Input
-          id="resource-detail-intercept-host"
-          value={values.interceptHost}
-          onChange={(event) => update({ interceptHost: event.target.value })}
-          data-testid="resource-detail-intercept-host"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="resource-detail-intercept-ports">Intercept ports</Label>
-        <Input
-          id="resource-detail-intercept-ports"
-          value={values.interceptPorts}
-          onChange={(event) => update({ interceptPorts: event.target.value })}
-          data-testid="resource-detail-intercept-ports"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Created</Label>
-        <div className="rounded-md border border-input px-3 py-2 text-sm">{formatDateOnly(resource.meta?.createdAt)}</div>
-      </div>
-      <div className="space-y-2">
-        <Label>Resource ID</Label>
-        <div className="rounded-md border border-input px-3 py-2 text-sm break-all">
-          {resource.meta?.id || EMPTY_PLACEHOLDER}
+    <div className="space-y-1">
+      {resource.interceptPorts.map((port, index) => (
+        <div key={port} className="flex flex-wrap items-center gap-2 font-mono text-sm">
+          <span>
+            {resource.interceptHost}:{port}
+          </span>
+          <span className="text-muted-foreground">→</span>
+          <span>
+            {resource.targetHost}:{resource.targetPorts[index] ?? EMPTY_PLACEHOLDER}
+          </span>
         </div>
-      </div>
-      {error ? <p className="text-xs text-destructive md:col-span-2">{error}</p> : null}
-      <div className="md:col-span-2">
-        <Button onClick={handleSubmit} disabled={isSubmitting} data-testid="resource-detail-save">
-          {isSubmitting ? 'Saving...' : 'Save changes'}
-        </Button>
-      </div>
+      ))}
+      <p className="font-sans text-xs text-muted-foreground">intercept → target</p>
     </div>
   );
 }
@@ -342,7 +284,7 @@ function ResourceGrantsCard({
   const grants = grantsQuery.data?.privateResourceAccess ?? [];
 
   return (
-    <Card data-testid="resource-grants-card">
+    <Card className="gap-4 py-4" data-testid="resource-grants-card">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div>
           <CardTitle>Access grants</CardTitle>
@@ -356,12 +298,12 @@ function ResourceGrantsCard({
         {grantsQuery.isPending ? <div className="text-sm text-muted-foreground">Loading access grants...</div> : null}
         {grantsQuery.isError ? <div className="text-sm text-muted-foreground">Failed to load access grants.</div> : null}
         {grants.length === 0 && !grantsQuery.isPending && !grantsQuery.isError ? (
-          <div className="rounded-md border border-border p-3 text-sm text-muted-foreground" data-testid="resource-grants-empty">
+          <div className="border-t border-border pt-3 text-sm text-muted-foreground" data-testid="resource-grants-empty">
             No principals can access this resource.
           </div>
         ) : null}
         {grants.length > 0 ? (
-          <div className="divide-y divide-border rounded-md border border-border">
+          <div className="divide-y divide-border border-t border-border">
             {grants.map((grant) => (
               <GrantRow
                 key={grant.meta?.id ?? `${grant.principalType}:${grant.principalId}`}
@@ -399,11 +341,11 @@ function GrantRow({
   isDeleting: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm" data-testid="resource-grant-row">
-      <div>
+    <div className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm" data-testid="resource-grant-row">
+      <div className="min-w-0">
         <div className="font-medium text-foreground">{label}</div>
-        <div className="text-xs text-muted-foreground">
-          {formatPrincipalType(grant.principalType)} - {grant.principalId}
+        <div className="truncate text-xs text-muted-foreground">
+          {formatPrincipalType(grant.principalType)} · <span className="font-mono">{grant.principalId}</span>
         </div>
       </div>
       <div className="flex items-center gap-2">

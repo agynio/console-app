@@ -1,16 +1,19 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
+import { cn } from '@/lib/utils';
+
 type DetailPageHeaderProps = {
   /** Where this entity is listed, as a breadcrumb rather than a back button. */
   parentLabel: string;
   parentHref: string;
   title: string;
   /** One line of the facts that identify it: runner, flavor, image. */
-  meta?: string;
+  meta?: ReactNode;
   badge?: ReactNode;
   actions?: ReactNode;
   testId?: string;
+  className?: string;
 };
 
 /**
@@ -29,9 +32,10 @@ export function DetailPageHeader({
   badge,
   actions,
   testId,
+  className,
 }: DetailPageHeaderProps) {
   return (
-    <div className="space-y-2" data-testid={testId}>
+    <div className={cn('space-y-2', className)} data-testid={testId}>
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <NavLink to={parentHref} className="text-primary hover:underline" data-testid={`${testId}-parent`}>
           {parentLabel}
