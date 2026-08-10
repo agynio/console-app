@@ -14,16 +14,29 @@ const source = [
 
 // A subscription is a flat fee: its tokens have no marginal cost, and summing
 // them alongside API tokens produces a bill that does not exist. The only thing
-// keeping the two apart is the resource label, so every token query that feeds
-// a spend view has to carry the filter.
+// keeping the two apart is the resource label, so every token query has to name
+// which side it reads -- an unfiltered one silently mixes them back together.
 describe('usage spend views', () => {
-  it('filters token queries to resource=model', () => {
+  it('names a resource on every token query', () => {
     const tokenQueries = source
       .split(/\n\s*\{/)
       .filter((block) => block.includes('unit: Unit.TOKENS'));
 
     expect(tokenQueries.length).toBeGreaterThan(0);
     for (const block of tokenQueries) {
+      expect(block).toMatch(/METERED_MODEL_TOKENS|SUBSCRIPTION_TOKENS/);
+    }
+  });
+
+  // The rankings and the headline figures are the spend views proper. Only the
+  // queries that opt into the subscription side may leave resource=model.
+  it('keeps subscription tokens out of the consumer rankings', () => {
+    const consumerQueries = source
+      .split(/\n\s*\{/)
+      .filter((block) => block.includes('unit: Unit.TOKENS') && block.includes('llm-consumers-'));
+
+    expect(consumerQueries.length).toBeGreaterThan(0);
+    for (const block of consumerQueries) {
       expect(block).toContain('METERED_MODEL_TOKENS');
     }
   });

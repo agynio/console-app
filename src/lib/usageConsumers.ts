@@ -16,6 +16,11 @@ export type UsageQueryConfig = {
 // distinct resource value is the only thing keeping the two apart.
 export const METERED_MODEL_TOKENS = { resource: 'model' } as const;
 
+// The other half of that split, shown apart rather than summed in. Without it
+// the LLM tab reads as empty for an organization running on a subscription,
+// which is the whole of its usage and none of its bill.
+export const SUBSCRIPTION_TOKENS = { resource: 'subscription' } as const;
+
 /** The sections with a consumer ranking. Each picks its own level. */
 export type ConsumerMetric = 'llm' | 'compute' | 'storage';
 

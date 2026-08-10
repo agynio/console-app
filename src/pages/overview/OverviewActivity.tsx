@@ -4,7 +4,6 @@ import { TrendingDownIcon, TrendingUpIcon } from 'lucide-react';
 import { ChartTooltip } from '@/components/ChartTooltip';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { timestampToMillis } from '@/lib/format';
 import { formatUsageCompact, formatUsageNumber, microsToHours, microsToNumber } from '@/lib/usage';
 import { ACTIVITY_WINDOW_DAYS, DAY_MS, useOverviewActivity } from './useOverviewActivity';
 
@@ -65,9 +64,8 @@ export function OverviewActivity({ organizationId, runnerCount }: OverviewActivi
   // old should not be shown five days of nothing it could not have used.
   const series = useMemo(() => {
     const byDay = new Map<string, number>();
-    activity.daily.forEach((bucket) => {
-      const millis = timestampToMillis(bucket.timestamp);
-      if (millis) byDay.set(dayKey(new Date(millis)), microsToNumber(bucket.value));
+    activity.daily.forEach((day) => {
+      byDay.set(dayKey(new Date(day.millis)), microsToNumber(day.tokens));
     });
 
     const days = Array.from({ length: ACTIVITY_WINDOW_DAYS }, (_, index) => {

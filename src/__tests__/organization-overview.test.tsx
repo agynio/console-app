@@ -104,7 +104,14 @@ describe('OrganizationOverviewTab dashboard', () => {
 
   it('reads tokens, compute and threads over the last week', async () => {
     mocks.queryUsage.mockImplementation(async (request: { unit: Unit; labelFilters?: Record<string, string> }) => {
-      if (request.unit === Unit.TOKENS) return { buckets: [{ value: micros(128_000) }] };
+      if (request.unit === Unit.TOKENS) {
+        return {
+          buckets: [
+            { value: micros(120_000), groupValue: 'input' },
+            { value: micros(8_000), groupValue: 'output' },
+          ],
+        };
+      }
       if (request.unit === Unit.FLAVOR_SECONDS) return { buckets: [{ value: micros(9_000) }] };
       if (request.labelFilters?.kind === 'thread') return { buckets: [{ value: micros(6) }] };
       if (request.labelFilters?.kind === 'message') return { buckets: [{ value: micros(42) }] };
@@ -122,6 +129,28 @@ describe('OrganizationOverviewTab dashboard', () => {
     expect(threads.textContent).toContain('42 messages');
   });
 
+  // Cached tokens are the share of the input that was served from cache, not
+  // tokens spent on top of it. Adding the kinds up counts that share twice, and
+  // the headline came out two thirds larger than the traffic behind it.
+  it('does not count cached tokens on top of the input they came from', async () => {
+    mocks.queryUsage.mockImplementation(async (request: { unit: Unit }) => {
+      if (request.unit !== Unit.TOKENS) return { buckets: [] };
+      return {
+        buckets: [
+          { value: micros(85_227), groupValue: 'input' },
+          { value: micros(57_856), groupValue: 'cached' },
+          { value: micros(772), groupValue: 'output' },
+        ],
+      };
+    });
+
+    renderOverview();
+
+    const tokens = await screen.findByTestId('organization-overview-tokens');
+    await waitFor(() => expect(tokens.textContent).toContain('86K'));
+    expect(tokens.textContent).not.toContain('143.9K');
+  });
+
   it('compares the week against the one before it', async () => {
     // Both windows end where the other begins, so the earlier request is the
     // one whose start is further back.
@@ -129,7 +158,7 @@ describe('OrganizationOverviewTab dashboard', () => {
       if (request.unit !== Unit.TOKENS) return { buckets: [] };
       const startedAt = Number(request.start?.seconds ?? 0n) * 1000;
       const isPreviousWeek = Date.now() - startedAt > 8 * 24 * HOUR_MS;
-      return { buckets: [{ value: micros(isPreviousWeek ? 41_000 : 128_000) }] };
+      return { buckets: [{ value: micros(isPreviousWeek ? 41_000 : 128_000), groupValue: 'input' }] };
     });
 
     renderOverview();
@@ -147,8 +176,8 @@ describe('OrganizationOverviewTab dashboard', () => {
       }
       return {
         buckets: [
-          { value: micros(246_326), timestamp: dayTimestamp(1) },
-          { value: micros(217_874), timestamp: dayTimestamp(0) },
+          { value: micros(246_326), timestamp: dayTimestamp(1), groupValue: 'input' },
+          { value: micros(217_874), timestamp: dayTimestamp(0), groupValue: 'input' },
         ],
       };
     });
@@ -169,6 +198,7 @@ describe('OrganizationOverviewTab dashboard', () => {
         buckets: Array.from({ length: 7 }, (_, index) => ({
           value: micros(1_000),
           timestamp: dayTimestamp(index),
+          groupValue: 'input',
         })),
       };
     });
