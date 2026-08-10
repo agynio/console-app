@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useInfiniteQuery, useQueries, useQuery } from '@tanstack/react-query';
 import { agentsClient, appsClient, groupsClient, organizationsClient, usersClient } from '@/api/client';
-import type { Agent } from '@/gen/agynio/api/agents/v1/agents_pb';
+import type { Agent, Environment } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { PrivateResourceAccessPrincipalType } from '@/gen/agynio/api/networks/v1/networks_pb';
 import { MembershipStatus } from '@/gen/agynio/api/organizations/v1/organizations_pb';
@@ -29,6 +29,10 @@ function formatAgentPrincipal(agent: Agent) {
   return agent.nickname || agent.name || agent.meta?.id || 'Agent';
 }
 
+function formatEnvironmentPrincipal(environment: Environment) {
+  return environment.name || environment.meta?.id || 'Environment';
+}
+
 function chunkStrings(values: string[], size: number) {
   const chunks: string[][] = [];
   for (let index = 0; index < values.length; index += size) {
@@ -39,7 +43,12 @@ function chunkStrings(values: string[], size: number) {
 
 /**
  * Every principal a private resource can be granted to: organization members,
- * agents, apps, and groups.
+ * agents, apps, groups, and environments.
+ *
+ * An environment is the odd one out — it is a configuration resource rather
+ * than an identity — and it is here because it is the only principal that
+ * reaches a sandbox, which carries no agent identity and cannot be a group
+ * member.
  */
 export function usePrincipalOptions(organizationId: string) {
   const organizationMembersQuery = useInfiniteQuery({
@@ -75,6 +84,13 @@ export function usePrincipalOptions(organizationId: string) {
     queryKey: ['apps', organizationId, 'resource-grant-picker'],
     queryFn: () =>
       appsClient.listApps({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '', visibility: AppVisibility.UNSPECIFIED }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const environmentsQuery = useQuery({
+    queryKey: ['environments', organizationId, 'resource-grant-picker'],
+    queryFn: () => agentsClient.listEnvironments({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
     enabled: Boolean(organizationId),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -135,8 +151,30 @@ export function usePrincipalOptions(organizationId: string) {
       if (!groupId) return [];
       return [{ type: PrivateResourceAccessPrincipalType.GROUP, id: groupId, label: group.name, description: group.description || groupId }];
     });
-    return [...userOptions, ...agentOptions, ...appOptions, ...groupOptions].sort((left, right) => left.label.localeCompare(right.label));
-  }, [agentsQuery.data?.agents, appsQuery.data?.apps, groupsQuery.data?.groups, organizationUsersQueries]);
+    const environmentOptions = (environmentsQuery.data?.environments ?? []).flatMap((environment): PrincipalOption[] => {
+      const environmentId = environment.meta?.id;
+      if (!environmentId) return [];
+      return [
+        {
+          type: PrivateResourceAccessPrincipalType.ENVIRONMENT,
+          id: environmentId,
+          label: formatEnvironmentPrincipal(environment),
+          // Says what the grant actually reaches, which is not obvious from a
+          // name that otherwise reads like any other principal.
+          description: 'Every workload running it, including sandboxes',
+        },
+      ];
+    });
+    return [...userOptions, ...agentOptions, ...appOptions, ...groupOptions, ...environmentOptions].sort((left, right) =>
+      left.label.localeCompare(right.label),
+    );
+  }, [
+    agentsQuery.data?.agents,
+    appsQuery.data?.apps,
+    environmentsQuery.data?.environments,
+    groupsQuery.data?.groups,
+    organizationUsersQueries,
+  ]);
 
   return { options };
 }

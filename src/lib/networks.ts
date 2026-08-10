@@ -49,6 +49,7 @@ export function formatPrincipalType(type: PrivateResourceAccessPrincipalType): s
   if (type === PrivateResourceAccessPrincipalType.USER) return 'User';
   if (type === PrivateResourceAccessPrincipalType.APP) return 'App';
   if (type === PrivateResourceAccessPrincipalType.GROUP) return 'Group';
+  if (type === PrivateResourceAccessPrincipalType.ENVIRONMENT) return 'Environment';
   return 'Principal';
 }
 
