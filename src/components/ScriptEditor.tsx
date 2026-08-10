@@ -8,6 +8,7 @@ interface ScriptEditorProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElem
   helperText?: string;
   monospace?: boolean;
   minHeightClass?: string;
+  maxHeightClass?: string;
 }
 
 export function ScriptEditor({
@@ -16,6 +17,8 @@ export function ScriptEditor({
   helperText,
   monospace = false,
   minHeightClass = 'min-h-[140px]',
+  // long content scrolls inside the editor instead of growing past the surface holding it
+  maxHeightClass = 'max-h-[360px]',
   className = '',
   ...props
 }: ScriptEditorProps) {
@@ -23,7 +26,7 @@ export function ScriptEditor({
     <div className="w-full">
       {label ? <Label className="mb-2 block">{label}</Label> : null}
       <Textarea
-        className={`${minHeightClass} ${monospace ? 'font-mono' : ''} ${className}`}
+        className={`${minHeightClass} ${maxHeightClass} ${monospace ? 'font-mono' : ''} ${className}`}
         aria-invalid={Boolean(error)}
         {...props}
       />

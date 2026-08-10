@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { AgentAvailability, AgentRole, AgentRoleAssignmentSchema } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentRole, AgentRoleAssignmentSchema } from '@/gen/agynio/api/agents/v1/agents_pb';
 import {
   MembershipRole,
   MembershipSchema,
@@ -47,13 +47,13 @@ vi.mock('sonner', () => ({
   },
 }));
 
-function renderSection(availability = AgentAvailability.PRIVATE) {
+function renderSection() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <AgentRolesSection agentId="agent-1" organizationId="org-1" availability={availability} />
+      <AgentRolesSection agentId="agent-1" organizationId="org-1" />
     </QueryClientProvider>,
   );
 }
@@ -138,9 +138,7 @@ describe('AgentRolesSection', () => {
   });
 
   it('makes specific-user private sharing discoverable', async () => {
-    renderSection(AgentAvailability.PRIVATE);
-
-    expect(screen.getByTestId('agent-roles-availability').textContent).toContain('Private sharing active');
+    renderSection();
 
     expect(await screen.findByText('@owner-user')).toBeTruthy();
     expect(screen.getByText('identity-owner')).toBeTruthy();
@@ -148,12 +146,14 @@ describe('AgentRolesSection', () => {
     expect(screen.getByText('@maintainer-user')).toBeTruthy();
   });
 
-  it('explains the availability interaction before the agent is private', async () => {
-    renderSection(AgentAvailability.INTERNAL);
+  // Availability lives in Configuration; restating it here said nothing the
+  // list itself does not.
+  it('carries no availability badge or hint', async () => {
+    renderSection();
 
-    expect(screen.getByTestId('agent-roles-availability').textContent).toContain('Available when Private');
-    expect(screen.getByTestId('agent-roles-private-hint').textContent).toContain('set Availability to Private');
     expect(await screen.findByText('@owner-user')).toBeTruthy();
+    expect(screen.queryByTestId('agent-roles-availability')).toBeNull();
+    expect(screen.queryByTestId('agent-roles-private-hint')).toBeNull();
   });
 
   it('keeps the toolbar outside the roles table card', async () => {

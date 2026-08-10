@@ -20,6 +20,7 @@ import {
   AgentAvailability,
   AgentDefaultThread,
   AgentFinalMessage,
+  LLMMode,
   type Agent,
 } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { NO_MODEL } from '@/lib/constants';
@@ -53,6 +54,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   const [nicknameError, setNicknameError] = useState('');
   const [role, setRole] = useState('');
   const [modelId, setModelId] = useState(NO_MODEL);
+  const [modelName, setModelName] = useState('');
   const [description, setDescription] = useState('');
   const [environmentId, setEnvironmentId] = useState('');
   const [environmentError, setEnvironmentError] = useState('');
@@ -80,6 +82,14 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
   // The agent stores an id; the read view shows what a person recognises.
   const environmentName = (id: string) =>
     id ? (environments.find((environment) => environment.meta?.id === id)?.name ?? id) : '';
+
+  const isNativeEnvironment = (id: string) =>
+    environments.find((environment) => environment.meta?.id === id)?.llmMode ===
+    LLMMode.LLM_MODE_NATIVE;
+
+  // Which of the two model references is legal is the environment's to decide,
+  // so the edited environment governs the field, not the saved one.
+  const isNative = isNativeEnvironment(environmentId);
 
   const modelsQuery = useQuery({
     queryKey: ['llm', organizationId, 'models', 'all'],
@@ -116,6 +126,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       name?: string;
       role?: string;
       model?: string;
+      modelName?: string;
       description?: string;
       configuration?: string;
       environmentId?: string;
@@ -144,6 +155,7 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       setNickname(agent.nickname);
       setRole(agent.role);
       setModelId(agent.model || NO_MODEL);
+      setModelName(agent.modelName);
       setDescription(agent.description);
       setEnvironmentId(agent.environmentId);
       setConfiguration(agent.configuration);
@@ -211,7 +223,10 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
       name: trimmedName,
       nickname: trimmedNickname,
       role: role.trim(),
-      model: modelId === NO_MODEL ? '' : modelId,
+      // The server rejects the reference the environment's mode has no namespace
+      // for, so only the one the mode owns is sent.
+      model: isNative || modelId === NO_MODEL ? '' : modelId,
+      modelName: isNative ? modelName.trim() : '',
       description: description.trim(),
       configuration: trimmedConfig,
       environmentId,
@@ -257,8 +272,9 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Model</div>
-              <div className="text-sm text-foreground">
-                {modelMap.get(agent.model)?.name ?? (agent.model || '—')}
+              {/* A native agent holds a vendor name instead of a catalog id. */}
+              <div className="text-sm text-foreground" data-testid="agent-configuration-model-value">
+                {agent.modelName || modelMap.get(agent.model)?.name || agent.model || '—'}
               </div>
             </div>
             <div>
@@ -361,40 +377,19 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                 data-testid="agent-configuration-role"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-configuration-model">Model</Label>
-              <Select value={modelId} onValueChange={(value) => setModelId(value)}>
-                <SelectTrigger id="agent-configuration-model" data-testid="agent-configuration-model">
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_MODEL}>None</SelectItem>
-                  {(modelsQuery.data?.models ?? []).map((model) => {
-                    const modelValue = model.meta?.id;
-                    if (!modelValue) return null;
-                    return (
-                      <SelectItem key={modelValue} value={modelValue}>
-                        {model.name || 'Unnamed model'}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="agent-configuration-description">Description</Label>
-              <Input
-                id="agent-configuration-description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                data-testid="agent-configuration-description"
-              />
-            </div>
+            {/* Before the model: which kind of model reference the agent can hold
+                is this field's answer to give. */}
             <div className="space-y-2">
               <Label htmlFor="agent-configuration-environment">Environment</Label>
               <Select
                 value={environmentId}
                 onValueChange={(value) => {
+                  // Each reference is meaningless in the other mode, so a repoint
+                  // across modes starts the field over.
+                  if (isNativeEnvironment(value) !== isNative) {
+                    setModelId('');
+                    setModelName('');
+                  }
                   setEnvironmentId(value);
                   if (environmentError) setEnvironmentError('');
                 }}
@@ -415,6 +410,53 @@ export function AgentConfigurationTab({ agent, organizationId }: AgentConfigurat
                   {environmentError}
                 </p>
               ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={isNative ? 'agent-configuration-model-name' : 'agent-configuration-model'}>
+                Model
+              </Label>
+              {isNative ? (
+                <>
+                  <Input
+                    id="agent-configuration-model-name"
+                    placeholder="claude-sonnet-4-5"
+                    value={modelName}
+                    onChange={(event) => setModelName(event.target.value)}
+                    data-testid="agent-configuration-model-name"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    A native environment has no platform catalog, so name the vendor&apos;s own model
+                    and the agent CLI is pinned to it. Leave it empty to keep the CLI&apos;s default.
+                  </p>
+                </>
+              ) : (
+                <Select value={modelId} onValueChange={(value) => setModelId(value)}>
+                  <SelectTrigger id="agent-configuration-model" data-testid="agent-configuration-model">
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_MODEL}>None</SelectItem>
+                    {(modelsQuery.data?.models ?? []).map((model) => {
+                      const modelValue = model.meta?.id;
+                      if (!modelValue) return null;
+                      return (
+                        <SelectItem key={modelValue} value={modelValue}>
+                          {model.name || 'Unnamed model'}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-configuration-description">Description</Label>
+              <Input
+                id="agent-configuration-description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                data-testid="agent-configuration-description"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="agent-configuration-availability">Availability</Label>
