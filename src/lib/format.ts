@@ -225,7 +225,9 @@ export function formatClusterRole(role?: ClusterRole): string {
 
 export function formatAuthMethod(method?: AuthMethod): string {
   if (method === AuthMethod.BEARER) return 'Bearer';
-  if (method === AuthMethod.UNSPECIFIED) return 'Unspecified';
+  // Anthropic providers authenticate this way, so leaving it out of the map
+  // listed every one of them as "Unspecified".
+  if (method === AuthMethod.X_API_KEY) return 'x-api-key';
   return 'Unspecified';
 }
 
