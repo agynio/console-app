@@ -60,7 +60,6 @@ export function AgentDetailPage() {
           parentLabel="Agents"
           parentHref={`/organizations/${organizationId}/agents`}
           title={agent.name || 'Agent'}
-          meta={[agent.model, agent.environmentId ? 'environment set' : ''].filter(Boolean).join(' · ')}
           actions={
             <Button
               variant="outline"
@@ -116,7 +115,7 @@ export function AgentDetailPage() {
             <EgressRuleAttachmentsTab target={{ kind: 'agent', id: resolvedAgentId }} organizationId={organizationId} />
           </TabsContent>
           <TabsContent value="roles">
-            <AgentRolesSection agentId={resolvedAgentId} organizationId={organizationId} availability={agent.availability} />
+            <AgentRolesSection agentId={resolvedAgentId} organizationId={organizationId} />
           </TabsContent>
         </Tabs>
         </>

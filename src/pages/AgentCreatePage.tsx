@@ -12,6 +12,7 @@ import {
   AgentAvailability,
   AgentDefaultThread,
   AgentFinalMessage,
+  LLMMode,
 } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { NO_MODEL } from '@/lib/constants';
@@ -32,7 +33,10 @@ export function AgentCreatePage() {
   const [nickname, setNickname] = useState('');
   const [nicknameError, setNicknameError] = useState('');
   const [role, setRole] = useState('');
-  const [modelId, setModelId] = useState(NO_MODEL);
+  // Empty rather than NO_MODEL: unchosen has to read as unchosen, and only an
+  // unmatched value lets the trigger show its placeholder.
+  const [modelId, setModelId] = useState('');
+  const [modelName, setModelName] = useState('');
   const [description, setDescription] = useState('');
   const [environmentId, setEnvironmentId] = useState('');
   const [environmentError, setEnvironmentError] = useState('');
@@ -67,12 +71,19 @@ export function AgentCreatePage() {
     [environmentsQuery.data?.environments],
   );
 
+  // Which of the two model references is legal is the environment's to decide,
+  // so the field only exists once one is chosen.
+  const isNative =
+    environments.find((environment) => environment.meta?.id === environmentId)?.llmMode ===
+    LLMMode.LLM_MODE_NATIVE;
+
   const createAgentMutation = useMutation({
     mutationFn: (payload: {
       name: string;
       nickname: string;
       role: string;
       model: string;
+      modelName: string;
       description: string;
       configuration: string;
       environmentId: string;
@@ -146,7 +157,10 @@ export function AgentCreatePage() {
       name: trimmedName,
       nickname: trimmedNickname,
       role: role.trim(),
-      model: modelId === NO_MODEL ? '' : modelId,
+      // The server rejects the reference the environment's mode has no namespace
+      // for, so only the one the mode owns is sent.
+      model: isNative || modelId === NO_MODEL ? '' : modelId,
+      modelName: isNative ? modelName.trim() : '',
       description: description.trim(),
       configuration: trimmedConfig,
       environmentId,
@@ -210,46 +224,17 @@ export function AgentCreatePage() {
               data-testid="agent-create-role"
             />
           </div>
-          <div className="space-y-2" data-testid="agent-create-model">
-            <Label htmlFor="agent-create-model-select">Model</Label>
-            <Select
-              value={modelId}
-              onValueChange={(value) => setModelId(value)}
-              disabled={modelsQuery.isPending}
-            >
-              <SelectTrigger id="agent-create-model-select" data-testid="agent-create-model-select">
-                <SelectValue placeholder={modelsQuery.isPending ? 'Loading models...' : 'Select model'} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_MODEL}>None</SelectItem>
-                {models.map((model) => {
-                  const modelValue = model.meta?.id;
-                  if (!modelValue) return null;
-                  return (
-                    <SelectItem key={modelValue} value={modelValue}>
-                      {model.name || 'Unnamed model'}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="agent-create-description">Description</Label>
-            <Input
-              id="agent-create-description"
-              placeholder="Explain what this agent does"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              data-testid="agent-create-description"
-            />
-          </div>
+          {/* Before the model: which kind of model reference the agent can hold
+              is this field's answer to give. */}
           <div className="space-y-2">
             <Label htmlFor="agent-create-environment">Environment</Label>
             <Select
               value={environmentId}
               onValueChange={(value) => {
                 setEnvironmentId(value);
+                // Each reference is meaningless in the other mode.
+                setModelId('');
+                setModelName('');
                 if (environmentError) setEnvironmentError('');
               }}
             >
@@ -288,6 +273,74 @@ export function AgentCreatePage() {
                 attached to it.
               </p>
             )}
+          </div>
+          <div className="space-y-2" data-testid="agent-create-model">
+            <Label htmlFor={isNative ? 'agent-create-model-name' : 'agent-create-model-select'}>
+              Model
+            </Label>
+            {isNative ? (
+              <>
+                <Input
+                  id="agent-create-model-name"
+                  placeholder="claude-sonnet-4-5"
+                  value={modelName}
+                  onChange={(event) => setModelName(event.target.value)}
+                  data-testid="agent-create-model-name"
+                />
+                <p className="text-xs text-muted-foreground">
+                  A native environment has no platform catalog, so name the vendor&apos;s own model
+                  and the agent CLI is pinned to it. Leave it empty to keep the CLI&apos;s default.
+                </p>
+              </>
+            ) : (
+              <>
+                <Select
+                  value={modelId}
+                  onValueChange={(value) => setModelId(value)}
+                  disabled={!environmentId || modelsQuery.isPending}
+                >
+                  <SelectTrigger id="agent-create-model-select" data-testid="agent-create-model-select">
+                    <SelectValue
+                      placeholder={
+                        !environmentId
+                          ? 'Select an environment first'
+                          : modelsQuery.isPending
+                            ? 'Loading models...'
+                            : 'Select model'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_MODEL}>None</SelectItem>
+                    {models.map((model) => {
+                      const modelValue = model.meta?.id;
+                      if (!modelValue) return null;
+                      return (
+                        <SelectItem key={modelValue} value={modelValue}>
+                          {model.name || 'Unnamed model'}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {!environmentId ? (
+                  <p className="text-xs text-muted-foreground">
+                    The environment decides where models come from — the platform catalog, or the
+                    vendor the agent CLI addresses itself.
+                  </p>
+                ) : null}
+              </>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="agent-create-description">Description</Label>
+            <Input
+              id="agent-create-description"
+              placeholder="Explain what this agent does"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              data-testid="agent-create-description"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="agent-create-availability">Availability</Label>

@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PageTitleProvider } from '@/context/PageTitleContext';
-import { EntityMetaSchema, EnvironmentSchema } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { EntityMetaSchema, EnvironmentSchema, LLMMode } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AgentCreatePage } from '@/pages/AgentCreatePage';
 
 const { createAgent, listEnvironments } = vi.hoisted(() => ({
@@ -65,6 +65,13 @@ describe('AgentCreatePage environment', () => {
           meta: create(EntityMetaSchema, { id: 'env-1' }),
           name: 'sandbox-env',
           image: 'ghcr.io/agynio/sandbox:latest',
+          llmMode: LLMMode.LLM_MODE_PLATFORM,
+        }),
+        create(EnvironmentSchema, {
+          meta: create(EntityMetaSchema, { id: 'env-native' }),
+          name: 'native-env',
+          image: 'ghcr.io/agynio/sandbox:latest',
+          llmMode: LLMMode.LLM_MODE_NATIVE,
         }),
       ],
       nextPageToken: '',
@@ -139,5 +146,116 @@ describe('AgentCreatePage environment', () => {
 
     const empty = await screen.findByTestId('agent-create-environment-empty');
     expect(empty.textContent).toContain('No environments in this organization.');
+  });
+});
+
+// A native environment has no platform model namespace, so the catalog picker
+// names nothing the server would accept there.
+describe('AgentCreatePage model', () => {
+  beforeAll(() => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  beforeEach(() => {
+    createAgent.mockReset();
+    listEnvironments.mockReset();
+    listModels.mockReset();
+
+    listModels.mockResolvedValue({
+      models: [{ meta: { id: 'model-1' }, name: 'gpt-shaped' }],
+      nextPageToken: '',
+    });
+    listEnvironments.mockResolvedValue({
+      environments: [
+        create(EnvironmentSchema, {
+          meta: create(EntityMetaSchema, { id: 'env-1' }),
+          name: 'sandbox-env',
+          llmMode: LLMMode.LLM_MODE_PLATFORM,
+        }),
+        create(EnvironmentSchema, {
+          meta: create(EntityMetaSchema, { id: 'env-native' }),
+          name: 'native-env',
+          llmMode: LLMMode.LLM_MODE_NATIVE,
+        }),
+      ],
+      nextPageToken: '',
+    });
+    createAgent.mockResolvedValue({ agent: { meta: { id: 'agent-1' }, name: 'builder' } });
+  });
+
+  async function chooseEnvironment(name: string) {
+    await waitFor(() => expect(listEnvironments).toHaveBeenCalled());
+    const listbox = await openSelect('agent-create-environment');
+    fireEvent.click(await within(listbox).findByText(name));
+  }
+
+  it('takes a vendor model name in a native environment', async () => {
+    renderCreatePage();
+    await chooseEnvironment('native-env');
+
+    expect(screen.queryByTestId('agent-create-model-select')).toBeNull();
+    fireEvent.change(screen.getByTestId('agent-create-model-name'), {
+      target: { value: 'claude-sonnet-4-5' },
+    });
+    fireEvent.change(screen.getByTestId('agent-create-name'), { target: { value: 'builder' } });
+    fireEvent.click(screen.getByTestId('agent-create-submit'));
+
+    await waitFor(() => expect(createAgent).toHaveBeenCalled());
+    expect(createAgent.mock.calls[0][0]).toMatchObject({
+      environmentId: 'env-native',
+      model: '',
+      modelName: 'claude-sonnet-4-5',
+    });
+  });
+
+  it('keeps the catalog picker in a platform environment', async () => {
+    renderCreatePage();
+    await chooseEnvironment('sandbox-env');
+
+    expect(screen.queryByTestId('agent-create-model-name')).toBeNull();
+    const listbox = await openSelect('agent-create-model-select');
+    fireEvent.click(await within(listbox).findByText('gpt-shaped'));
+
+    fireEvent.change(screen.getByTestId('agent-create-name'), { target: { value: 'builder' } });
+    fireEvent.click(screen.getByTestId('agent-create-submit'));
+
+    await waitFor(() => expect(createAgent).toHaveBeenCalled());
+    expect(createAgent.mock.calls[0][0]).toMatchObject({
+      environmentId: 'env-1',
+      model: 'model-1',
+      modelName: '',
+    });
+  });
+
+  // The mode is unknown until an environment is named, and so is the field.
+  it('leaves the model picker disabled until an environment is chosen', async () => {
+    renderCreatePage();
+
+    await waitFor(() => expect(listEnvironments).toHaveBeenCalled());
+    const trigger = screen.getByTestId('agent-create-model-select');
+    expect(trigger.getAttribute('data-disabled')).not.toBeNull();
+
+    await chooseEnvironment('sandbox-env');
+    expect(screen.getByTestId('agent-create-model-select').getAttribute('data-disabled')).toBeNull();
+  });
+
+  // Repointing at the other mode invalidates whatever was picked before it.
+  it('drops a catalog model when the environment turns native', async () => {
+    renderCreatePage();
+    await chooseEnvironment('sandbox-env');
+
+    const models = await openSelect('agent-create-model-select');
+    fireEvent.click(await within(models).findByText('gpt-shaped'));
+    await chooseEnvironment('native-env');
+
+    fireEvent.change(screen.getByTestId('agent-create-name'), { target: { value: 'builder' } });
+    fireEvent.click(screen.getByTestId('agent-create-submit'));
+
+    await waitFor(() => expect(createAgent).toHaveBeenCalled());
+    expect(createAgent.mock.calls[0][0]).toMatchObject({ model: '', modelName: '' });
   });
 });

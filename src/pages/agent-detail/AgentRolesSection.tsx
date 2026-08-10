@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AgentAvailability, AgentRole, type AgentRoleAssignment } from '@/gen/agynio/api/agents/v1/agents_pb';
+import { AgentRole, type AgentRoleAssignment } from '@/gen/agynio/api/agents/v1/agents_pb';
 import { AgentsGateway } from '@/gen/agynio/api/gateway/v1/agents_pb';
 import { MembershipStatus, type Membership } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { formatAgentRole } from '@/lib/format';
@@ -27,7 +27,6 @@ import { toast } from 'sonner';
 type AgentRolesSectionProps = {
   agentId: string;
   organizationId: string;
-  availability: AgentAvailability;
 };
 
 const assignableRoles = [AgentRole.OWNER, AgentRole.MAINTAINER, AgentRole.PARTICIPANT] as const;
@@ -69,7 +68,7 @@ function formatRoleError(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function AgentRolesSection({ agentId, organizationId, availability }: AgentRolesSectionProps) {
+export function AgentRolesSection({ agentId, organizationId }: AgentRolesSectionProps) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedIdentityId, setSelectedIdentityId] = useState('');
@@ -206,20 +205,10 @@ export function AgentRolesSection({ agentId, organizationId, availability }: Age
             data-testid="agent-roles-search"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={availability === AgentAvailability.PRIVATE ? 'default' : 'outline'} data-testid="agent-roles-availability">
-            {availability === AgentAvailability.PRIVATE ? 'Private sharing active' : 'Available when Private'}
-          </Badge>
-          <Button variant="outline" size="sm" onClick={() => openEdit()} data-testid="agent-roles-add">
-            Share agent
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => openEdit()} data-testid="agent-roles-add">
+          Share agent
+        </Button>
       </div>
-      {availability !== AgentAvailability.PRIVATE ? (
-        <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground" data-testid="agent-roles-private-hint">
-          To limit thread access to only the users listed here, set Availability to Private in Configuration.
-        </div>
-      ) : null}
       {rolesQuery.isPending ? <div className="text-sm text-muted-foreground">Loading roles...</div> : null}
       {rolesQuery.isError ? (
         <div className="text-sm text-destructive" data-testid="agent-roles-load-error">
