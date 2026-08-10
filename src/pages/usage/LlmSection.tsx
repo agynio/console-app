@@ -22,6 +22,7 @@ import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { formatUsageNumber, formatUsageValue, microsToNumber } from '@/lib/usage';
 import {
   METERED_MODEL_TOKENS,
+  SUBSCRIPTION_TOKENS,
   consumerQueryConfigs,
   consumerQuerySources,
   identifiedGroupTotals,
@@ -73,6 +74,33 @@ const fixedConfigs: UsageQueryConfig[] = [
     labelFilters: { ...METERED_MODEL_TOKENS, kind: 'output' },
     groupBy: 'resource_id',
   },
+  // Subscription tokens are read on their own rather than through the spend
+  // queries above. A native call runs against a Subscription, so it carries no
+  // Model to resolve -- model_name is what names which model actually ran.
+  { key: 'llm-subscription-input-total', unit: Unit.TOKENS, granularity: Granularity.TOTAL, labelFilters: { ...SUBSCRIPTION_TOKENS, kind: 'input' } },
+  { key: 'llm-subscription-output-total', unit: Unit.TOKENS, granularity: Granularity.TOTAL, labelFilters: { ...SUBSCRIPTION_TOKENS, kind: 'output' } },
+  {
+    key: 'llm-subscription-daily-tokens',
+    unit: Unit.TOKENS,
+    granularity: Granularity.DAY,
+    useRangeGranularity: true,
+    labelFilters: { ...SUBSCRIPTION_TOKENS },
+    groupBy: 'kind',
+  },
+  {
+    key: 'llm-subscription-models-input-total',
+    unit: Unit.TOKENS,
+    granularity: Granularity.TOTAL,
+    labelFilters: { ...SUBSCRIPTION_TOKENS, kind: 'input' },
+    groupBy: 'model_name',
+  },
+  {
+    key: 'llm-subscription-models-output-total',
+    unit: Unit.TOKENS,
+    granularity: Granularity.TOTAL,
+    labelFilters: { ...SUBSCRIPTION_TOKENS, kind: 'output' },
+    groupBy: 'model_name',
+  },
 ];
 
 type TokenPoint = {
@@ -80,31 +108,62 @@ type TokenPoint = {
   uncached: number;
   cached: number;
   output: number;
+  subscriptionInput: number;
+  subscriptionOutput: number;
 };
 
-function buildTokenSeries(buckets: UsageBucket[], granularity: Granularity, range: UsageRange): TokenPoint[] {
+const emptyPoint = (timestamp: number): TokenPoint => ({
+  timestamp,
+  uncached: 0,
+  cached: 0,
+  output: 0,
+  subscriptionInput: 0,
+  subscriptionOutput: 0,
+});
+
+/**
+ * The subscription side is one segment per panel where the billable side is
+ * split by cache. The stacks still measure the same thing: uncached + cached is
+ * the input, so a subscription bar of that height is read against it directly.
+ */
+function buildTokenSeries(
+  buckets: UsageBucket[],
+  subscriptionBuckets: UsageBucket[],
+  granularity: Granularity,
+  range: UsageRange,
+): TokenPoint[] {
   const byTimestamp = new Map<number, TokenPoint>();
+  const pointAt = (bucket: UsageBucket) => {
+    const timestamp = bucketTimestamp(bucket);
+    const point = byTimestamp.get(timestamp) ?? emptyPoint(timestamp);
+    byTimestamp.set(timestamp, point);
+    return point;
+  };
+
   buckets.forEach((bucket) => {
     if (!bucket.timestamp) return;
-    const timestamp = bucketTimestamp(bucket);
-    const point = byTimestamp.get(timestamp) ?? { timestamp, uncached: 0, cached: 0, output: 0 };
+    const point = pointAt(bucket);
     const value = microsToNumber(bucket.value);
     if (bucket.groupValue === 'input') point.uncached += value;
     if (bucket.groupValue === 'cached') point.cached += value;
     if (bucket.groupValue === 'output') point.output += value;
-    byTimestamp.set(timestamp, point);
+  });
+
+  // Cached is the share of the input served from cache, not tokens on top of
+  // it, so it is left out here rather than added to the segment beside it.
+  subscriptionBuckets.forEach((bucket) => {
+    if (!bucket.timestamp) return;
+    const point = pointAt(bucket);
+    const value = microsToNumber(bucket.value);
+    if (bucket.groupValue === 'input') point.subscriptionInput += value;
+    if (bucket.groupValue === 'output') point.subscriptionOutput += value;
   });
 
   const points = Array.from(byTimestamp.values())
     .map((point) => ({ ...point, uncached: Math.max(0, point.uncached - point.cached) }))
     .sort((left, right) => left.timestamp - right.timestamp);
 
-  return fillTimeBuckets(points, granularity, range, (timestamp) => ({
-    timestamp,
-    uncached: 0,
-    cached: 0,
-    output: 0,
-  }));
+  return fillTimeBuckets(points, granularity, range, emptyPoint);
 }
 
 export function LlmSection({ organizationId, range }: { organizationId: string; range: UsageRange | null }) {
@@ -125,6 +184,9 @@ export function LlmSection({ organizationId, range }: { organizationId: string; 
   const inputTotal = sumBuckets(byKey['llm-input-total']);
   const cachedTotal = sumBuckets(byKey['llm-cached-total']);
   const outputTotal = sumBuckets(byKey['llm-output-total']);
+  const subscriptionInputTotal = sumBuckets(byKey['llm-subscription-input-total']);
+  const subscriptionOutputTotal = sumBuckets(byKey['llm-subscription-output-total']);
+  const subscriptionTotal = subscriptionInputTotal + subscriptionOutputTotal;
 
   const requestTotals = identifiedGroupTotals(byKey['llm-requests-total']?.data?.buckets ?? []);
   const succeeded = microsToNumber(requestTotals.get('success') ?? 0n);
@@ -132,7 +194,15 @@ export function LlmSection({ organizationId, range }: { organizationId: string; 
   const requestsTotal = succeeded + failed;
 
   const tokenSeries = useMemo(
-    () => (range ? buildTokenSeries(byKey['llm-daily-tokens']?.data?.buckets ?? [], granularity, range) : []),
+    () =>
+      range
+        ? buildTokenSeries(
+            byKey['llm-daily-tokens']?.data?.buckets ?? [],
+            byKey['llm-subscription-daily-tokens']?.data?.buckets ?? [],
+            granularity,
+            range,
+          )
+        : [],
     [byKey, granularity, range],
   );
 
@@ -147,16 +217,28 @@ export function LlmSection({ organizationId, range }: { organizationId: string; 
   }, [modelsQuery.data?.models]);
 
   // Models are a resource, not a consumer level, so they are summed here rather
-  // than through the ranking machinery the Group by control drives.
+  // than through the ranking machinery the Group by control drives. The two
+  // sides key differently -- a Model UUID against the model_name a native call
+  // reports -- so each is resolved against the one that owns it.
   const modelRows: ConsumerRow[] = useMemo(() => {
-    const merged = new Map<string, bigint>();
+    const rows = new Map<string, ConsumerRow>();
+    const add = (id: string, label: string, detail: string, value: bigint) => {
+      const row = rows.get(id) ?? { id, label, detail, value: 0 };
+      rows.set(id, { ...row, value: row.value + microsToNumber(value) });
+    };
+
     [byKey['llm-models-input-total'], byKey['llm-models-output-total']].forEach((query) => {
       identifiedGroupTotals(query?.data?.buckets ?? []).forEach((value, id) => {
-        merged.set(id, (merged.get(id) ?? 0n) + value);
+        add(id, modelNames.get(id) ?? id, 'Model', value);
       });
     });
-    return Array.from(merged.entries())
-      .map(([id, value]) => ({ id, label: modelNames.get(id) ?? id, detail: 'Model', value: microsToNumber(value) }))
+    [byKey['llm-subscription-models-input-total'], byKey['llm-subscription-models-output-total']].forEach((query) => {
+      identifiedGroupTotals(query?.data?.buckets ?? []).forEach((value, name) => {
+        add(`subscription:${name}`, name, 'Subscription', value);
+      });
+    });
+
+    return Array.from(rows.values())
       .sort((left, right) => right.value - left.value)
       .slice(0, 5);
   }, [byKey, modelNames]);
@@ -170,12 +252,15 @@ export function LlmSection({ organizationId, range }: { organizationId: string; 
     );
   }
 
-  const tokensEmpty = tokenSeries.every((point) => !point.uncached && !point.cached && !point.output);
+  const tokensEmpty = tokenSeries.every(
+    (point) =>
+      !point.uncached && !point.cached && !point.output && !point.subscriptionInput && !point.subscriptionOutput,
+  );
   const rangeLabel = formatRangeLabel(range.start, range.end);
 
   return (
     <div className="space-y-4" data-testid="organization-usage-llm-section">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-testid="organization-usage-llm-metrics">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" data-testid="organization-usage-llm-metrics">
         <UsageMetricCard
           label="Input tokens"
           value={formatUsageValue(inputTotal)}
@@ -195,6 +280,17 @@ export function LlmSection({ organizationId, range }: { organizationId: string; 
           isLoading={byKey['llm-output-total']?.isPending ?? true}
           isError={byKey['llm-output-total']?.isError ?? false}
           testId="organization-usage-llm-output"
+        />
+        <UsageMetricCard
+          label="Subscription tokens"
+          value={formatUsageValue(subscriptionTotal)}
+          // Named as not billed rather than left off the tab: a flat fee is not
+          // zero usage, and the figures beside it cover only what is charged.
+          // The input/output split is in the chart below, which has room for it.
+          helper="Flat fee, not billed"
+          isLoading={byKey['llm-subscription-input-total']?.isPending ?? true}
+          isError={byKey['llm-subscription-input-total']?.isError ?? false}
+          testId="organization-usage-llm-subscription"
         />
         <UsageMetricCard
           label="Requests"
@@ -232,6 +328,7 @@ export function LlmSection({ organizationId, range }: { organizationId: string; 
             items={[
               { label: 'Uncached input', color: 'var(--color-chart-1)' },
               { label: 'Cached input', color: 'var(--color-chart-2)' },
+              { label: 'Subscription (not billed)', color: 'var(--color-chart-4)' },
             ]}
           />
         </UsageChartCard>
@@ -334,6 +431,16 @@ function TokenPanels({ series, granularity }: { series: TokenPoint[]; granularit
               { label: 'Uncached input', color: 'var(--color-chart-1)', value: formatUsageNumber(point.uncached) },
               { label: 'Cached input', color: 'var(--color-chart-2)', value: formatUsageNumber(point.cached) },
               { label: 'Output', color: 'var(--color-chart-3)', value: formatUsageNumber(point.output) },
+              {
+                label: 'Subscription in',
+                color: 'var(--color-chart-4)',
+                value: formatUsageNumber(point.subscriptionInput),
+              },
+              {
+                label: 'Subscription out',
+                color: 'var(--color-chart-4)',
+                value: formatUsageNumber(point.subscriptionOutput),
+              },
             ]}
           />
         );
@@ -370,6 +477,14 @@ function TokenPanels({ series, granularity }: { series: TokenPoint[]; granularit
             stackId="input"
             fill="var(--color-chart-2)"
             maxBarSize={18}
+            shape={<BarShape stacked />}
+            isAnimationActive={false}
+          />
+          <Bar
+            dataKey="subscriptionInput"
+            stackId="input"
+            fill="var(--color-chart-4)"
+            maxBarSize={18}
             shape={<BarShape capped />}
             isAnimationActive={false}
           />
@@ -401,7 +516,16 @@ function TokenPanels({ series, granularity }: { series: TokenPoint[]; granularit
           <Tooltip cursor={cursor} content={() => null} />
           <Bar
             dataKey="output"
+            stackId="output"
             fill="var(--color-chart-3)"
+            maxBarSize={18}
+            shape={<BarShape stacked />}
+            isAnimationActive={false}
+          />
+          <Bar
+            dataKey="subscriptionOutput"
+            stackId="output"
+            fill="var(--color-chart-4)"
             maxBarSize={18}
             shape={<BarShape capped />}
             isAnimationActive={false}
@@ -413,7 +537,9 @@ function TokenPanels({ series, granularity }: { series: TokenPoint[]; granularit
 }
 
 function TokenTable({ series, granularity }: { series: TokenPoint[]; granularity: Granularity }) {
-  const rows = series.filter((point) => point.uncached || point.cached || point.output);
+  const rows = series.filter(
+    (point) => point.uncached || point.cached || point.output || point.subscriptionInput || point.subscriptionOutput,
+  );
   return (
     <div className="max-h-60 overflow-auto">
       <table className="w-full text-xs">
@@ -423,6 +549,8 @@ function TokenTable({ series, granularity }: { series: TokenPoint[]; granularity
             <th className="px-2 py-1.5 text-right font-medium">Uncached</th>
             <th className="px-2 py-1.5 text-right font-medium">Cached</th>
             <th className="px-2 py-1.5 text-right font-medium">Output</th>
+            <th className="px-2 py-1.5 text-right font-medium">Sub. in</th>
+            <th className="px-2 py-1.5 text-right font-medium">Sub. out</th>
           </tr>
         </thead>
         <tbody>
@@ -432,6 +560,8 @@ function TokenTable({ series, granularity }: { series: TokenPoint[]; granularity
               <td className="px-2 py-1.5 text-right tabular-nums">{formatUsageNumber(point.uncached)}</td>
               <td className="px-2 py-1.5 text-right tabular-nums">{formatUsageNumber(point.cached)}</td>
               <td className="px-2 py-1.5 text-right tabular-nums">{formatUsageNumber(point.output)}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{formatUsageNumber(point.subscriptionInput)}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{formatUsageNumber(point.subscriptionOutput)}</td>
             </tr>
           ))}
         </tbody>

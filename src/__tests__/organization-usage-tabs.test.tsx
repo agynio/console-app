@@ -41,6 +41,11 @@ function unitsRequested(): Set<Unit> {
   return new Set(queryUsage.mock.calls.map(([request]) => (request as { unit: Unit }).unit));
 }
 
+/** Metering reports every value in micros. */
+function micros(value: number): bigint {
+  return BigInt(value) * 1_000_000n;
+}
+
 describe('usage tabs', () => {
   afterEach(() => {
     cleanup();
@@ -89,5 +94,29 @@ describe('usage tabs', () => {
       expect(screen.queryByTestId('organization-usage-compute-empty')).not.toBeNull();
     });
     expect(screen.getByTestId('organization-usage-compute-empty').textContent).toContain('No compute usage');
+  });
+
+  // Every spend figure here filters to resource=model, so an organization whose
+  // work all ran on a subscription read as an empty tab while the Overview
+  // counted the same tokens. A flat fee is not spend, but it is usage.
+  it('reports subscription tokens the spend figures leave out', async () => {
+    listModels.mockResolvedValue({ models: [] });
+    queryUsage.mockImplementation(async (request: { labelFilters?: Record<string, string> }) => {
+      const filters = request.labelFilters ?? {};
+      if (filters.resource !== 'subscription') return create(QueryUsageResponseSchema, { buckets: [] });
+      if (filters.kind === 'input') return create(QueryUsageResponseSchema, { buckets: [{ value: micros(85_227) }] });
+      if (filters.kind === 'output') return create(QueryUsageResponseSchema, { buckets: [{ value: micros(772) }] });
+      return create(QueryUsageResponseSchema, { buckets: [] });
+    });
+
+    renderUsageTab();
+
+    const card = await screen.findByTestId('organization-usage-llm-subscription');
+    await waitFor(() => expect(card.textContent).toContain('85,999'));
+    expect(card.textContent).toContain('not billed');
+    expect(screen.queryByTestId('organization-usage-llm-empty')).toBeNull();
+    // The billable figures stay filtered: none of this belongs in them.
+    expect(screen.getByTestId('organization-usage-llm-input').textContent).toContain('0');
+    expect(screen.getByTestId('organization-usage-llm-output').textContent).toContain('0');
   });
 });
