@@ -322,7 +322,6 @@ function ResourceGrantsCard({
           existingGrants={grants}
           onSubmit={(option) => createGrantMutation.mutate(option)}
           isSubmitting={createGrantMutation.isPending}
-          organizationId={organizationId}
         />
       </CardContent>
     </Card>
