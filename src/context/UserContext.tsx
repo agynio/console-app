@@ -6,6 +6,7 @@ import { useAuth } from 'react-oidc-context';
 import { usersClient } from '@/api/client';
 import { oidcConfig } from '@/config';
 import { setSignedOutFlag } from '@/auth/signed-out';
+import { signOutAtProvider } from '@/auth/sign-out';
 import type { User } from '@/gen/agynio/api/users/v1/users_pb';
 import { ClusterRole } from '@/gen/agynio/api/users/v1/users_pb';
 
@@ -97,7 +98,7 @@ function OidcUserProvider({ children }: { children: ReactNode }) {
       void auth.removeUser().catch((removeError) => {
         console.warn('Failed to clear OIDC user session.', removeError);
       });
-      void auth.signoutRedirect().catch((signoutError) => {
+      void signOutAtProvider(() => auth.signoutRedirect()).catch((signoutError) => {
         console.warn('OIDC sign-out redirect failed.', signoutError);
       });
     },
