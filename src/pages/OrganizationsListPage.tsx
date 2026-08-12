@@ -1,17 +1,21 @@
+import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { BuildingIcon, PlusIcon } from 'lucide-react';
+import { organizationsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreateOrganizationDialog } from '@/components/CreateOrganizationDialog';
 import { Input } from '@/components/ui/input';
-import { useOrganizationContext } from '@/context/OrganizationContext';
+import { useOrganizationContext, type OrganizationSummary } from '@/context/OrganizationContext';
 import { useUserContext } from '@/context/UserContext';
-import type { MembershipRole } from '@/gen/agynio/api/organizations/v1/organizations_pb';
+import type { MembershipRole, Organization } from '@/gen/agynio/api/organizations/v1/organizations_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { useCreateOrganization } from '@/hooks/useCreateOrganization';
+import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { formatDateOnly, formatMembershipRole, timestampToMillis } from '@/lib/format';
 
 function describeRole(role?: MembershipRole, isClusterAdmin?: boolean): string {
@@ -22,8 +26,51 @@ function describeRole(role?: MembershipRole, isClusterAdmin?: boolean): string {
 export function OrganizationsListPage() {
   useDocumentTitle('Organizations');
 
-  const { organizations, status, error } = useOrganizationContext();
+  const { organizations: memberOrganizations, memberships, status: orgStatus, error: orgError } = useOrganizationContext();
   const { isClusterAdmin } = useUserContext();
+
+  // The administration view covers every organization on the cluster; the
+  // context deliberately carries only the admin's own memberships.
+  const clusterOrganizationsQuery = useQuery({
+    queryKey: ['organizations', 'list'],
+    queryFn: async () => {
+      const organizations: Organization[] = [];
+      let pageToken = '';
+      do {
+        const response = await organizationsClient.listOrganizations({
+          pageSize: MAX_PAGE_SIZE,
+          pageToken,
+        });
+        organizations.push(...response.organizations);
+        pageToken = response.nextPageToken;
+      } while (pageToken);
+      return organizations;
+    },
+    enabled: isClusterAdmin,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const organizations = useMemo<OrganizationSummary[]>(() => {
+    if (!isClusterAdmin) return memberOrganizations;
+    const membershipByOrg = new Map(memberships.map((membership) => [membership.organizationId, membership]));
+    return (clusterOrganizationsQuery.data ?? []).map((org) => ({
+      id: org.id,
+      name: org.name,
+      createdAt: org.createdAt,
+      membershipRole: membershipByOrg.get(org.id)?.role,
+      membershipStatus: membershipByOrg.get(org.id)?.status,
+    }));
+  }, [clusterOrganizationsQuery.data, isClusterAdmin, memberOrganizations, memberships]);
+
+  const status = isClusterAdmin
+    ? clusterOrganizationsQuery.isPending
+      ? 'loading'
+      : clusterOrganizationsQuery.error
+        ? 'error'
+        : 'ready'
+    : orgStatus;
+  const error = isClusterAdmin ? clusterOrganizationsQuery.error : orgError;
   const {
     open: createOpen,
     handleOpenChange,

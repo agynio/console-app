@@ -149,24 +149,11 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     return Array.from(ids).sort((a, b) => a.localeCompare(b));
   }, [memberships]);
 
+  // Everyone, cluster admins included, sees only the organizations they are a
+  // member of here; admins reach the rest through the administration section.
   const organizationsQuery = useQuery({
-    queryKey: isClusterAdmin
-      ? ['organizations', 'list']
-      : ['organizations', 'by-membership', organizationIds],
+    queryKey: ['organizations', 'by-membership', organizationIds],
     queryFn: async () => {
-      if (isClusterAdmin) {
-        const organizations: Organization[] = [];
-        let pageToken = '';
-        do {
-          const response = await organizationsClient.listOrganizations({
-            pageSize: MAX_PAGE_SIZE,
-            pageToken,
-          });
-          organizations.push(...response.organizations);
-          pageToken = response.nextPageToken;
-        } while (pageToken);
-        return { organizations };
-      }
       if (organizationIds.length === 0) {
         return { organizations: [] };
       }
@@ -178,7 +165,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       );
       return { organizations };
     },
-    enabled: userStatus === 'ready' && Boolean(identityId) && (isClusterAdmin || membershipsQuery.isSuccess),
+    enabled: userStatus === 'ready' && Boolean(identityId) && membershipsQuery.isSuccess,
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -193,10 +180,10 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     [listedOrganizations, memberships],
   );
 
-  const visibleOrganizations = useMemo(() => {
-    if (isClusterAdmin) return mappedOrganizations;
-    return mappedOrganizations.filter((org) => org.membershipStatus === MembershipStatus.ACTIVE);
-  }, [isClusterAdmin, mappedOrganizations]);
+  const visibleOrganizations = useMemo(
+    () => mappedOrganizations.filter((org) => org.membershipStatus === MembershipStatus.ACTIVE),
+    [mappedOrganizations],
+  );
 
   const sortedOrganizations = useMemo(
     () => [...visibleOrganizations].sort((a, b) => a.name.localeCompare(b.name)),
@@ -231,6 +218,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       if (current?.mode === 'organization') {
         const match = sortedOrganizations.find((org) => org.id === current.organization.id);
         if (match) return { mode: 'organization', organization: match };
+        // A cluster admin may be browsing an organization they are not a
+        // member of; that context is valid even though it is not listed.
+        if (isClusterAdmin) return current;
       }
       if (current?.mode === 'cluster' && isClusterAdmin) {
         return { mode: 'cluster' };

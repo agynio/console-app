@@ -22,9 +22,13 @@ export function OrganizationOverviewTab() {
   const { id } = useParams();
   const organizationId = id ?? '';
   // RequireOrganization has already resolved the URL id against the caller's
-  // organizations, so this lookup needs no request of its own.
-  const { organizations } = useOrganizationContext();
-  const organizationName = organizations.find((organization) => organization.id === organizationId)?.name ?? '';
+  // organizations, so this lookup needs no request of its own. Cluster admins
+  // may be viewing an organization outside their memberships; the guard put it
+  // into the selected context.
+  const { organizations, selectedOrganization } = useOrganizationContext();
+  const organizationName =
+    organizations.find((organization) => organization.id === organizationId)?.name ??
+    (selectedOrganization?.id === organizationId ? selectedOrganization.name : '');
   const notificationRooms = useMemo(
     () => (organizationId ? [`organization:${organizationId}`] : []),
     [organizationId],
