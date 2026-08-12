@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, ShieldIcon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   DropdownMenuItem,
@@ -8,10 +8,6 @@ import {
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { useOrganizationContext } from '@/context/OrganizationContext';
-import { useUserContext } from '@/context/UserContext';
-
-/** Sentinel for the cluster context, which is not an organization id. */
-const CLUSTER_VALUE = '__cluster__';
 
 /**
  * Organization items, rendered inside the user menu. Creating an organization
@@ -19,8 +15,7 @@ const CLUSTER_VALUE = '__cluster__';
  * dialog.
  */
 export function OrganizationMenuItems({ onCreateOrganization }: { onCreateOrganization: () => void }) {
-  const { organizations, contextMode, selectedOrganization, setContextMode } = useOrganizationContext();
-  const { isClusterAdmin } = useUserContext();
+  const { organizations, selectedOrganization, setContextMode } = useOrganizationContext();
   const navigate = useNavigate();
   const location = useLocation();
   const sortedOrganizations = useMemo(
@@ -50,6 +45,56 @@ export function OrganizationMenuItems({ onCreateOrganization }: { onCreateOrgani
     return suffix ? `/organizations/${orgId}/${suffix}` : `/organizations/${orgId}`;
   };
 
+  const handleSelect = (orgId: string) => {
+    const org = sortedOrganizations.find((item) => item.id === orgId);
+    if (!org) return;
+    setContextMode({ mode: 'organization', organization: org });
+    navigate(resolveOrganizationPath(org.id));
+  };
+
+  return (
+    <>
+      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Organization</DropdownMenuLabel>
+      {/* Radio group, matching the chat and tracing menus: the current context
+          is marked rather than greyed out. */}
+      <DropdownMenuRadioGroup
+        value={selectedOrganization?.id ?? ''}
+        onValueChange={handleSelect}
+        data-testid="org-switcher"
+      >
+        {sortedOrganizations.length === 0 ? (
+          <DropdownMenuItem disabled>No organizations</DropdownMenuItem>
+        ) : null}
+        {sortedOrganizations.map((org) => (
+          <DropdownMenuRadioItem
+            key={org.id}
+            value={org.id}
+            className="data-[state=checked]:font-medium"
+            data-testid={`org-item-${org.id}`}
+          >
+            <span className="truncate" title={org.name}>
+              {org.name}
+            </span>
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+      <DropdownMenuItem onSelect={onCreateOrganization} data-testid="org-switcher-create">
+        <PlusIcon className="mr-2 h-4 w-4" />
+        Create organization
+      </DropdownMenuItem>
+    </>
+  );
+}
+
+/**
+ * Entry into the cluster administration context. Lives outside the
+ * organization list: it is a mode, not an organization.
+ */
+export function ClusterAdministrationMenuItem() {
+  const { contextMode, setContextMode } = useOrganizationContext();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const resolveClusterPath = () => {
     if (location.pathname.startsWith('/organizations/')) {
       return '/organizations';
@@ -68,57 +113,19 @@ export function OrganizationMenuItems({ onCreateOrganization }: { onCreateOrgani
     return '/';
   };
 
-  const handleSelect = (orgId: string) => {
-    const org = sortedOrganizations.find((item) => item.id === orgId);
-    if (!org) return;
-    setContextMode({ mode: 'organization', organization: org });
-    navigate(resolveOrganizationPath(org.id));
-  };
-
-  const handleSelectCluster = () => {
+  const handleSelect = () => {
     setContextMode({ mode: 'cluster' });
     navigate(resolveClusterPath());
   };
 
   return (
-    <>
-      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Organization</DropdownMenuLabel>
-      {/* Radio group, matching the chat and tracing menus: the current context
-          is marked rather than greyed out. */}
-      <DropdownMenuRadioGroup
-        value={contextMode?.mode === 'cluster' ? CLUSTER_VALUE : selectedOrganization?.id ?? ''}
-        onValueChange={(value) => (value === CLUSTER_VALUE ? handleSelectCluster() : handleSelect(value))}
-        data-testid="org-switcher"
-      >
-        {sortedOrganizations.length === 0 && !isClusterAdmin ? (
-          <DropdownMenuItem disabled>No organizations</DropdownMenuItem>
-        ) : null}
-        {sortedOrganizations.map((org) => (
-          <DropdownMenuRadioItem
-            key={org.id}
-            value={org.id}
-            className="data-[state=checked]:font-medium"
-            data-testid={`org-item-${org.id}`}
-          >
-            <span className="truncate" title={org.name}>
-              {org.name}
-            </span>
-          </DropdownMenuRadioItem>
-        ))}
-        {isClusterAdmin ? (
-          <DropdownMenuRadioItem
-            value={CLUSTER_VALUE}
-            className="data-[state=checked]:font-medium"
-            data-testid="org-switcher-cluster"
-          >
-            Cluster Administration
-          </DropdownMenuRadioItem>
-        ) : null}
-      </DropdownMenuRadioGroup>
-      <DropdownMenuItem onSelect={onCreateOrganization} data-testid="org-switcher-create">
-        <PlusIcon className="mr-2 h-4 w-4" />
-        Create organization
-      </DropdownMenuItem>
-    </>
+    <DropdownMenuItem
+      onSelect={handleSelect}
+      className={contextMode?.mode === 'cluster' ? 'font-medium' : undefined}
+      data-testid="org-switcher-cluster"
+    >
+      <ShieldIcon className="h-4 w-4" />
+      Cluster Administration
+    </DropdownMenuItem>
   );
 }

@@ -18,7 +18,7 @@ import { PendingInvitesMenu } from '@/components/PendingInvitesMenu';
 import { useOrganizationContext } from '@/context/OrganizationContext';
 import { useSetupOverlay } from '@/context/SetupOverlayContext';
 import { useUserContext } from '@/context/UserContext';
-import { OrganizationMenuItems } from '@/components/OrganizationSwitcher';
+import { ClusterAdministrationMenuItem, OrganizationMenuItems } from '@/components/OrganizationSwitcher';
 import { useCreateOrganization } from '@/hooks/useCreateOrganization';
 import { useSidebarGroups } from '@/hooks/useSidebarGroups';
 import { usePageTitle } from '@/context/PageTitleContext';
@@ -196,7 +196,7 @@ export function AppLayout() {
     status: orgStatus,
     error: orgError,
   } = useOrganizationContext();
-  const { currentUser, status: userStatus, error: userError, signOut } = useUserContext();
+  const { currentUser, isClusterAdmin, status: userStatus, error: userError, signOut } = useUserContext();
   const createOrganization = useCreateOrganization();
   const pageTitle = usePageTitle();
   const navigate = useNavigate();
@@ -267,6 +267,12 @@ export function AppLayout() {
       <DropdownMenuContent align="end" className="w-64" data-testid="user-menu">
         {/* The trigger already shows who is signed in and where. */}
         <OrganizationMenuItems onCreateOrganization={() => createOrganization.handleOpenChange(true)} />
+        {isClusterAdmin ? (
+          <>
+            <DropdownMenuSeparator />
+            <ClusterAdministrationMenuItem />
+          </>
+        ) : null}
         {/* PendingInvitesMenu renders nothing without invites, so its divider
             travels with it rather than stacking on the next one. */}
         {pendingMembershipsCount > 0 ? (

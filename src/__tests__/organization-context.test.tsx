@@ -85,13 +85,6 @@ function mockOrganizationLookup(organizations: Array<{ id: string; name: string 
   });
 }
 
-function mockOrganizationList(organizations: Array<{ id: string; name: string }>) {
-  listOrganizations.mockResolvedValue({
-    organizations: organizations.map((org) => create(OrganizationSchema, org)),
-    nextPageToken: '',
-  });
-}
-
 describe('OrganizationContext', () => {
   afterEach(() => {
     cleanup();
@@ -178,7 +171,7 @@ describe('OrganizationContext', () => {
         status: MembershipStatus.ACTIVE,
       }),
     ]);
-    mockOrganizationList([{ id: 'org-1', name: 'Org One' }]);
+    mockOrganizationLookup([{ id: 'org-1', name: 'Org One' }]);
 
     renderWithProviders();
 
@@ -191,7 +184,7 @@ describe('OrganizationContext', () => {
     userContext.isClusterAdmin = true;
 
     mockMemberships([]);
-    mockOrganizationList([]);
+    mockOrganizationLookup([]);
 
     renderWithProviders();
 
@@ -229,11 +222,19 @@ describe('OrganizationContext', () => {
     });
   });
 
-  it('exposes all accessible organizations for cluster admins', async () => {
+  it('exposes only member organizations for cluster admins', async () => {
     userContext.isClusterAdmin = true;
 
-    mockMemberships([]);
-    mockOrganizationList([
+    mockMemberships([
+      create(MembershipSchema, {
+        id: 'membership-1',
+        organizationId: 'org-1',
+        identityId: 'identity-1',
+        role: MembershipRole.MEMBER,
+        status: MembershipStatus.ACTIVE,
+      }),
+    ]);
+    mockOrganizationLookup([
       { id: 'org-1', name: 'Org One' },
       { id: 'org-2', name: 'Org Two' },
     ]);
@@ -241,8 +242,9 @@ describe('OrganizationContext', () => {
     renderWithProviders();
 
     await waitFor(() => {
-      expect(screen.getByTestId('count').textContent).toBe('2');
+      expect(screen.getByTestId('count').textContent).toBe('1');
     });
+    expect(listOrganizations).not.toHaveBeenCalled();
   });
 
   it('tracks pending membership count', async () => {
