@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Product } from './products';
 
 type WindowStub = {
   location: { protocol: string; hostname: string; port: string };
@@ -20,8 +21,8 @@ async function loadProducts() {
   return { PRODUCTS, productUrl };
 }
 
-function product(id: string, PRODUCTS: { id: string }[]) {
-  return PRODUCTS.find((entry) => entry.id === id)!;
+function product(id: string, products: Product[]): Product {
+  return products.find((entry) => entry.id === id)!;
 }
 
 afterEach(() => {
