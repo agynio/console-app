@@ -13,23 +13,26 @@ describe('signOutAtProvider', () => {
     getMetadata.mockReset();
   });
 
-  it('redirects when the provider publishes an end session endpoint', async () => {
+  // Reports the redirect so the caller can tell a sign-out that navigated from
+  // one that still owes a local clear. Clearing on both paths is the bug this
+  // guards: signoutRedirect() needs the stored id_token for id_token_hint.
+  it('redirects and reports it when the provider publishes an end session endpoint', async () => {
     getMetadata.mockResolvedValue({ end_session_endpoint: 'https://auth.agyn.dev:2496/logout' });
     const signoutRedirect = vi.fn().mockResolvedValue(undefined);
 
-    await signOutAtProvider(signoutRedirect);
+    await expect(signOutAtProvider(signoutRedirect)).resolves.toBe(true);
 
     expect(signoutRedirect).toHaveBeenCalledOnce();
   });
 
-  // Dex publishes none and holds no browser session, so the local sign-out the
-  // caller already did is the whole sign-out. Redirecting anyway throws, and the
-  // app renders that as a sign-in failure.
+  // A provider that holds no browser session has nothing to end, so the caller's
+  // local sign-out is the whole sign-out. Redirecting anyway throws, and the app
+  // renders that as a sign-in failure.
   it('does nothing when the provider publishes no end session endpoint', async () => {
     getMetadata.mockResolvedValue({ issuer: 'https://dex.agyn.dev:2496' });
     const signoutRedirect = vi.fn().mockResolvedValue(undefined);
 
-    await signOutAtProvider(signoutRedirect);
+    await expect(signOutAtProvider(signoutRedirect)).resolves.toBe(false);
 
     expect(signoutRedirect).not.toHaveBeenCalled();
   });
@@ -38,7 +41,7 @@ describe('signOutAtProvider', () => {
     getMetadata.mockRejectedValue(new Error('network down'));
     const signoutRedirect = vi.fn().mockResolvedValue(undefined);
 
-    await signOutAtProvider(signoutRedirect);
+    await expect(signOutAtProvider(signoutRedirect)).resolves.toBe(false);
 
     expect(signoutRedirect).not.toHaveBeenCalled();
   });

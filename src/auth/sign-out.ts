@@ -20,11 +20,15 @@ async function supportsProviderSignOut(): Promise<boolean> {
 }
 
 /**
- * Ends the session at the provider, for providers that hold one. The caller has
- * already signed out locally, so this is a no-op wherever there is nothing to
- * end.
+ * Ends the session at the provider, for providers that hold one. Reports whether
+ * it redirected, so the caller knows whether a local sign-out is still owed.
+ *
+ * The stored user has to outlive this call: signoutRedirect() reads its id_token
+ * for id_token_hint and removes the user itself, and Dex answers 400 to a
+ * post_logout_redirect_uri that arrives without the hint.
  */
-export async function signOutAtProvider(signoutRedirect: () => Promise<void>): Promise<void> {
-  if (!(await supportsProviderSignOut())) return;
+export async function signOutAtProvider(signoutRedirect: () => Promise<void>): Promise<boolean> {
+  if (!(await supportsProviderSignOut())) return false;
   await signoutRedirect();
+  return true;
 }

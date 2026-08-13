@@ -119,6 +119,7 @@ export function EnvironmentDetailPage() {
             agentRuntimeImageId: environment.agentRuntimeImageId,
             agentRuntimeImageTag: environment.agentRuntimeImageTag,
             llmMode: environment.llmMode,
+            persistentShells: environment.persistentShells,
           }}
           open={editOpen}
           onOpenChange={setEditOpen}

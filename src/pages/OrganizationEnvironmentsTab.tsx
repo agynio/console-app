@@ -44,6 +44,9 @@ export type EnvironmentValues = {
   agentRuntimeImageId: string;
   agentRuntimeImageTag: string;
   llmMode: LLMMode;
+  // Whether shells in this environment's workloads outlive the connections
+  // that reach them.
+  persistentShells: boolean;
 };
 
 type EnvironmentFieldErrors = Partial<
@@ -83,6 +86,7 @@ const emptyEnvironmentValues: EnvironmentValues = {
   agentRuntimeImageId: '',
   agentRuntimeImageTag: '',
   llmMode: LLMMode.LLM_MODE_PLATFORM,
+  persistentShells: true,
 };
 
 
@@ -212,6 +216,30 @@ export function EnvironmentDialog({
               {values.llmMode === LLMMode.LLM_MODE_NATIVE
                 ? "The agent CLI runs unmodified against the vendor's own plan, using a subscription."
                 : 'Models come from the catalog, through the platform.'}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${testIdPrefix}-persistent-shells`}>Persistent shells</Label>
+            <Select
+              value={values.persistentShells ? 'on' : 'off'}
+              onValueChange={(value) => updateValue('persistentShells', value === 'on')}
+            >
+              <SelectTrigger
+                id={`${testIdPrefix}-persistent-shells`}
+                className="w-full"
+                data-testid={`${testIdPrefix}-persistent-shells`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="on">On</SelectItem>
+                <SelectItem value="off">Off</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {values.persistentShells
+                ? 'A shell survives losing its connection: reload the page or come back from another machine and the work is still running. Stopping the workload still ends it.'
+                : 'A dropped connection ends the shell, as a dropped SSH connection does.'}
             </p>
           </div>
           <div className="space-y-2">
@@ -632,6 +660,7 @@ export function OrganizationEnvironmentsTab() {
             agentRuntimeImageId: editTarget.agentRuntimeImageId,
             agentRuntimeImageTag: editTarget.agentRuntimeImageTag,
             llmMode: editTarget.llmMode,
+            persistentShells: editTarget.persistentShells,
           }}
           runnerOptions={runnerOptions}
           flavorsByRunner={flavorsByRunner}

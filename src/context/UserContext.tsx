@@ -82,25 +82,37 @@ function OidcUserProvider({ children }: { children: ReactNode }) {
     status,
     error,
     signOut: () => {
-      try {
-        setSignedOutFlag();
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < window.sessionStorage.length; i += 1) {
-          const key = window.sessionStorage.key(i);
-          if (key?.startsWith('oidc.user:')) {
-            keysToRemove.push(key);
-          }
+      setSignedOutFlag();
+      void (async () => {
+        // The provider goes first, and nothing local is cleared before it:
+        // signoutRedirect() takes id_token_hint from the stored user and removes
+        // it itself. Clearing up front cost the hint -- which Dex rejects -- and
+        // dropped isAuthenticated while the session was still live, so RequireAuth
+        // signed straight back in and sign-out looked like a page reload.
+        try {
+          if (await signOutAtProvider(() => auth.signoutRedirect())) return;
+        } catch (signoutError) {
+          console.warn('OIDC sign-out redirect failed.', signoutError);
         }
-        keysToRemove.forEach((key) => window.sessionStorage.removeItem(key));
-      } catch (removeError) {
-        console.warn('Failed to clear OIDC session storage.', removeError);
-      }
-      void auth.removeUser().catch((removeError) => {
-        console.warn('Failed to clear OIDC user session.', removeError);
-      });
-      void signOutAtProvider(() => auth.signoutRedirect()).catch((signoutError) => {
-        console.warn('OIDC sign-out redirect failed.', signoutError);
-      });
+        try {
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < window.sessionStorage.length; i += 1) {
+            const key = window.sessionStorage.key(i);
+            if (key?.startsWith('oidc.user:')) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach((key) => window.sessionStorage.removeItem(key));
+        } catch (removeError) {
+          console.warn('Failed to clear OIDC session storage.', removeError);
+        }
+        await auth.removeUser().catch((removeError) => {
+          console.warn('Failed to clear OIDC user session.', removeError);
+        });
+        // Nothing navigated on this path, and the signed-out flag is only read at
+        // mount, so come back through a fresh load.
+        window.location.replace(window.location.origin);
+      })();
     },
   };
 
