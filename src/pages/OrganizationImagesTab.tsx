@@ -3,6 +3,7 @@ import { NavLink, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { imagesClient } from '@/api/client';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { SecretPicker } from '@/components/SecretPicker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -26,6 +27,7 @@ import {
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatDateOnly } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
+import { resolveSecretChoice, secretChoiceOf, type SecretChoice } from '@/lib/secret-choice';
 import { toast } from 'sonner';
 
 const ALL_TYPES = 'all';
@@ -52,7 +54,7 @@ type RegisterValues = {
   type: ImageType;
   repository: string;
   username: string;
-  password: string;
+  secret: SecretChoice;
   visibility: ImageVisibility;
   tagFilter: string;
 };
@@ -63,7 +65,7 @@ const emptyValues: RegisterValues = {
   type: ImageType.WORKSPACE,
   repository: '',
   username: '',
-  password: '',
+  secret: secretChoiceOf(''),
   visibility: ImageVisibility.INTERNAL,
   tagFilter: '',
 };
@@ -101,18 +103,28 @@ export function OrganizationImagesTab() {
   }, [images, organizationId, typeFilter]);
 
   const registerMutation = useMutation({
-    mutationFn: (input: RegisterValues) =>
-      imagesClient.createImage({
+    mutationFn: async (input: RegisterValues) => {
+      // The image holds the credential by reference, so a secret typed here is
+      // created first and named by id. The password never reaches this service.
+      const secretId = await resolveSecretChoice({
+        organizationId,
+        choice: input.secret,
+        fallbackTitle: `${input.name.trim()} registry`,
+        description: `Registry password for image "${input.name.trim()}"`,
+      });
+      void queryClient.invalidateQueries({ queryKey: ['secrets', organizationId] });
+      return imagesClient.createImage({
         organizationId,
         name: input.name.trim(),
         description: input.description.trim(),
         type: input.type,
         repository: input.repository.trim(),
         username: input.username.trim(),
-        password: input.password,
+        secretId,
         visibility: input.visibility,
         tagFilter: input.tagFilter.trim(),
-      }),
+      });
+    },
     onSuccess: () => {
       // Versions arrive from a background discovery pass, so the list is
       // refetched rather than assumed complete.
@@ -293,27 +305,28 @@ export function OrganizationImagesTab() {
                 data-testid="images-register-repository"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Username</Label>
-                <Input
-                  value={values.username}
-                  onChange={(event) => setValues({ ...values, username: event.target.value })}
-                  placeholder="optional"
-                  data-testid="images-register-username"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Password</Label>
-                <Input
-                  type="password"
-                  value={values.password}
-                  onChange={(event) => setValues({ ...values, password: event.target.value })}
-                  placeholder="optional"
-                  data-testid="images-register-password"
-                />
-              </div>
+            <div className="space-y-1">
+              <Label>Username</Label>
+              <Input
+                value={values.username}
+                onChange={(event) => setValues({ ...values, username: event.target.value })}
+                placeholder="optional"
+                data-testid="images-register-username"
+              />
             </div>
+            <SecretPicker
+              organizationId={organizationId}
+              enabled={registerOpen}
+              choice={values.secret}
+              onChange={(secret) => setValues({ ...values, secret })}
+              label="Password"
+              allowNone
+              noneLabel="None — the repository is readable anonymously"
+              valueLabel="Password"
+              titlePlaceholder={values.name.trim() ? `${values.name.trim()} registry` : undefined}
+              testId="images-register-secret"
+              helpText="Stored as a secret in this organization and referenced by the image. Never shown again."
+            />
             <div className="space-y-1">
               <Label>Visibility</Label>
               <Select
