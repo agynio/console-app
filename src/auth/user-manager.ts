@@ -7,6 +7,11 @@ export const userManager = oidcConfig.enabled
       client_id: oidcConfig.clientId,
       redirect_uri: `${window.location.origin}/callback`,
       post_logout_redirect_uri: window.location.origin,
+      // Renewal runs through a hidden frame against the provider's own session
+      // rather than a refresh token, so the app holds nothing long-lived. Dex
+      // compares redirect URIs whole, so this is registered alongside the
+      // callback rather than covered by it.
+      silent_redirect_uri: `${window.location.origin}/silent-renew`,
       scope: oidcConfig.scope,
       // `resource` alone only reaches the authorize redirect and refresh
       // requests — oidc-client-ts omits it from the initial code->token
