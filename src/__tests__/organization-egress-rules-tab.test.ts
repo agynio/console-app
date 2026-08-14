@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildFormValuesFromRule,
+  DEFAULT_EGRESS_RULE_FORM_VALUES,
   parseMethods,
   parsePorts,
+  upstreamTlsToProto,
   validateRuleForm,
 } from '@/lib/egressRules';
 import { EgressRuleAction, HeaderAuthScheme, type EgressRule } from '@/gen/agynio/api/egress/v1/egress_pb';
@@ -20,13 +22,7 @@ describe('egress rule form helpers', () => {
 
   it('validates required fields and headers', () => {
     const validation = validateRuleForm({
-      name: '',
-      description: '',
-      domainPattern: '',
-      ports: '',
-      methods: '',
-      pathPattern: '',
-      action: 'allow',
+      ...DEFAULT_EGRESS_RULE_FORM_VALUES,
       headers: [{ name: 'Authorization', scheme: 'bearer', source: 'secretId', value: '' }],
     });
 
@@ -96,5 +92,83 @@ describe('egress rule form helpers', () => {
       action: 'allow',
       headers: [{ name: 'Authorization', scheme: 'bearer', source: 'secretId', value: 'secret-id' }],
     });
+  });
+});
+
+describe('private destination form helpers', () => {
+  it('requires a resource for a private destination and no domain', () => {
+    const validation = validateRuleForm({
+      ...DEFAULT_EGRESS_RULE_FORM_VALUES,
+      name: 'gitlab-token',
+      destinationKind: 'private',
+    });
+    expect(validation.errors.privateResourceId).toBe('Select a private resource.');
+    expect(validation.errors.domainPattern).toBeUndefined();
+    expect(validation.parsed).toBeUndefined();
+  });
+
+  it('requires the secret when trust is a CA bundle', () => {
+    const validation = validateRuleForm({
+      ...DEFAULT_EGRESS_RULE_FORM_VALUES,
+      name: 'gitlab-token',
+      destinationKind: 'private',
+      privateResourceId: 'resource-1',
+      upstreamTrust: 'caBundle',
+    });
+    expect(validation.errors.upstreamCaSecretId).toBe('Select the CA bundle secret.');
+  });
+
+  it('accepts a private destination without ports', () => {
+    const validation = validateRuleForm({
+      ...DEFAULT_EGRESS_RULE_FORM_VALUES,
+      name: 'gitlab-token',
+      destinationKind: 'private',
+      privateResourceId: 'resource-1',
+    });
+    expect(validation.parsed?.privateResourceId).toBe('resource-1');
+    expect(validation.parsed?.ports).toEqual([]);
+  });
+
+  it('builds form values from a private rule', () => {
+    const rule: EgressRule = {
+      $typeName: 'agynio.api.egress.v1.EgressRule',
+      meta: { $typeName: 'agynio.api.egress.v1.EntityMeta', id: 'rule-id' },
+      organizationId: 'org-id',
+      name: 'gitlab',
+      description: '',
+      matcher: {
+        $typeName: 'agynio.api.egress.v1.EgressRuleMatcher',
+        domainPattern: '',
+        privateResourceId: 'resource-1',
+        ports: [],
+        methods: [],
+        pathPattern: '',
+      },
+      effect: { $typeName: 'agynio.api.egress.v1.EgressRuleEffect', action: EgressRuleAction.ALLOW, inject: [] },
+      upstreamTls: {
+        $typeName: 'agynio.api.egress.v1.EgressRuleUpstreamTls',
+        serverName: 'gitlab.internal',
+        trust: { case: 'caBundleSecretId', value: 'secret-1' },
+      },
+    };
+    const values = buildFormValuesFromRule(rule);
+    expect(values.destinationKind).toBe('private');
+    expect(values.privateResourceId).toBe('resource-1');
+    expect(values.upstreamServerName).toBe('gitlab.internal');
+    expect(values.upstreamTrust).toBe('caBundle');
+    expect(values.upstreamCaSecretId).toBe('secret-1');
+  });
+
+  it('shapes upstream tls for the request', () => {
+    const base = validateRuleForm({
+      ...DEFAULT_EGRESS_RULE_FORM_VALUES,
+      name: 'gitlab-token',
+      destinationKind: 'private',
+      privateResourceId: 'resource-1',
+      upstreamTrust: 'skipVerify',
+    });
+    expect(upstreamTlsToProto(base.parsed!)).toEqual({ serverName: '', trust: { case: 'insecureSkipVerify', value: true } });
+    const publicRule = validateRuleForm({ ...DEFAULT_EGRESS_RULE_FORM_VALUES, name: 'api', domainPattern: 'api.example.com' });
+    expect(upstreamTlsToProto(publicRule.parsed!)).toBeUndefined();
   });
 });

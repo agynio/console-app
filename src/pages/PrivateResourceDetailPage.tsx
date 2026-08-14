@@ -3,7 +3,7 @@ import { CopyIcon, MoreHorizontalIcon } from 'lucide-react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { networksClient } from '@/api/client';
+import { egressClient, networksClient } from '@/api/client';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DetailField } from '@/components/DetailField';
 import { DetailPageHeader } from '@/components/DetailPageHeader';
@@ -315,6 +315,7 @@ function ResourceGrantsCard({
             ))}
           </div>
         ) : null}
+        <RuleAccessList organizationId={organizationId} privateResourceId={privateResourceId} />
         <GrantDialog
           open={grantDialogOpen}
           onOpenChange={setGrantDialogOpen}
@@ -325,6 +326,68 @@ function ResourceGrantsCard({
         />
       </CardContent>
     </Card>
+  );
+}
+
+// The list answers "who can reach this?", so principals reaching the resource
+// through an attached egress rule appear beside the grants, labelled with
+// their source. Revoking is done where the access came from: detach the rule.
+function RuleAccessList({ organizationId, privateResourceId }: { organizationId: string; privateResourceId: string }) {
+  const ruleAccessQuery = useQuery({
+    queryKey: ['private-resources', organizationId, privateResourceId, 'rule-access'],
+    queryFn: async () => {
+      const rules = await egressClient.listEgressRules({
+        organizationId,
+        privateResourceId,
+        pageSize: MAX_PAGE_SIZE,
+        pageToken: '',
+      });
+      const perRule = await Promise.all(
+        (rules.egressRules ?? []).map(async (rule) => {
+          const ruleId = rule.meta?.id ?? '';
+          if (!ruleId) return [];
+          const attachments = await egressClient.listEgressRuleAttachments({
+            organizationId,
+            ruleId,
+            pageSize: MAX_PAGE_SIZE,
+            pageToken: '',
+          });
+          return (attachments.egressRuleAttachments ?? []).map((attachment) => ({
+            key: attachment.meta?.id ?? `${ruleId}:${attachment.target.value ?? ''}`,
+            ruleName: rule.name || ruleId,
+            targetKind: attachment.target.case === 'environmentId' ? 'Environment' : 'Agent',
+            targetId: attachment.target.case === undefined ? attachment.agentId : attachment.target.value,
+          }));
+        }),
+      );
+      return perRule.flat();
+    },
+    enabled: Boolean(organizationId && privateResourceId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const entries = ruleAccessQuery.data ?? [];
+  if (ruleAccessQuery.isPending || ruleAccessQuery.isError || entries.length === 0) return null;
+  return (
+    <div className="space-y-2" data-testid="resource-rule-access">
+      <div>
+        <h4 className="text-sm font-semibold text-foreground">Access through egress rules</h4>
+        <p className="text-xs text-muted-foreground">Revoke by detaching the rule on the Egress Rules tab.</p>
+      </div>
+      <div className="divide-y divide-border border-t border-border">
+        {entries.map((entry) => (
+          <div key={entry.key} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm" data-testid="resource-rule-access-row">
+            <div className="min-w-0">
+              <div className="font-medium text-foreground">{entry.targetKind}</div>
+              <div className="truncate text-xs text-muted-foreground">
+                <span className="font-mono">{entry.targetId}</span> · via rule {entry.ruleName}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

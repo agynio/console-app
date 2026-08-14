@@ -1,7 +1,9 @@
-import type { EgressRule } from '@/gen/agynio/api/egress/v1/egress_pb';
+import type { EgressRule, EgressRuleUpstreamTls } from '@/gen/agynio/api/egress/v1/egress_pb';
 import { EgressRuleAction, HeaderAuthScheme } from '@/gen/agynio/api/egress/v1/egress_pb';
 
 export type EgressActionValue = 'allow' | 'deny';
+export type DestinationKind = 'public' | 'private';
+export type UpstreamTrustSelection = 'default' | 'caBundle' | 'skipVerify';
 export type HeaderCredentialSource = 'value' | 'secretId';
 export type HeaderSchemeSelection = 'none' | 'bearer' | 'basic';
 
@@ -16,7 +18,12 @@ export type HeaderFormValues = {
 export type EgressRuleFormValues = {
   name: string;
   description: string;
+  destinationKind: DestinationKind;
   domainPattern: string;
+  privateResourceId: string;
+  upstreamServerName: string;
+  upstreamTrust: UpstreamTrustSelection;
+  upstreamCaSecretId: string;
   ports: string;
   methods: string;
   pathPattern: string;
@@ -43,7 +50,12 @@ export const EMPTY_HEADER: HeaderFormValues = {
 export const DEFAULT_EGRESS_RULE_FORM_VALUES: EgressRuleFormValues = {
   name: '',
   description: '',
+  destinationKind: 'public',
   domainPattern: '',
+  privateResourceId: '',
+  upstreamServerName: '',
+  upstreamTrust: 'default',
+  upstreamCaSecretId: '',
   ports: '',
   methods: '',
   pathPattern: '',
@@ -87,12 +99,25 @@ export const schemeToProto = (scheme: HeaderSchemeSelection): HeaderAuthScheme =
 export const formatPorts = (ports: number[]) => (ports.length > 0 ? ports.join(', ') : 'Default');
 export const formatMethods = (methods: string[]) => (methods.length > 0 ? methods.join(', ') : 'Any');
 
+export const isPrivateRule = (rule: EgressRule): boolean => Boolean(rule.matcher?.privateResourceId);
+
+const upstreamTrustFromProto = (upstreamTls: EgressRuleUpstreamTls | undefined): UpstreamTrustSelection => {
+  if (upstreamTls?.trust.case === 'caBundleSecretId') return 'caBundle';
+  if (upstreamTls?.trust.case === 'insecureSkipVerify' && upstreamTls.trust.value) return 'skipVerify';
+  return 'default';
+};
+
 export const buildFormValuesFromRule = (rule: EgressRule | null): EgressRuleFormValues => {
   if (!rule) return { ...DEFAULT_EGRESS_RULE_FORM_VALUES };
   return {
     name: rule.name,
     description: rule.description,
+    destinationKind: isPrivateRule(rule) ? 'private' : 'public',
     domainPattern: rule.matcher?.domainPattern ?? '',
+    privateResourceId: rule.matcher?.privateResourceId ?? '',
+    upstreamServerName: rule.upstreamTls?.serverName ?? '',
+    upstreamTrust: upstreamTrustFromProto(rule.upstreamTls),
+    upstreamCaSecretId: rule.upstreamTls?.trust.case === 'caBundleSecretId' ? rule.upstreamTls.trust.value : '',
     ports: rule.matcher?.ports.join(', ') ?? '',
     methods: rule.matcher?.methods.join(', ') ?? '',
     pathPattern: rule.matcher?.pathPattern ?? '',
@@ -111,8 +136,12 @@ export const normalizeRuleFormValues = (values: EgressRuleFormValues): EgressRul
   ...values,
   name: values.name.trim(),
   description: values.description.trim(),
-  domainPattern: values.domainPattern.trim(),
-  ports: values.ports.trim(),
+  domainPattern: values.destinationKind === 'public' ? values.domainPattern.trim() : '',
+  privateResourceId: values.destinationKind === 'private' ? values.privateResourceId.trim() : '',
+  upstreamServerName: values.destinationKind === 'private' ? values.upstreamServerName.trim() : '',
+  upstreamCaSecretId: values.destinationKind === 'private' && values.upstreamTrust === 'caBundle' ? values.upstreamCaSecretId.trim() : '',
+  // A private destination covers every intercept port the resource declares.
+  ports: values.destinationKind === 'public' ? values.ports.trim() : '',
   methods: values.methods.trim(),
   pathPattern: values.pathPattern.trim(),
   headers: values.headers.map((header) => ({
@@ -150,7 +179,11 @@ export const validateRuleForm = (
 ): { errors: EgressRuleFormErrors; parsed?: SubmitEgressRuleValues } => {
   const errors: EgressRuleFormErrors = {};
   if (!values.name) errors.name = 'Name is required.';
-  if (!values.domainPattern) errors.domainPattern = 'Domain pattern is required.';
+  if (values.destinationKind === 'public' && !values.domainPattern) errors.domainPattern = 'Domain pattern is required.';
+  if (values.destinationKind === 'private' && !values.privateResourceId) errors.privateResourceId = 'Select a private resource.';
+  if (values.destinationKind === 'private' && values.upstreamTrust === 'caBundle' && !values.upstreamCaSecretId) {
+    errors.upstreamCaSecretId = 'Select the CA bundle secret.';
+  }
 
   let ports: number[] = [];
   let methods: string[] = [];
@@ -183,4 +216,24 @@ export const validateRuleForm = (
       methods,
     },
   };
+};
+
+export type UpstreamTlsInit = {
+  serverName: string;
+  trust:
+    | { case: 'caBundleSecretId'; value: string }
+    | { case: 'insecureSkipVerify'; value: boolean }
+    | { case: undefined };
+};
+
+// All fields empty clears the block on update; public destinations carry none.
+export const upstreamTlsToProto = (values: SubmitEgressRuleValues): UpstreamTlsInit | undefined => {
+  if (values.destinationKind !== 'private') return undefined;
+  if (values.upstreamTrust === 'caBundle') {
+    return { serverName: values.upstreamServerName, trust: { case: 'caBundleSecretId', value: values.upstreamCaSecretId } };
+  }
+  if (values.upstreamTrust === 'skipVerify') {
+    return { serverName: values.upstreamServerName, trust: { case: 'insecureSkipVerify', value: true } };
+  }
+  return { serverName: values.upstreamServerName, trust: { case: undefined } };
 };

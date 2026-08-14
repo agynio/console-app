@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file agynio/api/egress/v1/egress.proto.
  */
 export const file_agynio_api_egress_v1_egress: GenFile = /*@__PURE__*/
-  fileDesc("CiFhZ3luaW8vYXBpL2VncmVzcy92MS9lZ3Jlc3MucHJvdG8SFGFneW5pby5hcGkuZWdyZXNzLnYxIngKCkVudGl0eU1ldGESCgoCaWQYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiYQoRRWdyZXNzUnVsZU1hdGNoZXISFgoOZG9tYWluX3BhdHRlcm4YASABKAkSDQoFcG9ydHMYAiADKAUSDwoHbWV0aG9kcxgDIAMoCRIUCgxwYXRoX3BhdHRlcm4YBCABKAkijAEKEEVncmVzc1J1bGVIZWFkZXISDAoEbmFtZRgBIAEoCRI2CgZzY2hlbWUYAiABKA4yJi5hZ3luaW8uYXBpLmVncmVzcy52MS5IZWFkZXJBdXRoU2NoZW1lEg8KBXZhbHVlGAMgASgJSAASEwoJc2VjcmV0X2lkGAQgASgJSABCDAoKY3JlZGVudGlhbCKSAQoQRWdyZXNzUnVsZUVmZmVjdBI7CgZhY3Rpb24YASABKA4yJi5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlQWN0aW9uSACIAQESNgoGaW5qZWN0GAIgAygLMiYuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZUhlYWRlckIJCgdfYWN0aW9uIuoBCgpFZ3Jlc3NSdWxlEi4KBG1ldGEYASABKAsyIC5hZ3luaW8uYXBpLmVncmVzcy52MS5FbnRpdHlNZXRhEhcKD29yZ2FuaXphdGlvbl9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEjgKB21hdGNoZXIYBSABKAsyJy5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlTWF0Y2hlchI2CgZlZmZlY3QYBiABKAsyJi5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlRWZmZWN0IqwBChRFZ3Jlc3NSdWxlQXR0YWNobWVudBIuCgRtZXRhGAEgASgLMiAuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRW50aXR5TWV0YRIPCgdydWxlX2lkGAIgASgJEhQKCGFnZW50X2lkGAMgASgJQgIYARIYCg5lbnZpcm9ubWVudF9pZBgEIAEoCUgAEhkKD2FnZW50X3RhcmdldF9pZBgFIAEoCUgAQggKBnRhcmdldCLHAQoXQ3JlYXRlRWdyZXNzUnVsZVJlcXVlc3QSFwoPb3JnYW5pemF0aW9uX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSOAoHbWF0Y2hlchgEIAEoCzInLmFneW5pby5hcGkuZWdyZXNzLnYxLkVncmVzc1J1bGVNYXRjaGVyEjYKBmVmZmVjdBgFIAEoCzImLmFneW5pby5hcGkuZWdyZXNzLnYxLkVncmVzc1J1bGVFZmZlY3QiUQoYQ3JlYXRlRWdyZXNzUnVsZVJlc3BvbnNlEjUKC2VncmVzc19ydWxlGAEgASgLMiAuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZSIiChRHZXRFZ3Jlc3NSdWxlUmVxdWVzdBIKCgJpZBgBIAEoCSJOChVHZXRFZ3Jlc3NSdWxlUmVzcG9uc2USNQoLZWdyZXNzX3J1bGUYASABKAsyIC5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlIlgKFkxpc3RFZ3Jlc3NSdWxlc1JlcXVlc3QSFwoPb3JnYW5pemF0aW9uX2lkGAEgASgJEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJImoKF0xpc3RFZ3Jlc3NSdWxlc1Jlc3BvbnNlEjYKDGVncmVzc19ydWxlcxgBIAMoCzIgLmFneW5pby5hcGkuZWdyZXNzLnYxLkVncmVzc1J1bGUSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIv4BChdVcGRhdGVFZ3Jlc3NSdWxlUmVxdWVzdBIKCgJpZBgBIAEoCRIRCgRuYW1lGAIgASgJSACIAQESGAoLZGVzY3JpcHRpb24YAyABKAlIAYgBARI9CgdtYXRjaGVyGAQgASgLMicuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZU1hdGNoZXJIAogBARI7CgZlZmZlY3QYBSABKAsyJi5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlRWZmZWN0SAOIAQFCBwoFX25hbWVCDgoMX2Rlc2NyaXB0aW9uQgoKCF9tYXRjaGVyQgkKB19lZmZlY3QiUQoYVXBkYXRlRWdyZXNzUnVsZVJlc3BvbnNlEjUKC2VncmVzc19ydWxlGAEgASgLMiAuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZSIlChdEZWxldGVFZ3Jlc3NSdWxlUmVxdWVzdBIKCgJpZBgBIAEoCSIaChhEZWxldGVFZ3Jlc3NSdWxlUmVzcG9uc2UiiQEKIUNyZWF0ZUVncmVzc1J1bGVBdHRhY2htZW50UmVxdWVzdBIPCgdydWxlX2lkGAEgASgJEhQKCGFnZW50X2lkGAIgASgJQgIYARIYCg5lbnZpcm9ubWVudF9pZBgDIAEoCUgAEhkKD2FnZW50X3RhcmdldF9pZBgGIAEoCUgAQggKBnRhcmdldCJwCiJDcmVhdGVFZ3Jlc3NSdWxlQXR0YWNobWVudFJlc3BvbnNlEkoKFmVncmVzc19ydWxlX2F0dGFjaG1lbnQYASABKAsyKi5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlQXR0YWNobWVudCIvCiFEZWxldGVFZ3Jlc3NSdWxlQXR0YWNobWVudFJlcXVlc3QSCgoCaWQYASABKAkiJAoiRGVsZXRlRWdyZXNzUnVsZUF0dGFjaG1lbnRSZXNwb25zZSKOAgogTGlzdEVncmVzc1J1bGVBdHRhY2htZW50c1JlcXVlc3QSFwoPb3JnYW5pemF0aW9uX2lkGAEgASgJEhQKB3J1bGVfaWQYAiABKAlIAIgBARIZCghhZ2VudF9pZBgDIAEoCUICGAFIAYgBARIRCglwYWdlX3NpemUYBCABKAUSEgoKcGFnZV90b2tlbhgFIAEoCRIbCg5lbnZpcm9ubWVudF9pZBgGIAEoCUgCiAEBEhwKD2FnZW50X3RhcmdldF9pZBgHIAEoCUgDiAEBQgoKCF9ydWxlX2lkQgsKCV9hZ2VudF9pZEIRCg9fZW52aXJvbm1lbnRfaWRCEgoQX2FnZW50X3RhcmdldF9pZCKJAQohTGlzdEVncmVzc1J1bGVBdHRhY2htZW50c1Jlc3BvbnNlEksKF2VncmVzc19ydWxlX2F0dGFjaG1lbnRzGAEgAygLMiouYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZUF0dGFjaG1lbnQSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIjEKHUxpc3RFZ3Jlc3NSdWxlc0J5QWdlbnRSZXF1ZXN0EhAKCGFnZW50X2lkGAEgASgJIlgKHkxpc3RFZ3Jlc3NSdWxlc0J5QWdlbnRSZXNwb25zZRI2CgxlZ3Jlc3NfcnVsZXMYASADKAsyIC5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlIj0KI0xpc3RFZ3Jlc3NSdWxlc0J5RW52aXJvbm1lbnRSZXF1ZXN0EhYKDmVudmlyb25tZW50X2lkGAEgASgJIl4KJExpc3RFZ3Jlc3NSdWxlc0J5RW52aXJvbm1lbnRSZXNwb25zZRI2CgxlZ3Jlc3NfcnVsZXMYASADKAsyIC5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlIjcKIkNvdW50UnVsZXNSZWZlcmVuY2luZ1NlY3JldFJlcXVlc3QSEQoJc2VjcmV0X2lkGAEgASgJIk0KI0NvdW50UnVsZXNSZWZlcmVuY2luZ1NlY3JldFJlc3BvbnNlEg0KBWNvdW50GAEgASgFEhcKD2VncmVzc19ydWxlX2lkcxgCIAMoCSpxChBFZ3Jlc3NSdWxlQWN0aW9uEiIKHkVHUkVTU19SVUxFX0FDVElPTl9VTlNQRUNJRklFRBAAEhwKGEVHUkVTU19SVUxFX0FDVElPTl9BTExPVxABEhsKF0VHUkVTU19SVUxFX0FDVElPTl9ERU5ZEAIqcwoQSGVhZGVyQXV0aFNjaGVtZRIiCh5IRUFERVJfQVVUSF9TQ0hFTUVfVU5TUEVDSUZJRUQQABIdChlIRUFERVJfQVVUSF9TQ0hFTUVfQkVBUkVSEAESHAoYSEVBREVSX0FVVEhfU0NIRU1FX0JBU0lDEAIyrQsKEkVncmVzc1J1bGVzU2VydmljZRJxChBDcmVhdGVFZ3Jlc3NSdWxlEi0uYWd5bmlvLmFwaS5lZ3Jlc3MudjEuQ3JlYXRlRWdyZXNzUnVsZVJlcXVlc3QaLi5hZ3luaW8uYXBpLmVncmVzcy52MS5DcmVhdGVFZ3Jlc3NSdWxlUmVzcG9uc2USaAoNR2V0RWdyZXNzUnVsZRIqLmFneW5pby5hcGkuZWdyZXNzLnYxLkdldEVncmVzc1J1bGVSZXF1ZXN0GisuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuR2V0RWdyZXNzUnVsZVJlc3BvbnNlEm4KD0xpc3RFZ3Jlc3NSdWxlcxIsLmFneW5pby5hcGkuZWdyZXNzLnYxLkxpc3RFZ3Jlc3NSdWxlc1JlcXVlc3QaLS5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0RWdyZXNzUnVsZXNSZXNwb25zZRJxChBVcGRhdGVFZ3Jlc3NSdWxlEi0uYWd5bmlvLmFwaS5lZ3Jlc3MudjEuVXBkYXRlRWdyZXNzUnVsZVJlcXVlc3QaLi5hZ3luaW8uYXBpLmVncmVzcy52MS5VcGRhdGVFZ3Jlc3NSdWxlUmVzcG9uc2UScQoQRGVsZXRlRWdyZXNzUnVsZRItLmFneW5pby5hcGkuZWdyZXNzLnYxLkRlbGV0ZUVncmVzc1J1bGVSZXF1ZXN0Gi4uYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRGVsZXRlRWdyZXNzUnVsZVJlc3BvbnNlEo8BChpDcmVhdGVFZ3Jlc3NSdWxlQXR0YWNobWVudBI3LmFneW5pby5hcGkuZWdyZXNzLnYxLkNyZWF0ZUVncmVzc1J1bGVBdHRhY2htZW50UmVxdWVzdBo4LmFneW5pby5hcGkuZWdyZXNzLnYxLkNyZWF0ZUVncmVzc1J1bGVBdHRhY2htZW50UmVzcG9uc2USjwEKGkRlbGV0ZUVncmVzc1J1bGVBdHRhY2htZW50EjcuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRGVsZXRlRWdyZXNzUnVsZUF0dGFjaG1lbnRSZXF1ZXN0GjguYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRGVsZXRlRWdyZXNzUnVsZUF0dGFjaG1lbnRSZXNwb25zZRKMAQoZTGlzdEVncmVzc1J1bGVBdHRhY2htZW50cxI2LmFneW5pby5hcGkuZWdyZXNzLnYxLkxpc3RFZ3Jlc3NSdWxlQXR0YWNobWVudHNSZXF1ZXN0GjcuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuTGlzdEVncmVzc1J1bGVBdHRhY2htZW50c1Jlc3BvbnNlEoMBChZMaXN0RWdyZXNzUnVsZXNCeUFnZW50EjMuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuTGlzdEVncmVzc1J1bGVzQnlBZ2VudFJlcXVlc3QaNC5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0RWdyZXNzUnVsZXNCeUFnZW50UmVzcG9uc2USlQEKHExpc3RFZ3Jlc3NSdWxlc0J5RW52aXJvbm1lbnQSOS5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0RWdyZXNzUnVsZXNCeUVudmlyb25tZW50UmVxdWVzdBo6LmFneW5pby5hcGkuZWdyZXNzLnYxLkxpc3RFZ3Jlc3NSdWxlc0J5RW52aXJvbm1lbnRSZXNwb25zZRKSAQobQ291bnRSdWxlc1JlZmVyZW5jaW5nU2VjcmV0EjguYWd5bmlvLmFwaS5lZ3Jlc3MudjEuQ291bnRSdWxlc1JlZmVyZW5jaW5nU2VjcmV0UmVxdWVzdBo5LmFneW5pby5hcGkuZWdyZXNzLnYxLkNvdW50UnVsZXNSZWZlcmVuY2luZ1NlY3JldFJlc3BvbnNlQjlaN2dpdGh1Yi5jb20vYWd5bmlvL2FwaS9nZW4vYWd5bmlvL2FwaS9lZ3Jlc3MvdjE7ZWdyZXNzdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CiFhZ3luaW8vYXBpL2VncmVzcy92MS9lZ3Jlc3MucHJvdG8SFGFneW5pby5hcGkuZWdyZXNzLnYxIngKCkVudGl0eU1ldGESCgoCaWQYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAifgoRRWdyZXNzUnVsZU1hdGNoZXISFgoOZG9tYWluX3BhdHRlcm4YASABKAkSDQoFcG9ydHMYAiADKAUSDwoHbWV0aG9kcxgDIAMoCRIUCgxwYXRoX3BhdHRlcm4YBCABKAkSGwoTcHJpdmF0ZV9yZXNvdXJjZV9pZBgFIAEoCSJ0ChVFZ3Jlc3NSdWxlVXBzdHJlYW1UbHMSEwoLc2VydmVyX25hbWUYASABKAkSHQoTY2FfYnVuZGxlX3NlY3JldF9pZBgCIAEoCUgAEh4KFGluc2VjdXJlX3NraXBfdmVyaWZ5GAMgASgISABCBwoFdHJ1c3QijAEKEEVncmVzc1J1bGVIZWFkZXISDAoEbmFtZRgBIAEoCRI2CgZzY2hlbWUYAiABKA4yJi5hZ3luaW8uYXBpLmVncmVzcy52MS5IZWFkZXJBdXRoU2NoZW1lEg8KBXZhbHVlGAMgASgJSAASEwoJc2VjcmV0X2lkGAQgASgJSABCDAoKY3JlZGVudGlhbCKSAQoQRWdyZXNzUnVsZUVmZmVjdBI7CgZhY3Rpb24YASABKA4yJi5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlQWN0aW9uSACIAQESNgoGaW5qZWN0GAIgAygLMiYuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZUhlYWRlckIJCgdfYWN0aW9uIsMCCgpFZ3Jlc3NSdWxlEi4KBG1ldGEYASABKAsyIC5hZ3luaW8uYXBpLmVncmVzcy52MS5FbnRpdHlNZXRhEhcKD29yZ2FuaXphdGlvbl9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEjgKB21hdGNoZXIYBSABKAsyJy5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlTWF0Y2hlchI2CgZlZmZlY3QYBiABKAsyJi5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlRWZmZWN0EkYKDHVwc3RyZWFtX3RscxgHIAEoCzIrLmFneW5pby5hcGkuZWdyZXNzLnYxLkVncmVzc1J1bGVVcHN0cmVhbVRsc0gAiAEBQg8KDV91cHN0cmVhbV90bHMirAEKFEVncmVzc1J1bGVBdHRhY2htZW50Ei4KBG1ldGEYASABKAsyIC5hZ3luaW8uYXBpLmVncmVzcy52MS5FbnRpdHlNZXRhEg8KB3J1bGVfaWQYAiABKAkSFAoIYWdlbnRfaWQYAyABKAlCAhgBEhgKDmVudmlyb25tZW50X2lkGAQgASgJSAASGQoPYWdlbnRfdGFyZ2V0X2lkGAUgASgJSABCCAoGdGFyZ2V0IqACChdDcmVhdGVFZ3Jlc3NSdWxlUmVxdWVzdBIXCg9vcmdhbml6YXRpb25faWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRI4CgdtYXRjaGVyGAQgASgLMicuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZU1hdGNoZXISNgoGZWZmZWN0GAUgASgLMiYuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZUVmZmVjdBJGCgx1cHN0cmVhbV90bHMYBiABKAsyKy5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlVXBzdHJlYW1UbHNIAIgBAUIPCg1fdXBzdHJlYW1fdGxzIlEKGENyZWF0ZUVncmVzc1J1bGVSZXNwb25zZRI1CgtlZ3Jlc3NfcnVsZRgBIAEoCzIgLmFneW5pby5hcGkuZWdyZXNzLnYxLkVncmVzc1J1bGUiIgoUR2V0RWdyZXNzUnVsZVJlcXVlc3QSCgoCaWQYASABKAkiTgoVR2V0RWdyZXNzUnVsZVJlc3BvbnNlEjUKC2VncmVzc19ydWxlGAEgASgLMiAuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZSLoAQoWTGlzdEVncmVzc1J1bGVzUmVxdWVzdBIXCg9vcmdhbml6YXRpb25faWQYASABKAkSEQoJcGFnZV9zaXplGAIgASgFEhIKCnBhZ2VfdG9rZW4YAyABKAkSIAoTcHJpdmF0ZV9yZXNvdXJjZV9pZBgEIAEoCUgAiAEBEkQKC3RhcmdldF9raW5kGAUgASgOMiouYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZVRhcmdldEtpbmRIAYgBAUIWChRfcHJpdmF0ZV9yZXNvdXJjZV9pZEIOCgxfdGFyZ2V0X2tpbmQiagoXTGlzdEVncmVzc1J1bGVzUmVzcG9uc2USNgoMZWdyZXNzX3J1bGVzGAEgAygLMiAuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAki1wIKF1VwZGF0ZUVncmVzc1J1bGVSZXF1ZXN0EgoKAmlkGAEgASgJEhEKBG5hbWUYAiABKAlIAIgBARIYCgtkZXNjcmlwdGlvbhgDIAEoCUgBiAEBEj0KB21hdGNoZXIYBCABKAsyJy5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlTWF0Y2hlckgCiAEBEjsKBmVmZmVjdBgFIAEoCzImLmFneW5pby5hcGkuZWdyZXNzLnYxLkVncmVzc1J1bGVFZmZlY3RIA4gBARJGCgx1cHN0cmVhbV90bHMYBiABKAsyKy5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlVXBzdHJlYW1UbHNIBIgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb25CCgoIX21hdGNoZXJCCQoHX2VmZmVjdEIPCg1fdXBzdHJlYW1fdGxzIlEKGFVwZGF0ZUVncmVzc1J1bGVSZXNwb25zZRI1CgtlZ3Jlc3NfcnVsZRgBIAEoCzIgLmFneW5pby5hcGkuZWdyZXNzLnYxLkVncmVzc1J1bGUiJQoXRGVsZXRlRWdyZXNzUnVsZVJlcXVlc3QSCgoCaWQYASABKAkiGgoYRGVsZXRlRWdyZXNzUnVsZVJlc3BvbnNlIokBCiFDcmVhdGVFZ3Jlc3NSdWxlQXR0YWNobWVudFJlcXVlc3QSDwoHcnVsZV9pZBgBIAEoCRIUCghhZ2VudF9pZBgCIAEoCUICGAESGAoOZW52aXJvbm1lbnRfaWQYAyABKAlIABIZCg9hZ2VudF90YXJnZXRfaWQYBiABKAlIAEIICgZ0YXJnZXQicAoiQ3JlYXRlRWdyZXNzUnVsZUF0dGFjaG1lbnRSZXNwb25zZRJKChZlZ3Jlc3NfcnVsZV9hdHRhY2htZW50GAEgASgLMiouYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUnVsZUF0dGFjaG1lbnQiLwohRGVsZXRlRWdyZXNzUnVsZUF0dGFjaG1lbnRSZXF1ZXN0EgoKAmlkGAEgASgJIiQKIkRlbGV0ZUVncmVzc1J1bGVBdHRhY2htZW50UmVzcG9uc2UijgIKIExpc3RFZ3Jlc3NSdWxlQXR0YWNobWVudHNSZXF1ZXN0EhcKD29yZ2FuaXphdGlvbl9pZBgBIAEoCRIUCgdydWxlX2lkGAIgASgJSACIAQESGQoIYWdlbnRfaWQYAyABKAlCAhgBSAGIAQESEQoJcGFnZV9zaXplGAQgASgFEhIKCnBhZ2VfdG9rZW4YBSABKAkSGwoOZW52aXJvbm1lbnRfaWQYBiABKAlIAogBARIcCg9hZ2VudF90YXJnZXRfaWQYByABKAlIA4gBAUIKCghfcnVsZV9pZEILCglfYWdlbnRfaWRCEQoPX2Vudmlyb25tZW50X2lkQhIKEF9hZ2VudF90YXJnZXRfaWQiiQEKIUxpc3RFZ3Jlc3NSdWxlQXR0YWNobWVudHNSZXNwb25zZRJLChdlZ3Jlc3NfcnVsZV9hdHRhY2htZW50cxgBIAMoCzIqLmFneW5pby5hcGkuZWdyZXNzLnYxLkVncmVzc1J1bGVBdHRhY2htZW50EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJ0ChNQcml2YXRlUmVzb3VyY2VJbmZvEhYKDmludGVyY2VwdF9ob3N0GAEgASgJEkUKCHByb3RvY29sGAIgASgOMjMuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRWdyZXNzUHJpdmF0ZVJlc291cmNlUHJvdG9jb2wiMQodTGlzdEVncmVzc1J1bGVzQnlBZ2VudFJlcXVlc3QSEAoIYWdlbnRfaWQYASABKAkiowIKHkxpc3RFZ3Jlc3NSdWxlc0J5QWdlbnRSZXNwb25zZRI2CgxlZ3Jlc3NfcnVsZXMYASADKAsyIC5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlEmUKEXByaXZhdGVfcmVzb3VyY2VzGAIgAygLMkouYWd5bmlvLmFwaS5lZ3Jlc3MudjEuTGlzdEVncmVzc1J1bGVzQnlBZ2VudFJlc3BvbnNlLlByaXZhdGVSZXNvdXJjZXNFbnRyeRpiChVQcml2YXRlUmVzb3VyY2VzRW50cnkSCwoDa2V5GAEgASgJEjgKBXZhbHVlGAIgASgLMikuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuUHJpdmF0ZVJlc291cmNlSW5mbzoCOAEiPQojTGlzdEVncmVzc1J1bGVzQnlFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkirwIKJExpc3RFZ3Jlc3NSdWxlc0J5RW52aXJvbm1lbnRSZXNwb25zZRI2CgxlZ3Jlc3NfcnVsZXMYASADKAsyIC5hZ3luaW8uYXBpLmVncmVzcy52MS5FZ3Jlc3NSdWxlEmsKEXByaXZhdGVfcmVzb3VyY2VzGAIgAygLMlAuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuTGlzdEVncmVzc1J1bGVzQnlFbnZpcm9ubWVudFJlc3BvbnNlLlByaXZhdGVSZXNvdXJjZXNFbnRyeRpiChVQcml2YXRlUmVzb3VyY2VzRW50cnkSCwoDa2V5GAEgASgJEjgKBXZhbHVlGAIgASgLMikuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuUHJpdmF0ZVJlc291cmNlSW5mbzoCOAEiNwoiQ291bnRSdWxlc1JlZmVyZW5jaW5nU2VjcmV0UmVxdWVzdBIRCglzZWNyZXRfaWQYASABKAkiTQojQ291bnRSdWxlc1JlZmVyZW5jaW5nU2VjcmV0UmVzcG9uc2USDQoFY291bnQYASABKAUSFwoPZWdyZXNzX3J1bGVfaWRzGAIgAygJIkoKK0NvdW50UnVsZXNSZWZlcmVuY2luZ1ByaXZhdGVSZXNvdXJjZVJlcXVlc3QSGwoTcHJpdmF0ZV9yZXNvdXJjZV9pZBgBIAEoCSJWCixDb3VudFJ1bGVzUmVmZXJlbmNpbmdQcml2YXRlUmVzb3VyY2VSZXNwb25zZRINCgVjb3VudBgBIAEoBRIXCg9lZ3Jlc3NfcnVsZV9pZHMYAiADKAkiPgojTGlzdE1lZGlhdGVkUHJpdmF0ZVJlc291cmNlc1JlcXVlc3QSFwoPb3JnYW5pemF0aW9uX2lkGAEgASgJIkQKJExpc3RNZWRpYXRlZFByaXZhdGVSZXNvdXJjZXNSZXNwb25zZRIcChRwcml2YXRlX3Jlc291cmNlX2lkcxgBIAMoCSJTChJBdHRhY2hlZFJ1bGVEb21haW4SFgoOZWdyZXNzX3J1bGVfaWQYASABKAkSFgoOZG9tYWluX3BhdHRlcm4YAiABKAkSDQoFcG9ydHMYAyADKAUiWwoeTGlzdEF0dGFjaGVkUnVsZURvbWFpbnNSZXF1ZXN0EhIKCGFnZW50X2lkGAEgASgJSAASGAoOZW52aXJvbm1lbnRfaWQYAiABKAlIAEILCglwcmluY2lwYWwiXAofTGlzdEF0dGFjaGVkUnVsZURvbWFpbnNSZXNwb25zZRI5Cgdkb21haW5zGAEgAygLMiguYWd5bmlvLmFwaS5lZ3Jlc3MudjEuQXR0YWNoZWRSdWxlRG9tYWluKnEKEEVncmVzc1J1bGVBY3Rpb24SIgoeRUdSRVNTX1JVTEVfQUNUSU9OX1VOU1BFQ0lGSUVEEAASHAoYRUdSRVNTX1JVTEVfQUNUSU9OX0FMTE9XEAESGwoXRUdSRVNTX1JVTEVfQUNUSU9OX0RFTlkQAipzChBIZWFkZXJBdXRoU2NoZW1lEiIKHkhFQURFUl9BVVRIX1NDSEVNRV9VTlNQRUNJRklFRBAAEh0KGUhFQURFUl9BVVRIX1NDSEVNRV9CRUFSRVIQARIcChhIRUFERVJfQVVUSF9TQ0hFTUVfQkFTSUMQAiqIAQoURWdyZXNzUnVsZVRhcmdldEtpbmQSJwojRUdSRVNTX1JVTEVfVEFSR0VUX0tJTkRfVU5TUEVDSUZJRUQQABIiCh5FR1JFU1NfUlVMRV9UQVJHRVRfS0lORF9QVUJMSUMQARIjCh9FR1JFU1NfUlVMRV9UQVJHRVRfS0lORF9QUklWQVRFEAIqqAEKHUVncmVzc1ByaXZhdGVSZXNvdXJjZVByb3RvY29sEjAKLEVHUkVTU19QUklWQVRFX1JFU09VUkNFX1BST1RPQ09MX1VOU1BFQ0lGSUVEEAASKQolRUdSRVNTX1BSSVZBVEVfUkVTT1VSQ0VfUFJPVE9DT0xfSFRUUBABEioKJkVHUkVTU19QUklWQVRFX1JFU09VUkNFX1BST1RPQ09MX0hUVFBTEAIy/g4KEkVncmVzc1J1bGVzU2VydmljZRJxChBDcmVhdGVFZ3Jlc3NSdWxlEi0uYWd5bmlvLmFwaS5lZ3Jlc3MudjEuQ3JlYXRlRWdyZXNzUnVsZVJlcXVlc3QaLi5hZ3luaW8uYXBpLmVncmVzcy52MS5DcmVhdGVFZ3Jlc3NSdWxlUmVzcG9uc2USaAoNR2V0RWdyZXNzUnVsZRIqLmFneW5pby5hcGkuZWdyZXNzLnYxLkdldEVncmVzc1J1bGVSZXF1ZXN0GisuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuR2V0RWdyZXNzUnVsZVJlc3BvbnNlEm4KD0xpc3RFZ3Jlc3NSdWxlcxIsLmFneW5pby5hcGkuZWdyZXNzLnYxLkxpc3RFZ3Jlc3NSdWxlc1JlcXVlc3QaLS5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0RWdyZXNzUnVsZXNSZXNwb25zZRJxChBVcGRhdGVFZ3Jlc3NSdWxlEi0uYWd5bmlvLmFwaS5lZ3Jlc3MudjEuVXBkYXRlRWdyZXNzUnVsZVJlcXVlc3QaLi5hZ3luaW8uYXBpLmVncmVzcy52MS5VcGRhdGVFZ3Jlc3NSdWxlUmVzcG9uc2UScQoQRGVsZXRlRWdyZXNzUnVsZRItLmFneW5pby5hcGkuZWdyZXNzLnYxLkRlbGV0ZUVncmVzc1J1bGVSZXF1ZXN0Gi4uYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRGVsZXRlRWdyZXNzUnVsZVJlc3BvbnNlEo8BChpDcmVhdGVFZ3Jlc3NSdWxlQXR0YWNobWVudBI3LmFneW5pby5hcGkuZWdyZXNzLnYxLkNyZWF0ZUVncmVzc1J1bGVBdHRhY2htZW50UmVxdWVzdBo4LmFneW5pby5hcGkuZWdyZXNzLnYxLkNyZWF0ZUVncmVzc1J1bGVBdHRhY2htZW50UmVzcG9uc2USjwEKGkRlbGV0ZUVncmVzc1J1bGVBdHRhY2htZW50EjcuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRGVsZXRlRWdyZXNzUnVsZUF0dGFjaG1lbnRSZXF1ZXN0GjguYWd5bmlvLmFwaS5lZ3Jlc3MudjEuRGVsZXRlRWdyZXNzUnVsZUF0dGFjaG1lbnRSZXNwb25zZRKMAQoZTGlzdEVncmVzc1J1bGVBdHRhY2htZW50cxI2LmFneW5pby5hcGkuZWdyZXNzLnYxLkxpc3RFZ3Jlc3NSdWxlQXR0YWNobWVudHNSZXF1ZXN0GjcuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuTGlzdEVncmVzc1J1bGVBdHRhY2htZW50c1Jlc3BvbnNlEoMBChZMaXN0RWdyZXNzUnVsZXNCeUFnZW50EjMuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuTGlzdEVncmVzc1J1bGVzQnlBZ2VudFJlcXVlc3QaNC5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0RWdyZXNzUnVsZXNCeUFnZW50UmVzcG9uc2USlQEKHExpc3RFZ3Jlc3NSdWxlc0J5RW52aXJvbm1lbnQSOS5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0RWdyZXNzUnVsZXNCeUVudmlyb25tZW50UmVxdWVzdBo6LmFneW5pby5hcGkuZWdyZXNzLnYxLkxpc3RFZ3Jlc3NSdWxlc0J5RW52aXJvbm1lbnRSZXNwb25zZRKSAQobQ291bnRSdWxlc1JlZmVyZW5jaW5nU2VjcmV0EjguYWd5bmlvLmFwaS5lZ3Jlc3MudjEuQ291bnRSdWxlc1JlZmVyZW5jaW5nU2VjcmV0UmVxdWVzdBo5LmFneW5pby5hcGkuZWdyZXNzLnYxLkNvdW50UnVsZXNSZWZlcmVuY2luZ1NlY3JldFJlc3BvbnNlEq0BCiRDb3VudFJ1bGVzUmVmZXJlbmNpbmdQcml2YXRlUmVzb3VyY2USQS5hZ3luaW8uYXBpLmVncmVzcy52MS5Db3VudFJ1bGVzUmVmZXJlbmNpbmdQcml2YXRlUmVzb3VyY2VSZXF1ZXN0GkIuYWd5bmlvLmFwaS5lZ3Jlc3MudjEuQ291bnRSdWxlc1JlZmVyZW5jaW5nUHJpdmF0ZVJlc291cmNlUmVzcG9uc2USlQEKHExpc3RNZWRpYXRlZFByaXZhdGVSZXNvdXJjZXMSOS5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0TWVkaWF0ZWRQcml2YXRlUmVzb3VyY2VzUmVxdWVzdBo6LmFneW5pby5hcGkuZWdyZXNzLnYxLkxpc3RNZWRpYXRlZFByaXZhdGVSZXNvdXJjZXNSZXNwb25zZRKGAQoXTGlzdEF0dGFjaGVkUnVsZURvbWFpbnMSNC5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0QXR0YWNoZWRSdWxlRG9tYWluc1JlcXVlc3QaNS5hZ3luaW8uYXBpLmVncmVzcy52MS5MaXN0QXR0YWNoZWRSdWxlRG9tYWluc1Jlc3BvbnNlQjlaN2dpdGh1Yi5jb20vYWd5bmlvL2FwaS9nZW4vYWd5bmlvL2FwaS9lZ3Jlc3MvdjE7ZWdyZXNzdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Metadata shared by egress resources.
@@ -76,6 +76,11 @@ export type EgressRuleMatcher = Message<"agynio.api.egress.v1.EgressRuleMatcher"
    * @generated from field: string path_pattern = 4;
    */
   pathPattern: string;
+
+  /**
+   * @generated from field: string private_resource_id = 5;
+   */
+  privateResourceId: string;
 };
 
 /**
@@ -84,6 +89,40 @@ export type EgressRuleMatcher = Message<"agynio.api.egress.v1.EgressRuleMatcher"
  */
 export const EgressRuleMatcherSchema: GenMessage<EgressRuleMatcher> = /*@__PURE__*/
   messageDesc(file_agynio_api_egress_v1_egress, 1);
+
+/**
+ * @generated from message agynio.api.egress.v1.EgressRuleUpstreamTls
+ */
+export type EgressRuleUpstreamTls = Message<"agynio.api.egress.v1.EgressRuleUpstreamTls"> & {
+  /**
+   * @generated from field: string server_name = 1;
+   */
+  serverName: string;
+
+  /**
+   * @generated from oneof agynio.api.egress.v1.EgressRuleUpstreamTls.trust
+   */
+  trust: {
+    /**
+     * @generated from field: string ca_bundle_secret_id = 2;
+     */
+    value: string;
+    case: "caBundleSecretId";
+  } | {
+    /**
+     * @generated from field: bool insecure_skip_verify = 3;
+     */
+    value: boolean;
+    case: "insecureSkipVerify";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.EgressRuleUpstreamTls.
+ * Use `create(EgressRuleUpstreamTlsSchema)` to create a new message.
+ */
+export const EgressRuleUpstreamTlsSchema: GenMessage<EgressRuleUpstreamTls> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 2);
 
 /**
  * Header credential injected by the egress gateway.
@@ -124,7 +163,7 @@ export type EgressRuleHeader = Message<"agynio.api.egress.v1.EgressRuleHeader"> 
  * Use `create(EgressRuleHeaderSchema)` to create a new message.
  */
 export const EgressRuleHeaderSchema: GenMessage<EgressRuleHeader> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 2);
+  messageDesc(file_agynio_api_egress_v1_egress, 3);
 
 /**
  * Behavior to apply to requests matching an egress rule.
@@ -148,7 +187,7 @@ export type EgressRuleEffect = Message<"agynio.api.egress.v1.EgressRuleEffect"> 
  * Use `create(EgressRuleEffectSchema)` to create a new message.
  */
 export const EgressRuleEffectSchema: GenMessage<EgressRuleEffect> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 3);
+  messageDesc(file_agynio_api_egress_v1_egress, 4);
 
 /**
  * Rule mediating outbound HTTP/HTTPS traffic from agent workloads.
@@ -185,6 +224,11 @@ export type EgressRule = Message<"agynio.api.egress.v1.EgressRule"> & {
    * @generated from field: agynio.api.egress.v1.EgressRuleEffect effect = 6;
    */
   effect?: EgressRuleEffect;
+
+  /**
+   * @generated from field: optional agynio.api.egress.v1.EgressRuleUpstreamTls upstream_tls = 7;
+   */
+  upstreamTls?: EgressRuleUpstreamTls;
 };
 
 /**
@@ -192,7 +236,7 @@ export type EgressRule = Message<"agynio.api.egress.v1.EgressRule"> & {
  * Use `create(EgressRuleSchema)` to create a new message.
  */
 export const EgressRuleSchema: GenMessage<EgressRule> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 4);
+  messageDesc(file_agynio_api_egress_v1_egress, 5);
 
 /**
  * Attachment binding an egress rule to an agent or environment.
@@ -239,7 +283,7 @@ export type EgressRuleAttachment = Message<"agynio.api.egress.v1.EgressRuleAttac
  * Use `create(EgressRuleAttachmentSchema)` to create a new message.
  */
 export const EgressRuleAttachmentSchema: GenMessage<EgressRuleAttachment> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 5);
+  messageDesc(file_agynio_api_egress_v1_egress, 6);
 
 /**
  * @generated from message agynio.api.egress.v1.CreateEgressRuleRequest
@@ -269,6 +313,11 @@ export type CreateEgressRuleRequest = Message<"agynio.api.egress.v1.CreateEgress
    * @generated from field: agynio.api.egress.v1.EgressRuleEffect effect = 5;
    */
   effect?: EgressRuleEffect;
+
+  /**
+   * @generated from field: optional agynio.api.egress.v1.EgressRuleUpstreamTls upstream_tls = 6;
+   */
+  upstreamTls?: EgressRuleUpstreamTls;
 };
 
 /**
@@ -276,7 +325,7 @@ export type CreateEgressRuleRequest = Message<"agynio.api.egress.v1.CreateEgress
  * Use `create(CreateEgressRuleRequestSchema)` to create a new message.
  */
 export const CreateEgressRuleRequestSchema: GenMessage<CreateEgressRuleRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 6);
+  messageDesc(file_agynio_api_egress_v1_egress, 7);
 
 /**
  * @generated from message agynio.api.egress.v1.CreateEgressRuleResponse
@@ -293,7 +342,7 @@ export type CreateEgressRuleResponse = Message<"agynio.api.egress.v1.CreateEgres
  * Use `create(CreateEgressRuleResponseSchema)` to create a new message.
  */
 export const CreateEgressRuleResponseSchema: GenMessage<CreateEgressRuleResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 7);
+  messageDesc(file_agynio_api_egress_v1_egress, 8);
 
 /**
  * @generated from message agynio.api.egress.v1.GetEgressRuleRequest
@@ -310,7 +359,7 @@ export type GetEgressRuleRequest = Message<"agynio.api.egress.v1.GetEgressRuleRe
  * Use `create(GetEgressRuleRequestSchema)` to create a new message.
  */
 export const GetEgressRuleRequestSchema: GenMessage<GetEgressRuleRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 8);
+  messageDesc(file_agynio_api_egress_v1_egress, 9);
 
 /**
  * @generated from message agynio.api.egress.v1.GetEgressRuleResponse
@@ -327,7 +376,7 @@ export type GetEgressRuleResponse = Message<"agynio.api.egress.v1.GetEgressRuleR
  * Use `create(GetEgressRuleResponseSchema)` to create a new message.
  */
 export const GetEgressRuleResponseSchema: GenMessage<GetEgressRuleResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 9);
+  messageDesc(file_agynio_api_egress_v1_egress, 10);
 
 /**
  * @generated from message agynio.api.egress.v1.ListEgressRulesRequest
@@ -347,6 +396,16 @@ export type ListEgressRulesRequest = Message<"agynio.api.egress.v1.ListEgressRul
    * @generated from field: string page_token = 3;
    */
   pageToken: string;
+
+  /**
+   * @generated from field: optional string private_resource_id = 4;
+   */
+  privateResourceId?: string;
+
+  /**
+   * @generated from field: optional agynio.api.egress.v1.EgressRuleTargetKind target_kind = 5;
+   */
+  targetKind?: EgressRuleTargetKind;
 };
 
 /**
@@ -354,7 +413,7 @@ export type ListEgressRulesRequest = Message<"agynio.api.egress.v1.ListEgressRul
  * Use `create(ListEgressRulesRequestSchema)` to create a new message.
  */
 export const ListEgressRulesRequestSchema: GenMessage<ListEgressRulesRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 10);
+  messageDesc(file_agynio_api_egress_v1_egress, 11);
 
 /**
  * @generated from message agynio.api.egress.v1.ListEgressRulesResponse
@@ -376,7 +435,7 @@ export type ListEgressRulesResponse = Message<"agynio.api.egress.v1.ListEgressRu
  * Use `create(ListEgressRulesResponseSchema)` to create a new message.
  */
 export const ListEgressRulesResponseSchema: GenMessage<ListEgressRulesResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 11);
+  messageDesc(file_agynio_api_egress_v1_egress, 12);
 
 /**
  * @generated from message agynio.api.egress.v1.UpdateEgressRuleRequest
@@ -406,6 +465,11 @@ export type UpdateEgressRuleRequest = Message<"agynio.api.egress.v1.UpdateEgress
    * @generated from field: optional agynio.api.egress.v1.EgressRuleEffect effect = 5;
    */
   effect?: EgressRuleEffect;
+
+  /**
+   * @generated from field: optional agynio.api.egress.v1.EgressRuleUpstreamTls upstream_tls = 6;
+   */
+  upstreamTls?: EgressRuleUpstreamTls;
 };
 
 /**
@@ -413,7 +477,7 @@ export type UpdateEgressRuleRequest = Message<"agynio.api.egress.v1.UpdateEgress
  * Use `create(UpdateEgressRuleRequestSchema)` to create a new message.
  */
 export const UpdateEgressRuleRequestSchema: GenMessage<UpdateEgressRuleRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 12);
+  messageDesc(file_agynio_api_egress_v1_egress, 13);
 
 /**
  * @generated from message agynio.api.egress.v1.UpdateEgressRuleResponse
@@ -430,7 +494,7 @@ export type UpdateEgressRuleResponse = Message<"agynio.api.egress.v1.UpdateEgres
  * Use `create(UpdateEgressRuleResponseSchema)` to create a new message.
  */
 export const UpdateEgressRuleResponseSchema: GenMessage<UpdateEgressRuleResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 13);
+  messageDesc(file_agynio_api_egress_v1_egress, 14);
 
 /**
  * @generated from message agynio.api.egress.v1.DeleteEgressRuleRequest
@@ -447,7 +511,7 @@ export type DeleteEgressRuleRequest = Message<"agynio.api.egress.v1.DeleteEgress
  * Use `create(DeleteEgressRuleRequestSchema)` to create a new message.
  */
 export const DeleteEgressRuleRequestSchema: GenMessage<DeleteEgressRuleRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 14);
+  messageDesc(file_agynio_api_egress_v1_egress, 15);
 
 /**
  * @generated from message agynio.api.egress.v1.DeleteEgressRuleResponse
@@ -460,7 +524,7 @@ export type DeleteEgressRuleResponse = Message<"agynio.api.egress.v1.DeleteEgres
  * Use `create(DeleteEgressRuleResponseSchema)` to create a new message.
  */
 export const DeleteEgressRuleResponseSchema: GenMessage<DeleteEgressRuleResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 15);
+  messageDesc(file_agynio_api_egress_v1_egress, 16);
 
 /**
  * @generated from message agynio.api.egress.v1.CreateEgressRuleAttachmentRequest
@@ -500,7 +564,7 @@ export type CreateEgressRuleAttachmentRequest = Message<"agynio.api.egress.v1.Cr
  * Use `create(CreateEgressRuleAttachmentRequestSchema)` to create a new message.
  */
 export const CreateEgressRuleAttachmentRequestSchema: GenMessage<CreateEgressRuleAttachmentRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 16);
+  messageDesc(file_agynio_api_egress_v1_egress, 17);
 
 /**
  * @generated from message agynio.api.egress.v1.CreateEgressRuleAttachmentResponse
@@ -517,7 +581,7 @@ export type CreateEgressRuleAttachmentResponse = Message<"agynio.api.egress.v1.C
  * Use `create(CreateEgressRuleAttachmentResponseSchema)` to create a new message.
  */
 export const CreateEgressRuleAttachmentResponseSchema: GenMessage<CreateEgressRuleAttachmentResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 17);
+  messageDesc(file_agynio_api_egress_v1_egress, 18);
 
 /**
  * @generated from message agynio.api.egress.v1.DeleteEgressRuleAttachmentRequest
@@ -534,7 +598,7 @@ export type DeleteEgressRuleAttachmentRequest = Message<"agynio.api.egress.v1.De
  * Use `create(DeleteEgressRuleAttachmentRequestSchema)` to create a new message.
  */
 export const DeleteEgressRuleAttachmentRequestSchema: GenMessage<DeleteEgressRuleAttachmentRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 18);
+  messageDesc(file_agynio_api_egress_v1_egress, 19);
 
 /**
  * @generated from message agynio.api.egress.v1.DeleteEgressRuleAttachmentResponse
@@ -547,7 +611,7 @@ export type DeleteEgressRuleAttachmentResponse = Message<"agynio.api.egress.v1.D
  * Use `create(DeleteEgressRuleAttachmentResponseSchema)` to create a new message.
  */
 export const DeleteEgressRuleAttachmentResponseSchema: GenMessage<DeleteEgressRuleAttachmentResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 19);
+  messageDesc(file_agynio_api_egress_v1_egress, 20);
 
 /**
  * @generated from message agynio.api.egress.v1.ListEgressRuleAttachmentsRequest
@@ -595,7 +659,7 @@ export type ListEgressRuleAttachmentsRequest = Message<"agynio.api.egress.v1.Lis
  * Use `create(ListEgressRuleAttachmentsRequestSchema)` to create a new message.
  */
 export const ListEgressRuleAttachmentsRequestSchema: GenMessage<ListEgressRuleAttachmentsRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 20);
+  messageDesc(file_agynio_api_egress_v1_egress, 21);
 
 /**
  * @generated from message agynio.api.egress.v1.ListEgressRuleAttachmentsResponse
@@ -617,7 +681,29 @@ export type ListEgressRuleAttachmentsResponse = Message<"agynio.api.egress.v1.Li
  * Use `create(ListEgressRuleAttachmentsResponseSchema)` to create a new message.
  */
 export const ListEgressRuleAttachmentsResponseSchema: GenMessage<ListEgressRuleAttachmentsResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 21);
+  messageDesc(file_agynio_api_egress_v1_egress, 22);
+
+/**
+ * @generated from message agynio.api.egress.v1.PrivateResourceInfo
+ */
+export type PrivateResourceInfo = Message<"agynio.api.egress.v1.PrivateResourceInfo"> & {
+  /**
+   * @generated from field: string intercept_host = 1;
+   */
+  interceptHost: string;
+
+  /**
+   * @generated from field: agynio.api.egress.v1.EgressPrivateResourceProtocol protocol = 2;
+   */
+  protocol: EgressPrivateResourceProtocol;
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.PrivateResourceInfo.
+ * Use `create(PrivateResourceInfoSchema)` to create a new message.
+ */
+export const PrivateResourceInfoSchema: GenMessage<PrivateResourceInfo> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 23);
 
 /**
  * @generated from message agynio.api.egress.v1.ListEgressRulesByAgentRequest
@@ -634,7 +720,7 @@ export type ListEgressRulesByAgentRequest = Message<"agynio.api.egress.v1.ListEg
  * Use `create(ListEgressRulesByAgentRequestSchema)` to create a new message.
  */
 export const ListEgressRulesByAgentRequestSchema: GenMessage<ListEgressRulesByAgentRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 22);
+  messageDesc(file_agynio_api_egress_v1_egress, 24);
 
 /**
  * @generated from message agynio.api.egress.v1.ListEgressRulesByAgentResponse
@@ -644,6 +730,11 @@ export type ListEgressRulesByAgentResponse = Message<"agynio.api.egress.v1.ListE
    * @generated from field: repeated agynio.api.egress.v1.EgressRule egress_rules = 1;
    */
   egressRules: EgressRule[];
+
+  /**
+   * @generated from field: map<string, agynio.api.egress.v1.PrivateResourceInfo> private_resources = 2;
+   */
+  privateResources: { [key: string]: PrivateResourceInfo };
 };
 
 /**
@@ -651,7 +742,7 @@ export type ListEgressRulesByAgentResponse = Message<"agynio.api.egress.v1.ListE
  * Use `create(ListEgressRulesByAgentResponseSchema)` to create a new message.
  */
 export const ListEgressRulesByAgentResponseSchema: GenMessage<ListEgressRulesByAgentResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 23);
+  messageDesc(file_agynio_api_egress_v1_egress, 25);
 
 /**
  * @generated from message agynio.api.egress.v1.ListEgressRulesByEnvironmentRequest
@@ -668,7 +759,7 @@ export type ListEgressRulesByEnvironmentRequest = Message<"agynio.api.egress.v1.
  * Use `create(ListEgressRulesByEnvironmentRequestSchema)` to create a new message.
  */
 export const ListEgressRulesByEnvironmentRequestSchema: GenMessage<ListEgressRulesByEnvironmentRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 24);
+  messageDesc(file_agynio_api_egress_v1_egress, 26);
 
 /**
  * @generated from message agynio.api.egress.v1.ListEgressRulesByEnvironmentResponse
@@ -678,6 +769,11 @@ export type ListEgressRulesByEnvironmentResponse = Message<"agynio.api.egress.v1
    * @generated from field: repeated agynio.api.egress.v1.EgressRule egress_rules = 1;
    */
   egressRules: EgressRule[];
+
+  /**
+   * @generated from field: map<string, agynio.api.egress.v1.PrivateResourceInfo> private_resources = 2;
+   */
+  privateResources: { [key: string]: PrivateResourceInfo };
 };
 
 /**
@@ -685,7 +781,7 @@ export type ListEgressRulesByEnvironmentResponse = Message<"agynio.api.egress.v1
  * Use `create(ListEgressRulesByEnvironmentResponseSchema)` to create a new message.
  */
 export const ListEgressRulesByEnvironmentResponseSchema: GenMessage<ListEgressRulesByEnvironmentResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 25);
+  messageDesc(file_agynio_api_egress_v1_egress, 27);
 
 /**
  * @generated from message agynio.api.egress.v1.CountRulesReferencingSecretRequest
@@ -702,7 +798,7 @@ export type CountRulesReferencingSecretRequest = Message<"agynio.api.egress.v1.C
  * Use `create(CountRulesReferencingSecretRequestSchema)` to create a new message.
  */
 export const CountRulesReferencingSecretRequestSchema: GenMessage<CountRulesReferencingSecretRequest> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 26);
+  messageDesc(file_agynio_api_egress_v1_egress, 28);
 
 /**
  * @generated from message agynio.api.egress.v1.CountRulesReferencingSecretResponse
@@ -724,7 +820,153 @@ export type CountRulesReferencingSecretResponse = Message<"agynio.api.egress.v1.
  * Use `create(CountRulesReferencingSecretResponseSchema)` to create a new message.
  */
 export const CountRulesReferencingSecretResponseSchema: GenMessage<CountRulesReferencingSecretResponse> = /*@__PURE__*/
-  messageDesc(file_agynio_api_egress_v1_egress, 27);
+  messageDesc(file_agynio_api_egress_v1_egress, 29);
+
+/**
+ * @generated from message agynio.api.egress.v1.CountRulesReferencingPrivateResourceRequest
+ */
+export type CountRulesReferencingPrivateResourceRequest = Message<"agynio.api.egress.v1.CountRulesReferencingPrivateResourceRequest"> & {
+  /**
+   * @generated from field: string private_resource_id = 1;
+   */
+  privateResourceId: string;
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.CountRulesReferencingPrivateResourceRequest.
+ * Use `create(CountRulesReferencingPrivateResourceRequestSchema)` to create a new message.
+ */
+export const CountRulesReferencingPrivateResourceRequestSchema: GenMessage<CountRulesReferencingPrivateResourceRequest> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 30);
+
+/**
+ * @generated from message agynio.api.egress.v1.CountRulesReferencingPrivateResourceResponse
+ */
+export type CountRulesReferencingPrivateResourceResponse = Message<"agynio.api.egress.v1.CountRulesReferencingPrivateResourceResponse"> & {
+  /**
+   * @generated from field: int32 count = 1;
+   */
+  count: number;
+
+  /**
+   * @generated from field: repeated string egress_rule_ids = 2;
+   */
+  egressRuleIds: string[];
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.CountRulesReferencingPrivateResourceResponse.
+ * Use `create(CountRulesReferencingPrivateResourceResponseSchema)` to create a new message.
+ */
+export const CountRulesReferencingPrivateResourceResponseSchema: GenMessage<CountRulesReferencingPrivateResourceResponse> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 31);
+
+/**
+ * @generated from message agynio.api.egress.v1.ListMediatedPrivateResourcesRequest
+ */
+export type ListMediatedPrivateResourcesRequest = Message<"agynio.api.egress.v1.ListMediatedPrivateResourcesRequest"> & {
+  /**
+   * @generated from field: string organization_id = 1;
+   */
+  organizationId: string;
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.ListMediatedPrivateResourcesRequest.
+ * Use `create(ListMediatedPrivateResourcesRequestSchema)` to create a new message.
+ */
+export const ListMediatedPrivateResourcesRequestSchema: GenMessage<ListMediatedPrivateResourcesRequest> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 32);
+
+/**
+ * @generated from message agynio.api.egress.v1.ListMediatedPrivateResourcesResponse
+ */
+export type ListMediatedPrivateResourcesResponse = Message<"agynio.api.egress.v1.ListMediatedPrivateResourcesResponse"> & {
+  /**
+   * @generated from field: repeated string private_resource_ids = 1;
+   */
+  privateResourceIds: string[];
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.ListMediatedPrivateResourcesResponse.
+ * Use `create(ListMediatedPrivateResourcesResponseSchema)` to create a new message.
+ */
+export const ListMediatedPrivateResourcesResponseSchema: GenMessage<ListMediatedPrivateResourcesResponse> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 33);
+
+/**
+ * @generated from message agynio.api.egress.v1.AttachedRuleDomain
+ */
+export type AttachedRuleDomain = Message<"agynio.api.egress.v1.AttachedRuleDomain"> & {
+  /**
+   * @generated from field: string egress_rule_id = 1;
+   */
+  egressRuleId: string;
+
+  /**
+   * @generated from field: string domain_pattern = 2;
+   */
+  domainPattern: string;
+
+  /**
+   * @generated from field: repeated int32 ports = 3;
+   */
+  ports: number[];
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.AttachedRuleDomain.
+ * Use `create(AttachedRuleDomainSchema)` to create a new message.
+ */
+export const AttachedRuleDomainSchema: GenMessage<AttachedRuleDomain> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 34);
+
+/**
+ * @generated from message agynio.api.egress.v1.ListAttachedRuleDomainsRequest
+ */
+export type ListAttachedRuleDomainsRequest = Message<"agynio.api.egress.v1.ListAttachedRuleDomainsRequest"> & {
+  /**
+   * @generated from oneof agynio.api.egress.v1.ListAttachedRuleDomainsRequest.principal
+   */
+  principal: {
+    /**
+     * @generated from field: string agent_id = 1;
+     */
+    value: string;
+    case: "agentId";
+  } | {
+    /**
+     * @generated from field: string environment_id = 2;
+     */
+    value: string;
+    case: "environmentId";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.ListAttachedRuleDomainsRequest.
+ * Use `create(ListAttachedRuleDomainsRequestSchema)` to create a new message.
+ */
+export const ListAttachedRuleDomainsRequestSchema: GenMessage<ListAttachedRuleDomainsRequest> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 35);
+
+/**
+ * @generated from message agynio.api.egress.v1.ListAttachedRuleDomainsResponse
+ */
+export type ListAttachedRuleDomainsResponse = Message<"agynio.api.egress.v1.ListAttachedRuleDomainsResponse"> & {
+  /**
+   * @generated from field: repeated agynio.api.egress.v1.AttachedRuleDomain domains = 1;
+   */
+  domains: AttachedRuleDomain[];
+};
+
+/**
+ * Describes the message agynio.api.egress.v1.ListAttachedRuleDomainsResponse.
+ * Use `create(ListAttachedRuleDomainsResponseSchema)` to create a new message.
+ */
+export const ListAttachedRuleDomainsResponseSchema: GenMessage<ListAttachedRuleDomainsResponse> = /*@__PURE__*/
+  messageDesc(file_agynio_api_egress_v1_egress, 36);
 
 /**
  * Effect to apply to a request matching an egress rule.
@@ -781,6 +1023,58 @@ export enum HeaderAuthScheme {
  */
 export const HeaderAuthSchemeSchema: GenEnum<HeaderAuthScheme> = /*@__PURE__*/
   enumDesc(file_agynio_api_egress_v1_egress, 1);
+
+/**
+ * @generated from enum agynio.api.egress.v1.EgressRuleTargetKind
+ */
+export enum EgressRuleTargetKind {
+  /**
+   * @generated from enum value: EGRESS_RULE_TARGET_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: EGRESS_RULE_TARGET_KIND_PUBLIC = 1;
+   */
+  PUBLIC = 1,
+
+  /**
+   * @generated from enum value: EGRESS_RULE_TARGET_KIND_PRIVATE = 2;
+   */
+  PRIVATE = 2,
+}
+
+/**
+ * Describes the enum agynio.api.egress.v1.EgressRuleTargetKind.
+ */
+export const EgressRuleTargetKindSchema: GenEnum<EgressRuleTargetKind> = /*@__PURE__*/
+  enumDesc(file_agynio_api_egress_v1_egress, 2);
+
+/**
+ * @generated from enum agynio.api.egress.v1.EgressPrivateResourceProtocol
+ */
+export enum EgressPrivateResourceProtocol {
+  /**
+   * @generated from enum value: EGRESS_PRIVATE_RESOURCE_PROTOCOL_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: EGRESS_PRIVATE_RESOURCE_PROTOCOL_HTTP = 1;
+   */
+  HTTP = 1,
+
+  /**
+   * @generated from enum value: EGRESS_PRIVATE_RESOURCE_PROTOCOL_HTTPS = 2;
+   */
+  HTTPS = 2,
+}
+
+/**
+ * Describes the enum agynio.api.egress.v1.EgressPrivateResourceProtocol.
+ */
+export const EgressPrivateResourceProtocolSchema: GenEnum<EgressPrivateResourceProtocol> = /*@__PURE__*/
+  enumDesc(file_agynio_api_egress_v1_egress, 3);
 
 /**
  * EgressRulesService manages egress rules and workload-source attachments.
@@ -881,6 +1175,30 @@ export const EgressRulesService: GenService<{
     methodKind: "unary";
     input: typeof CountRulesReferencingSecretRequestSchema;
     output: typeof CountRulesReferencingSecretResponseSchema;
+  },
+  /**
+   * @generated from rpc agynio.api.egress.v1.EgressRulesService.CountRulesReferencingPrivateResource
+   */
+  countRulesReferencingPrivateResource: {
+    methodKind: "unary";
+    input: typeof CountRulesReferencingPrivateResourceRequestSchema;
+    output: typeof CountRulesReferencingPrivateResourceResponseSchema;
+  },
+  /**
+   * @generated from rpc agynio.api.egress.v1.EgressRulesService.ListMediatedPrivateResources
+   */
+  listMediatedPrivateResources: {
+    methodKind: "unary";
+    input: typeof ListMediatedPrivateResourcesRequestSchema;
+    output: typeof ListMediatedPrivateResourcesResponseSchema;
+  },
+  /**
+   * @generated from rpc agynio.api.egress.v1.EgressRulesService.ListAttachedRuleDomains
+   */
+  listAttachedRuleDomains: {
+    methodKind: "unary";
+    input: typeof ListAttachedRuleDomainsRequestSchema;
+    output: typeof ListAttachedRuleDomainsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_agynio_api_egress_v1_egress, 0);
