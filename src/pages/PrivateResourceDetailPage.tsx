@@ -342,8 +342,14 @@ function RuleAccessList({ organizationId, privateResourceId }: { organizationId:
         pageSize: MAX_PAGE_SIZE,
         pageToken: '',
       });
+      // Re-checked client-side: a gateway predating the filter returns the
+      // whole organization's rules, and a wrong attribution is worse than an
+      // empty section.
+      const namingRules = (rules.egressRules ?? []).filter(
+        (rule) => rule.matcher?.privateResourceId === privateResourceId,
+      );
       const perRule = await Promise.all(
-        (rules.egressRules ?? []).map(async (rule) => {
+        namingRules.map(async (rule) => {
           const ruleId = rule.meta?.id ?? '';
           if (!ruleId) return [];
           const attachments = await egressClient.listEgressRuleAttachments({
