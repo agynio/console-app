@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { egressClient, secretsClient } from '@/api/client';
+import { egressClient, networksClient, secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -19,7 +19,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { EgressRule, EgressRuleHeader } from '@/gen/agynio/api/egress/v1/egress_pb';
+import type { PrivateResource } from '@/gen/agynio/api/networks/v1/networks_pb';
+import { PrivateResourceProtocol } from '@/gen/agynio/api/networks/v1/networks_pb';
 import type { Secret } from '@/gen/agynio/api/secrets/v1/secrets_pb';
+import { formatProtocol } from '@/lib/networks';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useListControls } from '@/hooks/useListControls';
 import { formatDateOnly, timestampToMillis } from '@/lib/format';
@@ -34,9 +37,12 @@ import {
   EMPTY_HEADER,
   formatMethods,
   formatPorts,
+  isPrivateRule,
   normalizeRuleFormValues,
   schemeToProto,
+  upstreamTlsToProto,
   validateRuleForm,
+  type DestinationKind,
   type EgressActionValue,
   type EgressRuleFormErrors,
   type EgressRuleFormValues,
@@ -44,6 +50,7 @@ import {
   type HeaderFormValues,
   type HeaderSchemeSelection,
   type SubmitEgressRuleValues,
+  type UpstreamTrustSelection,
 } from '@/lib/egressRules';
 
 type EgressRuleDialogProps = {
@@ -54,9 +61,10 @@ type EgressRuleDialogProps = {
   onSubmit: (values: SubmitEgressRuleValues) => void;
   isSubmitting: boolean;
   secrets: Secret[];
+  privateResources: PrivateResource[];
 };
 
-function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, isSubmitting, secrets }: EgressRuleDialogProps) {
+function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, isSubmitting, secrets, privateResources }: EgressRuleDialogProps) {
   const [values, setValues] = useState<EgressRuleFormValues>(initialValues);
   const [errors, setErrors] = useState<EgressRuleFormErrors>({});
   const [secretSearchByHeader, setSecretSearchByHeader] = useState<Record<number, string>>({});
@@ -80,6 +88,21 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
   };
 
   const selectableSecrets = useMemo(() => secrets.filter((secret) => Boolean(secret.meta?.id)), [secrets]);
+  // Only HTTP-shaped resources can carry a rule; a tcp stream has nothing to
+  // match or inject into.
+  const eligibleResources = useMemo(
+    () =>
+      privateResources.filter(
+        (resource) =>
+          Boolean(resource.meta?.id) &&
+          (resource.protocol === PrivateResourceProtocol.HTTP || resource.protocol === PrivateResourceProtocol.HTTPS),
+      ),
+    [privateResources],
+  );
+  const selectedResource = useMemo(
+    () => eligibleResources.find((resource) => resource.meta?.id === values.privateResourceId),
+    [eligibleResources, values.privateResourceId],
+  );
 
   const filteredSecretsByHeader = (index: number) => {
     const search = (secretSearchByHeader[index] ?? '').trim().toLowerCase();
@@ -132,19 +155,76 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
             {errors.name ? <p className="text-sm text-destructive">{errors.name}</p> : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`${testIdPrefix}-domain`}>Domain pattern</Label>
-            <Input
-              id={`${testIdPrefix}-domain`}
-              placeholder="api.example.com"
-              value={values.domainPattern}
-              onChange={(event) => {
-                setValues((prev) => ({ ...prev, domainPattern: event.target.value }));
+            <Label htmlFor={`${testIdPrefix}-destination-kind`}>Destination</Label>
+            <Select
+              value={values.destinationKind}
+              onValueChange={(destinationKind: DestinationKind) => {
+                setValues((prev) => ({ ...prev, destinationKind }));
                 clearError('domainPattern');
+                clearError('privateResourceId');
               }}
-              data-testid={`${testIdPrefix}-domain`}
-            />
-            {errors.domainPattern ? <p className="text-sm text-destructive">{errors.domainPattern}</p> : null}
+              disabled={mode === 'edit'}
+            >
+              <SelectTrigger id={`${testIdPrefix}-destination-kind`} data-testid={`${testIdPrefix}-destination-kind`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">Public domain</SelectItem>
+                <SelectItem value="private">Private resource</SelectItem>
+              </SelectContent>
+            </Select>
+            {mode === 'edit' ? (
+              <p className="text-xs text-muted-foreground">The destination is fixed for the rule's life.</p>
+            ) : null}
           </div>
+          {values.destinationKind === 'public' ? (
+            <div className="space-y-2">
+              <Label htmlFor={`${testIdPrefix}-domain`}>Domain pattern</Label>
+              <Input
+                id={`${testIdPrefix}-domain`}
+                placeholder="api.example.com"
+                value={values.domainPattern}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, domainPattern: event.target.value }));
+                  clearError('domainPattern');
+                }}
+                data-testid={`${testIdPrefix}-domain`}
+              />
+              {errors.domainPattern ? <p className="text-sm text-destructive">{errors.domainPattern}</p> : null}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor={`${testIdPrefix}-private-resource`}>Private resource</Label>
+              <Select
+                value={values.privateResourceId}
+                onValueChange={(privateResourceId) => {
+                  setValues((prev) => ({ ...prev, privateResourceId }));
+                  clearError('privateResourceId');
+                }}
+                disabled={mode === 'edit'}
+              >
+                <SelectTrigger id={`${testIdPrefix}-private-resource`} data-testid={`${testIdPrefix}-private-resource`}>
+                  <SelectValue placeholder={eligibleResources.length === 0 ? 'No HTTP or HTTPS resources' : 'Select resource'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligibleResources.map((resource) => {
+                    const resourceId = resource.meta?.id ?? '';
+                    return (
+                      <SelectItem key={resourceId} value={resourceId}>
+                        {resource.name} ({formatProtocol(resource.protocol).toLowerCase()}://{resource.interceptHost})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {errors.privateResourceId ? <p className="text-sm text-destructive">{errors.privateResourceId}</p> : null}
+              {mode === 'create' ? (
+                <p className="text-xs text-muted-foreground">
+                  A resource's first rule moves its traffic onto the egress gateway; live connections reset for every caller.
+                </p>
+              ) : null}
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-description`}>Description</Label>
             <Input
@@ -169,20 +249,29 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${testIdPrefix}-ports`}>Ports</Label>
-            <Input
-              id={`${testIdPrefix}-ports`}
-              placeholder="443, 8443"
-              value={values.ports}
-              onChange={(event) => {
-                setValues((prev) => ({ ...prev, ports: event.target.value }));
-                clearError('ports');
-              }}
-              data-testid={`${testIdPrefix}-ports`}
-            />
-            {errors.ports ? <p className="text-sm text-destructive">{errors.ports}</p> : null}
-          </div>
+          {values.destinationKind === 'public' ? (
+            <div className="space-y-2">
+              <Label htmlFor={`${testIdPrefix}-ports`}>Ports</Label>
+              <Input
+                id={`${testIdPrefix}-ports`}
+                placeholder="443, 8443"
+                value={values.ports}
+                onChange={(event) => {
+                  setValues((prev) => ({ ...prev, ports: event.target.value }));
+                  clearError('ports');
+                }}
+                data-testid={`${testIdPrefix}-ports`}
+              />
+              {errors.ports ? <p className="text-sm text-destructive">{errors.ports}</p> : null}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Ports</Label>
+              <p className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
+                Every intercept port the resource declares.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor={`${testIdPrefix}-methods`}>Methods</Label>
             <Input
@@ -207,6 +296,74 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
               data-testid={`${testIdPrefix}-path`}
             />
           </div>
+          {values.destinationKind === 'private' && selectedResource?.protocol === PrivateResourceProtocol.HTTPS ? (
+            <div className="space-y-3 md:col-span-2">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Upstream TLS</h4>
+                <p className="text-xs text-muted-foreground">
+                  How the platform verifies the target's certificate. Left as default, it verifies exactly as for a public destination.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor={`${testIdPrefix}-upstream-server-name`}>Server name</Label>
+                  <Input
+                    id={`${testIdPrefix}-upstream-server-name`}
+                    placeholder={selectedResource.interceptHost}
+                    value={values.upstreamServerName}
+                    onChange={(event) => setValues((prev) => ({ ...prev, upstreamServerName: event.target.value }))}
+                    data-testid={`${testIdPrefix}-upstream-server-name`}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`${testIdPrefix}-upstream-trust`}>Trust</Label>
+                  <Select
+                    value={values.upstreamTrust}
+                    onValueChange={(upstreamTrust: UpstreamTrustSelection) => {
+                      setValues((prev) => ({ ...prev, upstreamTrust }));
+                      clearError('upstreamCaSecretId');
+                    }}
+                  >
+                    <SelectTrigger id={`${testIdPrefix}-upstream-trust`} data-testid={`${testIdPrefix}-upstream-trust`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Default verification</SelectItem>
+                      <SelectItem value="caBundle">CA bundle secret</SelectItem>
+                      <SelectItem value="skipVerify">Skip verification</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {values.upstreamTrust === 'caBundle' ? (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor={`${testIdPrefix}-upstream-ca-secret`}>CA bundle secret</Label>
+                    <Select
+                      value={values.upstreamCaSecretId}
+                      onValueChange={(upstreamCaSecretId) => {
+                        setValues((prev) => ({ ...prev, upstreamCaSecretId }));
+                        clearError('upstreamCaSecretId');
+                      }}
+                    >
+                      <SelectTrigger id={`${testIdPrefix}-upstream-ca-secret`} data-testid={`${testIdPrefix}-upstream-ca-secret`}>
+                        <SelectValue placeholder="Select secret" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectableSecrets.map((secret) => {
+                          const secretId = secret.meta?.id ?? '';
+                          return (
+                            <SelectItem key={secretId} value={secretId}>
+                              {secret.title || secret.remoteName || secretId}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {errors.upstreamCaSecretId ? <p className="text-sm text-destructive">{errors.upstreamCaSecretId}</p> : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -362,19 +519,44 @@ export function OrganizationEgressRulesTab() {
     refetchOnWindowFocus: false,
   });
 
+  const privateResourcesQuery = useQuery({
+    queryKey: ['private-resources', organizationId, 'egress-selector'],
+    queryFn: () => networksClient.listPrivateResources({ organizationId, pageSize: MAX_PAGE_SIZE, pageToken: '' }),
+    enabled: Boolean(organizationId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
   const rules = rulesQuery.data?.egressRules ?? [];
   const secrets = secretsQuery.data?.secrets ?? [];
+  const privateResources = useMemo(
+    () => privateResourcesQuery.data?.privateResources ?? [],
+    [privateResourcesQuery.data],
+  );
+  const resourceLabelById = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const resource of privateResources) {
+      const resourceId = resource.meta?.id;
+      if (resourceId) labels.set(resourceId, `${resource.name} (${resource.interceptHost})`);
+    }
+    return labels;
+  }, [privateResources]);
+  const destinationLabel = (rule: EgressRule) => {
+    const resourceId = rule.matcher?.privateResourceId;
+    if (resourceId) return resourceLabelById.get(resourceId) ?? resourceId;
+    return rule.matcher?.domainPattern ?? '';
+  };
   const listControls = useListControls({
     items: rules,
     searchFields: [
       (rule) => rule.name,
       (rule) => rule.description,
-      (rule) => rule.matcher?.domainPattern ?? '',
+      (rule) => destinationLabel(rule),
       (rule) => actionLabel(rule.effect?.action),
     ],
     sortOptions: {
       name: (rule) => rule.name,
-      domain: (rule) => rule.matcher?.domainPattern ?? '',
+      domain: (rule) => destinationLabel(rule),
       action: (rule) => actionLabel(rule.effect?.action),
       updated: (rule) => timestampToMillis(rule.meta?.updatedAt),
     },
@@ -393,6 +575,7 @@ export function OrganizationEgressRulesTab() {
         description: values.description,
         matcher: {
           domainPattern: values.domainPattern,
+          privateResourceId: values.privateResourceId,
           ports: values.ports,
           methods: values.methods,
           pathPattern: values.pathPattern,
@@ -401,6 +584,7 @@ export function OrganizationEgressRulesTab() {
           action: actionToProto(values.action),
           inject: headersFromValues(values.headers),
         },
+        upstreamTls: upstreamTlsToProto(values),
       }),
     onSuccess: () => {
       toast.success('Egress rule created.');
@@ -420,6 +604,7 @@ export function OrganizationEgressRulesTab() {
         description: values.description,
         matcher: {
           domainPattern: values.domainPattern,
+          privateResourceId: values.privateResourceId,
           ports: values.ports,
           methods: values.methods,
           pathPattern: values.pathPattern,
@@ -428,6 +613,7 @@ export function OrganizationEgressRulesTab() {
           action: actionToProto(values.action),
           inject: headersFromValues(values.headers),
         },
+        upstreamTls: upstreamTlsToProto(values),
       }),
     onSuccess: () => {
       toast.success('Egress rule updated.');
@@ -488,7 +674,7 @@ export function OrganizationEgressRulesTab() {
           <CardContent className="px-0">
             <div className="grid gap-2 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_140px]">
               <SortableHeader label="Name" sortKey="name" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
-              <SortableHeader label="Domain" sortKey="domain" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
+              <SortableHeader label="Destination" sortKey="domain" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
               <span>Match</span>
               <SortableHeader label="Action" sortKey="action" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
               <SortableHeader label="Updated" sortKey="updated" activeSortKey={listControls.sortKey} sortDirection={listControls.sortDirection} onSort={listControls.handleSort} />
@@ -508,9 +694,12 @@ export function OrganizationEgressRulesTab() {
                         <div className="font-medium" data-testid="egress-rule-name">{rule.name}</div>
                         {rule.description ? <div className="text-xs text-muted-foreground">{rule.description}</div> : null}
                       </div>
-                      <span data-testid="egress-rule-domain">{rule.matcher?.domainPattern || '-'}</span>
+                      <div data-testid="egress-rule-domain">
+                        <div>{destinationLabel(rule) || '-'}</div>
+                        {isPrivateRule(rule) ? <div className="text-xs text-muted-foreground">Private resource</div> : null}
+                      </div>
                       <div className="text-xs text-muted-foreground">
-                        <div>Ports: {formatPorts(rule.matcher?.ports ?? [])}</div>
+                        <div>Ports: {isPrivateRule(rule) ? 'Resource ports' : formatPorts(rule.matcher?.ports ?? [])}</div>
                         <div>Methods: {formatMethods(rule.matcher?.methods ?? [])}</div>
                         {rule.matcher?.pathPattern ? <div>Path: {rule.matcher.pathPattern}</div> : null}
                       </div>
@@ -540,6 +729,7 @@ export function OrganizationEgressRulesTab() {
         onSubmit={(values) => createRuleMutation.mutate(values)}
         isSubmitting={createRuleMutation.isPending}
         secrets={secrets}
+        privateResources={privateResources}
       />
       <EgressRuleDialog
         mode="edit"
@@ -558,6 +748,7 @@ export function OrganizationEgressRulesTab() {
         }}
         isSubmitting={updateRuleMutation.isPending}
         secrets={secrets}
+        privateResources={privateResources}
       />
       <ConfirmDialog
         open={Boolean(deleteRule)}
@@ -565,7 +756,11 @@ export function OrganizationEgressRulesTab() {
           if (!open) setDeleteRule(null);
         }}
         title="Delete egress rule"
-        description="This action permanently removes the rule and its attachments."
+        description={
+          deleteRule && isPrivateRule(deleteRule)
+            ? "This action permanently removes the rule and its attachments. A resource's last rule returns its traffic to the direct tunnel path; live connections reset for every caller."
+            : 'This action permanently removes the rule and its attachments.'
+        }
         confirmLabel="Delete rule"
         variant="danger"
         onConfirm={() => {
