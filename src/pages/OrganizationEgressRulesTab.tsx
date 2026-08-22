@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { ChevronsUpDownIcon, TrashIcon } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { egressClient, networksClient, secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { EgressRule, EgressRuleHeader } from '@/gen/agynio/api/egress/v1/egress_pb';
 import type { PrivateResource } from '@/gen/agynio/api/networks/v1/networks_pb';
@@ -31,6 +33,8 @@ import { toast } from 'sonner';
 
 import {
   actionLabel,
+  credentialLabel,
+  headerWirePreview,
   actionToProto,
   buildFormValuesFromRule,
   DEFAULT_EGRESS_RULE_FORM_VALUES,
@@ -68,6 +72,7 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
   const [values, setValues] = useState<EgressRuleFormValues>(initialValues);
   const [errors, setErrors] = useState<EgressRuleFormErrors>({});
   const [secretSearchByHeader, setSecretSearchByHeader] = useState<Record<number, string>>({});
+  const [openSecretPicker, setOpenSecretPicker] = useState<number | null>(null);
   const resolvedInitialValues = useMemo(() => ({ ...DEFAULT_EGRESS_RULE_FORM_VALUES, ...initialValues }), [initialValues]);
 
   useEffect(() => {
@@ -103,6 +108,12 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
     () => eligibleResources.find((resource) => resource.meta?.id === values.privateResourceId),
     [eligibleResources, values.privateResourceId],
   );
+
+  const secretLabel = (secretId: string) => {
+    if (!secretId) return null;
+    const secret = selectableSecrets.find((candidate) => candidate.meta?.id === secretId);
+    return secret ? secret.title || secret.remoteName || secretId : secretId;
+  };
 
   const filteredSecretsByHeader = (index: number) => {
     const search = (secretSearchByHeader[index] ?? '').trim().toLowerCase();
@@ -388,82 +399,145 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
           ) : (
             <div className="space-y-3">
               {values.headers.map((header, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-1 items-start gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_120px_130px] lg:grid-cols-[minmax(0,1fr)_120px_130px_minmax(0,1fr)_auto]"
-                >
-                  <Input
-                    aria-label="Header name"
-                    placeholder="Authorization"
-                    value={header.name}
-                    onChange={(event) => updateHeader(index, { name: event.target.value })}
-                    data-testid={`${testIdPrefix}-header-name`}
-                  />
-                  <Select value={header.scheme} onValueChange={(scheme: HeaderSchemeSelection) => updateHeader(index, { scheme })}>
-                    <SelectTrigger aria-label="Header scheme" data-testid={`${testIdPrefix}-header-scheme`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="bearer">Bearer</SelectItem>
-                      <SelectItem value="basic">Basic</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={header.source} onValueChange={(source: HeaderCredentialSource) => updateHeader(index, { source, requiresValueReentry: false })}>
-                    <SelectTrigger aria-label="Header source" data-testid={`${testIdPrefix}-header-source`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="value">Value</SelectItem>
-                      <SelectItem value="secretId">Secret</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {header.source === 'secretId' ? (
-                    <div className="space-y-2 sm:col-span-3 lg:col-span-1">
+                <div key={index} className="space-y-3 rounded-lg border border-border p-3">
+                  <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Name</Label>
                       <Input
-                        aria-label="Search secrets"
-                        placeholder="Search secrets"
-                        value={secretSearchByHeader[index] ?? ''}
-                        onChange={(event) => setSecretSearchByHeader((prev) => ({ ...prev, [index]: event.target.value }))}
-                        data-testid={`${testIdPrefix}-header-secret-search`}
+                        aria-label="Header name"
+                        placeholder="Authorization"
+                        value={header.name}
+                        onChange={(event) => updateHeader(index, { name: event.target.value })}
+                        data-testid={`${testIdPrefix}-header-name`}
                       />
-                      <Select value={header.value} onValueChange={(value) => updateHeader(index, { value, requiresValueReentry: false })}>
-                        <SelectTrigger aria-label="Secret" data-testid={`${testIdPrefix}-header-secret`}>
-                          <SelectValue placeholder="Select secret" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Scheme</Label>
+                      <Select value={header.scheme} onValueChange={(scheme: HeaderSchemeSelection) => updateHeader(index, { scheme })}>
+                        <SelectTrigger aria-label="Header scheme" data-testid={`${testIdPrefix}-header-scheme`}>
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredSecretsByHeader(index).map((secret) => {
-                            const secretId = secret.meta?.id ?? '';
-                            return (
-                              <SelectItem key={secretId} value={secretId}>
-                                {secret.title || secret.remoteName || secretId}
-                              </SelectItem>
-                            );
-                          })}
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="bearer">Bearer</SelectItem>
+                          <SelectItem value="basic">Basic</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  ) : (
-                    <Input
-                      className="sm:col-span-3 lg:col-span-1"
-                      aria-label="Header value"
-                      type="password"
-                      placeholder={header.requiresValueReentry ? 'Re-enter literal value' : 'header value'}
-                      value={header.value}
-                      onChange={(event) => updateHeader(index, { value: event.target.value, requiresValueReentry: false })}
-                      data-testid={`${testIdPrefix}-header-value`}
-                    />
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="justify-self-start sm:col-span-3 lg:col-span-1 lg:justify-self-auto"
-                    onClick={() => setValues((prev) => ({ ...prev, headers: prev.headers.filter((_, currentIndex) => currentIndex !== index) }))}
-                    data-testid={`${testIdPrefix}-remove-header`}
-                  >
-                    Remove
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove header"
+                      className="justify-self-start sm:justify-self-auto"
+                      onClick={() => setValues((prev) => ({ ...prev, headers: prev.headers.filter((_, currentIndex) => currentIndex !== index) }))}
+                      data-testid={`${testIdPrefix}-remove-header`}
+                    >
+                      <TrashIcon className="size-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+                    {header.scheme === 'basic' ? (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Username</Label>
+                        <Input
+                          aria-label="Header username"
+                          placeholder="x-access-token"
+                          value={header.username}
+                          onChange={(event) => updateHeader(index, { username: event.target.value })}
+                          data-testid={`${testIdPrefix}-header-username`}
+                        />
+                      </div>
+                    ) : null}
+                    <div className={`space-y-1 ${header.scheme === 'basic' ? '' : 'sm:col-span-2'}`}>
+                      <Label className="text-xs text-muted-foreground">{credentialLabel(header.scheme)}</Label>
+                      <div className="flex gap-2">
+                        <Select value={header.source} onValueChange={(source: HeaderCredentialSource) => updateHeader(index, { source, requiresValueReentry: false })}>
+                          <SelectTrigger aria-label="Header source" className="w-[110px] shrink-0" data-testid={`${testIdPrefix}-header-source`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="value">Literal</SelectItem>
+                            <SelectItem value="secretId">Secret</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {header.source === 'secretId' ? (
+                          <Popover
+                            open={openSecretPicker === index}
+                            onOpenChange={(open) => {
+                              setOpenSecretPicker(open ? index : null);
+                              if (!open) setSecretSearchByHeader((prev) => ({ ...prev, [index]: '' }));
+                            }}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                role="combobox"
+                                aria-label="Secret"
+                                className="min-w-0 flex-1 justify-between font-normal"
+                                data-testid={`${testIdPrefix}-header-secret`}
+                              >
+                                <span className="truncate">{secretLabel(header.value) ?? 'Select secret'}</span>
+                                <ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+                              <div className="border-b border-border p-2">
+                                <Input
+                                  autoFocus
+                                  aria-label="Search secrets"
+                                  placeholder="Search secrets"
+                                  value={secretSearchByHeader[index] ?? ''}
+                                  onChange={(event) => setSecretSearchByHeader((prev) => ({ ...prev, [index]: event.target.value }))}
+                                  data-testid={`${testIdPrefix}-header-secret-search`}
+                                />
+                              </div>
+                              <div className="max-h-56 overflow-y-auto p-1">
+                                {filteredSecretsByHeader(index).length === 0 ? (
+                                  <p className="px-2 py-3 text-sm text-muted-foreground">No secrets match.</p>
+                                ) : (
+                                  filteredSecretsByHeader(index).map((secret) => {
+                                    const secretId = secret.meta?.id ?? '';
+                                    return (
+                                      <button
+                                        key={secretId}
+                                        type="button"
+                                        className="w-full truncate rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                                        onClick={() => {
+                                          updateHeader(index, { value: secretId, requiresValueReentry: false });
+                                          setOpenSecretPicker(null);
+                                          setSecretSearchByHeader((prev) => ({ ...prev, [index]: '' }));
+                                        }}
+                                      >
+                                        {secret.title || secret.remoteName || secretId}
+                                      </button>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        ) : (
+                          <Input
+                            className="min-w-0 flex-1"
+                            aria-label="Header value"
+                            type="password"
+                            placeholder={header.requiresValueReentry ? 'Re-enter literal value' : 'header value'}
+                            value={header.value}
+                            onChange={(event) => updateHeader(index, { value: event.target.value, requiresValueReentry: false })}
+                            data-testid={`${testIdPrefix}-header-value`}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-md bg-muted px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">Sent as</p>
+                    <p className="break-all font-mono text-xs" data-testid={`${testIdPrefix}-header-preview`}>
+                      {headerWirePreview(header)}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -490,6 +564,7 @@ const headersFromValues = (headers: HeaderFormValues[]): EgressRuleHeader[] =>
     $typeName: 'agynio.api.egress.v1.EgressRuleHeader',
     name: header.name,
     scheme: schemeToProto(header.scheme),
+    username: header.username,
     credential: { case: header.source, value: header.value },
   }));
 
