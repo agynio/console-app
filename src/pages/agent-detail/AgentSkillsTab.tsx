@@ -23,6 +23,11 @@ import { formatDateOnly, timestampToMillis, truncate } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
+// The name is the skill's directory on the agent's filesystem, so the API takes
+// only a slug. Checked here to name the rule rather than surface a server error.
+const SKILL_NAME_PATTERN = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/;
+const SKILL_NAME_HINT = 'Lowercase letters, digits and hyphens, up to 64 characters.';
+
 type AgentSkillsTabProps = {
   agentId: string;
 };
@@ -35,6 +40,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
   const [createDescription, setCreateDescription] = useState('');
   const [createNameError, setCreateNameError] = useState('');
   const [createBodyError, setCreateBodyError] = useState('');
+  const [createDescriptionError, setCreateDescriptionError] = useState('');
   const [editOpen, setEditOpen] = useState(false);
   const [editSkillId, setEditSkillId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -42,6 +48,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
   const [editDescription, setEditDescription] = useState('');
   const [editNameError, setEditNameError] = useState('');
   const [editBodyError, setEditBodyError] = useState('');
+  const [editDescriptionError, setEditDescriptionError] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const skillsQuery = useQuery({
@@ -84,6 +91,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
       setCreateDescription('');
       setCreateNameError('');
       setCreateBodyError('');
+      setCreateDescriptionError('');
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to create skill.');
@@ -119,18 +127,26 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
   const handleCreate = () => {
     const trimmedName = createName.trim();
     const trimmedBody = createBody.trim();
+    const trimmedDescription = createDescription.trim();
     if (!trimmedName) {
       setCreateNameError('Name is required.');
+    } else if (!SKILL_NAME_PATTERN.test(trimmedName)) {
+      setCreateNameError(SKILL_NAME_HINT);
     }
     if (!trimmedBody) {
       setCreateBodyError('Body is required.');
     }
-    if (!trimmedName || !trimmedBody) return;
+    if (!trimmedDescription) {
+      setCreateDescriptionError('Description is required.');
+    }
+    if (!trimmedName || !SKILL_NAME_PATTERN.test(trimmedName) || !trimmedBody || !trimmedDescription) {
+      return;
+    }
     createSkillMutation.mutate({
       agentId,
       name: trimmedName,
       body: trimmedBody,
-      description: createDescription.trim(),
+      description: trimmedDescription,
     });
   };
 
@@ -146,19 +162,28 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
     setEditDescription(skill.description);
     setEditNameError('');
     setEditBodyError('');
+    setEditDescriptionError('');
     setEditOpen(true);
   };
 
   const handleEditSave = () => {
     const trimmedName = editName.trim();
     const trimmedBody = editBody.trim();
+    const trimmedDescription = editDescription.trim();
     if (!trimmedName) {
       setEditNameError('Name is required.');
+    } else if (!SKILL_NAME_PATTERN.test(trimmedName)) {
+      setEditNameError(SKILL_NAME_HINT);
     }
     if (!trimmedBody) {
       setEditBodyError('Body is required.');
     }
-    if (!trimmedName || !trimmedBody) return;
+    if (!trimmedDescription) {
+      setEditDescriptionError('Description is required.');
+    }
+    if (!trimmedName || !SKILL_NAME_PATTERN.test(trimmedName) || !trimmedBody || !trimmedDescription) {
+      return;
+    }
     if (!editSkillId) {
       toast.error('Missing skill ID.');
       return;
@@ -167,7 +192,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
       id: editSkillId,
       name: trimmedName,
       body: trimmedBody,
-      description: editDescription.trim(),
+      description: trimmedDescription,
     });
   };
 
@@ -302,7 +327,7 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
           <DialogHeader>
             <DialogTitle data-testid="agent-skills-create-title">Create skill</DialogTitle>
           <DialogDescription data-testid="agent-skills-create-description">
-            Add a new skill prompt for this agent.
+            Add instructions the agent loads when it needs them.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -317,7 +342,11 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
               }}
               data-testid="agent-skills-create-name"
             />
-            {createNameError && <p className="text-sm text-destructive">{createNameError}</p>}
+            {createNameError ? (
+              <p className="text-sm text-destructive">{createNameError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{SKILL_NAME_HINT}</p>
+            )}
           </div>
           <ScriptEditor
             label="Body"
@@ -334,9 +363,19 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
             <Input
               id="agent-skills-create-description-input"
               value={createDescription}
-              onChange={(event) => setCreateDescription(event.target.value)}
+              onChange={(event) => {
+                setCreateDescription(event.target.value);
+                if (createDescriptionError) setCreateDescriptionError('');
+              }}
               data-testid="agent-skills-create-description-input"
             />
+            {createDescriptionError ? (
+              <p className="text-sm text-destructive">{createDescriptionError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                When the agent should reach for this skill. It reads this before the body.
+              </p>
+            )}
           </div>
         </div>
           <DialogFooter>
@@ -393,9 +432,19 @@ export function AgentSkillsTab({ agentId }: AgentSkillsTabProps) {
             <Input
               id="agent-skills-edit-description-input"
               value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
+              onChange={(event) => {
+                setEditDescription(event.target.value);
+                if (editDescriptionError) setEditDescriptionError('');
+              }}
               data-testid="agent-skills-edit-description-input"
             />
+            {editDescriptionError ? (
+              <p className="text-sm text-destructive">{editDescriptionError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                When the agent should reach for this skill. It reads this before the body.
+              </p>
+            )}
           </div>
         </div>
           <DialogFooter>
