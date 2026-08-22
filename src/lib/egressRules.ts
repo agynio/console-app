@@ -11,6 +11,7 @@ export type HeaderFormValues = {
   name: string;
   scheme: HeaderSchemeSelection;
   source: HeaderCredentialSource;
+  username: string;
   value: string;
   requiresValueReentry?: boolean;
 };
@@ -44,6 +45,7 @@ export const EMPTY_HEADER: HeaderFormValues = {
   name: '',
   scheme: 'none',
   source: 'value',
+  username: '',
   value: '',
 };
 
@@ -125,6 +127,7 @@ export const buildFormValuesFromRule = (rule: EgressRule | null): EgressRuleForm
     headers: (rule.effect?.inject ?? []).map((header) => ({
       name: header.name,
       scheme: schemeFromProto(header.scheme),
+      username: header.username,
       source: header.credential.case === 'secretId' ? 'secretId' : 'value',
       value: header.credential.case === undefined ? '' : header.credential.value,
       requiresValueReentry: header.credential.case === undefined,
@@ -147,6 +150,8 @@ export const normalizeRuleFormValues = (values: EgressRuleFormValues): EgressRul
   headers: values.headers.map((header) => ({
     ...header,
     name: header.name.trim(),
+    // The username is part of the basic credential and meaningless elsewhere.
+    username: header.scheme === 'basic' ? header.username.trim() : '',
     value: header.value.trim(),
   })),
 });
@@ -203,6 +208,10 @@ export const validateRuleForm = (
       errors.headers = header.requiresValueReentry
         ? 'Literal header values are not displayed; enter a new value or remove the header.'
         : 'Each header requires a name and literal value or selected secret.';
+      break;
+    }
+    if (header.scheme === 'basic' && !header.username) {
+      errors.headers = 'Basic headers require a username.';
       break;
     }
   }

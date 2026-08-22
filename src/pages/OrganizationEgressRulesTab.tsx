@@ -409,6 +409,15 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                       <SelectItem value="basic">Basic</SelectItem>
                     </SelectContent>
                   </Select>
+                  {header.scheme === 'basic' ? (
+                    <Input
+                      aria-label="Header username"
+                      placeholder="x-access-token"
+                      value={header.username}
+                      onChange={(event) => updateHeader(index, { username: event.target.value })}
+                      data-testid={`${testIdPrefix}-header-username`}
+                    />
+                  ) : null}
                   <Select value={header.source} onValueChange={(source: HeaderCredentialSource) => updateHeader(index, { source, requiresValueReentry: false })}>
                     <SelectTrigger aria-label="Header source" data-testid={`${testIdPrefix}-header-source`}>
                       <SelectValue />
@@ -490,6 +499,7 @@ const headersFromValues = (headers: HeaderFormValues[]): EgressRuleHeader[] =>
     $typeName: 'agynio.api.egress.v1.EgressRuleHeader',
     name: header.name,
     scheme: schemeToProto(header.scheme),
+    username: header.username,
     credential: { case: header.source, value: header.value },
   }));
 

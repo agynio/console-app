@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildFormValuesFromRule,
   DEFAULT_EGRESS_RULE_FORM_VALUES,
+  normalizeRuleFormValues,
   parseMethods,
   parsePorts,
   upstreamTlsToProto,
@@ -30,6 +31,30 @@ describe('egress rule form helpers', () => {
     expect(validation.errors.domainPattern).toBe('Domain pattern is required.');
     expect(validation.errors.headers).toBe('Each header requires a name and literal value or selected secret.');
     expect(validation.parsed).toBeUndefined();
+  });
+
+  it('requires a username on basic headers', () => {
+    const validation = validateRuleForm({
+      ...DEFAULT_EGRESS_RULE_FORM_VALUES,
+      name: 'github',
+      domainPattern: 'github.com',
+      headers: [{ name: 'Authorization', scheme: 'basic', source: 'secretId', username: '', value: 'secret-id' }],
+    });
+
+    expect(validation.errors.headers).toBe('Basic headers require a username.');
+    expect(validation.parsed).toBeUndefined();
+  });
+
+  it('drops the username when the scheme is not basic', () => {
+    const validation = validateRuleForm(normalizeRuleFormValues({
+      ...DEFAULT_EGRESS_RULE_FORM_VALUES,
+      name: 'github',
+      domainPattern: 'github.com',
+      headers: [{ name: 'Authorization', scheme: 'bearer', source: 'secretId', username: 'x-access-token', value: 'secret-id' }],
+    }));
+
+    expect(validation.errors.headers).toBeUndefined();
+    expect(validation.parsed?.headers[0].username).toBe('');
   });
 
   it('requires literal header re-entry when values are not echoed', () => {
