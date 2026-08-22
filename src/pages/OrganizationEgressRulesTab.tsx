@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { TrashIcon } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { egressClient, networksClient, secretsClient } from '@/api/client';
 import { SortableHeader } from '@/components/SortableHeader';
@@ -31,6 +32,8 @@ import { toast } from 'sonner';
 
 import {
   actionLabel,
+  credentialLabel,
+  headerWirePreview,
   actionToProto,
   buildFormValuesFromRule,
   DEFAULT_EGRESS_RULE_FORM_VALUES,
@@ -388,47 +391,71 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
           ) : (
             <div className="space-y-3">
               {values.headers.map((header, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-1 items-start gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_120px_130px] lg:grid-cols-[minmax(0,1fr)_120px_130px_minmax(0,1fr)_auto]"
-                >
-                  <Input
-                    aria-label="Header name"
-                    placeholder="Authorization"
-                    value={header.name}
-                    onChange={(event) => updateHeader(index, { name: event.target.value })}
-                    data-testid={`${testIdPrefix}-header-name`}
-                  />
-                  <Select value={header.scheme} onValueChange={(scheme: HeaderSchemeSelection) => updateHeader(index, { scheme })}>
-                    <SelectTrigger aria-label="Header scheme" data-testid={`${testIdPrefix}-header-scheme`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="bearer">Bearer</SelectItem>
-                      <SelectItem value="basic">Basic</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {header.scheme === 'basic' ? (
-                    <Input
-                      aria-label="Header username"
-                      placeholder="x-access-token"
-                      value={header.username}
-                      onChange={(event) => updateHeader(index, { username: event.target.value })}
-                      data-testid={`${testIdPrefix}-header-username`}
-                    />
-                  ) : null}
-                  <Select value={header.source} onValueChange={(source: HeaderCredentialSource) => updateHeader(index, { source, requiresValueReentry: false })}>
-                    <SelectTrigger aria-label="Header source" data-testid={`${testIdPrefix}-header-source`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="value">Value</SelectItem>
-                      <SelectItem value="secretId">Secret</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div key={index} className="space-y-3 rounded-lg border border-border p-3">
+                  <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Name</Label>
+                      <Input
+                        aria-label="Header name"
+                        placeholder="Authorization"
+                        value={header.name}
+                        onChange={(event) => updateHeader(index, { name: event.target.value })}
+                        data-testid={`${testIdPrefix}-header-name`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Scheme</Label>
+                      <Select value={header.scheme} onValueChange={(scheme: HeaderSchemeSelection) => updateHeader(index, { scheme })}>
+                        <SelectTrigger aria-label="Header scheme" data-testid={`${testIdPrefix}-header-scheme`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="bearer">Bearer</SelectItem>
+                          <SelectItem value="basic">Basic</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove header"
+                      className="justify-self-start sm:justify-self-auto"
+                      onClick={() => setValues((prev) => ({ ...prev, headers: prev.headers.filter((_, currentIndex) => currentIndex !== index) }))}
+                      data-testid={`${testIdPrefix}-remove-header`}
+                    >
+                      <TrashIcon className="size-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+                    {header.scheme === 'basic' ? (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Username</Label>
+                        <Input
+                          aria-label="Header username"
+                          placeholder="x-access-token"
+                          value={header.username}
+                          onChange={(event) => updateHeader(index, { username: event.target.value })}
+                          data-testid={`${testIdPrefix}-header-username`}
+                        />
+                      </div>
+                    ) : null}
+                    <div className={`space-y-1 ${header.scheme === 'basic' ? '' : 'sm:col-span-2'}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">{credentialLabel(header.scheme)}</Label>
+                        <Select value={header.source} onValueChange={(source: HeaderCredentialSource) => updateHeader(index, { source, requiresValueReentry: false })}>
+                          <SelectTrigger aria-label="Header source" size="sm" className="h-7 w-[110px] text-xs" data-testid={`${testIdPrefix}-header-source`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="value">Literal</SelectItem>
+                            <SelectItem value="secretId">Secret</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                   {header.source === 'secretId' ? (
-                    <div className="space-y-2 sm:col-span-3 lg:col-span-1">
+                    <div className="space-y-2">
                       <Input
                         aria-label="Search secrets"
                         placeholder="Search secrets"
@@ -454,7 +481,6 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                     </div>
                   ) : (
                     <Input
-                      className="sm:col-span-3 lg:col-span-1"
                       aria-label="Header value"
                       type="password"
                       placeholder={header.requiresValueReentry ? 'Re-enter literal value' : 'header value'}
@@ -463,16 +489,14 @@ function EgressRuleDialog({ mode, open, onOpenChange, initialValues, onSubmit, i
                       data-testid={`${testIdPrefix}-header-value`}
                     />
                   )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="justify-self-start sm:col-span-3 lg:col-span-1 lg:justify-self-auto"
-                    onClick={() => setValues((prev) => ({ ...prev, headers: prev.headers.filter((_, currentIndex) => currentIndex !== index) }))}
-                    data-testid={`${testIdPrefix}-remove-header`}
-                  >
-                    Remove
-                  </Button>
+                    </div>
+                  </div>
+                  <div className="rounded-md bg-muted px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">Sent as</p>
+                    <p className="break-all font-mono text-xs" data-testid={`${testIdPrefix}-header-preview`}>
+                      {headerWirePreview(header)}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>

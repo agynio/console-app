@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildFormValuesFromRule,
+  credentialLabel,
   DEFAULT_EGRESS_RULE_FORM_VALUES,
+  headerWirePreview,
   normalizeRuleFormValues,
   parseMethods,
   parsePorts,
@@ -31,6 +33,33 @@ describe('egress rule form helpers', () => {
     expect(validation.errors.domainPattern).toBe('Domain pattern is required.');
     expect(validation.errors.headers).toBe('Each header requires a name and literal value or selected secret.');
     expect(validation.parsed).toBeUndefined();
+  });
+
+  it('labels the credential for each scheme', () => {
+    expect(credentialLabel('none')).toBe('Value');
+    expect(credentialLabel('bearer')).toBe('Token');
+    expect(credentialLabel('basic')).toBe('Password');
+  });
+
+  it('previews the wire value for each scheme', () => {
+    const base = { name: 'Authorization', source: 'secretId' as const, username: '', value: 'secret-id' };
+    expect(headerWirePreview({ ...base, scheme: 'none' })).toBe('Authorization: <secret>');
+    expect(headerWirePreview({ ...base, scheme: 'bearer' })).toBe('Authorization: Bearer <secret>');
+    expect(headerWirePreview({ ...base, scheme: 'basic', username: 'x-access-token' })).toBe(
+      'Authorization: Basic base64("x-access-token:" + <secret>)',
+    );
+  });
+
+  it('previews a literal credential distinctly from a secret', () => {
+    expect(headerWirePreview({ name: 'X-Api-Key', scheme: 'none', source: 'value', username: '', value: 'abc' })).toBe(
+      'X-Api-Key: <value>',
+    );
+  });
+
+  it('falls back to placeholders before the header is filled in', () => {
+    expect(headerWirePreview({ name: '', scheme: 'basic', source: 'value', username: '', value: '' })).toBe(
+      'Header: Basic base64("<username>:" + <value>)',
+    );
   });
 
   it('requires a username on basic headers', () => {

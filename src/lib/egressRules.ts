@@ -135,6 +135,34 @@ export const buildFormValuesFromRule = (rule: EgressRule | null): EgressRuleForm
   };
 };
 
+// The label the credential carries in each scheme, so the field names the thing
+// it holds rather than the wire format it ends up in.
+export const credentialLabel = (scheme: HeaderSchemeSelection): string => {
+  switch (scheme) {
+    case 'bearer':
+      return 'Token';
+    case 'basic':
+      return 'Password';
+    default:
+      return 'Value';
+  }
+};
+
+// What the gateway will actually put on the wire. Bearer prepends, basic encodes
+// a pair -- a difference nothing in the form otherwise shows.
+export const headerWirePreview = (header: HeaderFormValues): string => {
+  const name = header.name.trim() || 'Header';
+  const credential = header.source === 'secretId' ? '<secret>' : '<value>';
+  switch (header.scheme) {
+    case 'bearer':
+      return `${name}: Bearer ${credential}`;
+    case 'basic':
+      return `${name}: Basic base64("${header.username.trim() || '<username>'}:" + ${credential})`;
+    default:
+      return `${name}: ${credential}`;
+  }
+};
+
 export const normalizeRuleFormValues = (values: EgressRuleFormValues): EgressRuleFormValues => ({
   ...values,
   name: values.name.trim(),
