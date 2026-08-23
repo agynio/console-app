@@ -11,6 +11,7 @@ export type HeaderFormValues = {
   name: string;
   scheme: HeaderSchemeSelection;
   source: HeaderCredentialSource;
+  username: string;
   value: string;
   requiresValueReentry?: boolean;
 };
@@ -44,6 +45,7 @@ export const EMPTY_HEADER: HeaderFormValues = {
   name: '',
   scheme: 'none',
   source: 'value',
+  username: '',
   value: '',
 };
 
@@ -125,11 +127,40 @@ export const buildFormValuesFromRule = (rule: EgressRule | null): EgressRuleForm
     headers: (rule.effect?.inject ?? []).map((header) => ({
       name: header.name,
       scheme: schemeFromProto(header.scheme),
+      username: header.username,
       source: header.credential.case === 'secretId' ? 'secretId' : 'value',
       value: header.credential.case === undefined ? '' : header.credential.value,
       requiresValueReentry: header.credential.case === undefined,
     })),
   };
+};
+
+// The label the credential carries in each scheme, so the field names the thing
+// it holds rather than the wire format it ends up in.
+export const credentialLabel = (scheme: HeaderSchemeSelection): string => {
+  switch (scheme) {
+    case 'bearer':
+      return 'Token';
+    case 'basic':
+      return 'Password';
+    default:
+      return 'Value';
+  }
+};
+
+// What the gateway will actually put on the wire. Bearer prepends, basic encodes
+// a pair -- a difference nothing in the form otherwise shows.
+export const headerWirePreview = (header: HeaderFormValues): string => {
+  const name = header.name.trim() || 'Header';
+  const credential = header.source === 'secretId' ? '<secret>' : '<value>';
+  switch (header.scheme) {
+    case 'bearer':
+      return `${name}: Bearer ${credential}`;
+    case 'basic':
+      return `${name}: Basic base64("${header.username.trim() || '<username>'}:" + ${credential})`;
+    default:
+      return `${name}: ${credential}`;
+  }
 };
 
 export const normalizeRuleFormValues = (values: EgressRuleFormValues): EgressRuleFormValues => ({
@@ -147,6 +178,8 @@ export const normalizeRuleFormValues = (values: EgressRuleFormValues): EgressRul
   headers: values.headers.map((header) => ({
     ...header,
     name: header.name.trim(),
+    // The username is part of the basic credential and meaningless elsewhere.
+    username: header.scheme === 'basic' ? header.username.trim() : '',
     value: header.value.trim(),
   })),
 });
@@ -203,6 +236,10 @@ export const validateRuleForm = (
       errors.headers = header.requiresValueReentry
         ? 'Literal header values are not displayed; enter a new value or remove the header.'
         : 'Each header requires a name and literal value or selected secret.';
+      break;
+    }
+    if (header.scheme === 'basic' && !header.username) {
+      errors.headers = 'Basic headers require a username.';
       break;
     }
   }
