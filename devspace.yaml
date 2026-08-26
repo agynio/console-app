@@ -67,6 +67,10 @@ functions:
                     [ "$elapsed" -ge 120 ] && { echo "ERROR: sync timeout" >&2; exit 1; }
                   done
                   npm ci --no-audit --no-fund
+                  # src/gen is generated and not in the repository, so a tree
+                  # that has never generated syncs none of it and Vite fails to
+                  # resolve the first import it meets.
+                  npm run generate
                   # The released image generates env.js at start from the same
                   # variables; Vite serves public/env.js, which is empty, so
                   # without this the console has no OIDC settings and never
