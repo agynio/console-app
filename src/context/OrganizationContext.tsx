@@ -101,6 +101,25 @@ function mapOrganizations(
   });
 }
 
+// Every page of them, not the first. Which organizations the console will show
+// is decided from this list, and a member of more than one page's worth had the
+// rest silently disappear -- including, for anyone near the boundary, the
+// organization they had just made and asked to open.
+async function listAllMyMemberships(status: MembershipStatus): Promise<{ memberships: Membership[] }> {
+  const memberships: Membership[] = [];
+  let pageToken = '';
+  do {
+    const response = await organizationsClient.listMyMemberships({
+      status,
+      pageSize: MAX_PAGE_SIZE,
+      pageToken,
+    });
+    memberships.push(...response.memberships);
+    pageToken = response.nextPageToken;
+  } while (pageToken);
+  return { memberships };
+}
+
 export function OrganizationProvider({ children }: { children: ReactNode }) {
   const { identityId, isClusterAdmin, status: userStatus } = useUserContext();
   const storedContextRef = useRef<StoredContextMode | null>(readStoredContextMode());
@@ -109,12 +128,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   // Memberships include role/status data used to filter org visibility.
   const membershipsQuery = useQuery({
     queryKey: ['organizations', 'memberships'],
-    queryFn: () =>
-      organizationsClient.listMyMemberships({
-        status: MembershipStatus.ACTIVE,
-        pageSize: MAX_PAGE_SIZE,
-        pageToken: '',
-      }),
+    queryFn: () => listAllMyMemberships(MembershipStatus.ACTIVE),
     enabled: userStatus === 'ready' && Boolean(identityId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
@@ -122,12 +136,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
   const pendingMembershipsQuery = useQuery({
     queryKey: ['organizations', 'pendingMemberships'],
-    queryFn: () =>
-      organizationsClient.listMyMemberships({
-        status: MembershipStatus.PENDING,
-        pageSize: MAX_PAGE_SIZE,
-        pageToken: '',
-      }),
+    queryFn: () => listAllMyMemberships(MembershipStatus.PENDING),
     enabled: userStatus === 'ready' && Boolean(identityId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,

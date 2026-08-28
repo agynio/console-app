@@ -336,4 +336,51 @@ describe('OrganizationContext', () => {
       expect(screen.getByTestId('pending-ids').textContent).toBe('pending-1,pending-2');
     });
   });
+
+  // A member of more than one page's worth had the rest silently disappear --
+  // including, for anyone near the boundary, the organization they had just
+  // made and asked to open.
+  it('reads every page of memberships, not just the first', async () => {
+    const onPageTwo = create(MembershipSchema, {
+      id: 'membership-late',
+      organizationId: 'org-late',
+      identityId: 'identity-1',
+      role: MembershipRole.OWNER,
+      status: MembershipStatus.ACTIVE,
+    });
+    listMyMemberships.mockImplementation((request: { status?: MembershipStatus; pageToken?: string }) => {
+      if (request?.status === MembershipStatus.PENDING) {
+        return Promise.resolve({ memberships: [] });
+      }
+      if (!request?.pageToken) {
+        return Promise.resolve({
+          memberships: [
+            create(MembershipSchema, {
+              id: 'membership-early',
+              organizationId: 'org-early',
+              identityId: 'identity-1',
+              role: MembershipRole.OWNER,
+              status: MembershipStatus.ACTIVE,
+            }),
+          ],
+          nextPageToken: 'page-2',
+        });
+      }
+      return Promise.resolve({ memberships: [onPageTwo] });
+    });
+    mockOrganizationLookup([
+      { id: 'org-early', name: 'Org Early' },
+      { id: 'org-late', name: 'Org Late' },
+    ]);
+    window.localStorage.setItem(
+      'console.contextMode',
+      JSON.stringify({ mode: 'organization', organizationId: 'org-late' }),
+    );
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('selected').textContent).toBe('org-late');
+    });
+  });
 });
