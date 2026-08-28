@@ -32,7 +32,12 @@ export function OrganizationsListPage() {
   // The administration view covers every organization on the cluster; the
   // context deliberately carries only the admin's own memberships.
   const clusterOrganizationsQuery = useQuery({
-    queryKey: ['organizations', 'list'],
+    // Its own key, because what it caches is its own shape: every page
+    // flattened into one array, where the pages elsewhere cache a single
+    // response. Sharing the key let whichever screen ran first decide what the
+    // other one read, and reading a response as an array threw where it was
+    // mapped -- taking the whole console down with it.
+    queryKey: ['organizations', 'list', 'all-pages'],
     queryFn: async () => {
       const organizations: Organization[] = [];
       let pageToken = '';
