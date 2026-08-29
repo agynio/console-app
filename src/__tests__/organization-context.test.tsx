@@ -14,17 +14,17 @@ import {
 
 type UserContextValue = ReturnType<typeof useUserContext>;
 
-const { listMyMemberships, listOrganizations, getOrganization } = vi.hoisted(() => ({
+const { listMyMemberships, listOrganizations, listAccessibleOrganizations } = vi.hoisted(() => ({
   listMyMemberships: vi.fn(),
   listOrganizations: vi.fn(),
-  getOrganization: vi.fn(),
+  listAccessibleOrganizations: vi.fn(),
 }));
 
 vi.mock('@/api/client', () => ({
   organizationsClient: {
     listMyMemberships,
     listOrganizations,
-    getOrganization,
+    listAccessibleOrganizations,
   },
 }));
 
@@ -78,11 +78,9 @@ function mockMemberships(active: Membership[], pending: Membership[] = []) {
 }
 
 function mockOrganizationLookup(organizations: Array<{ id: string; name: string }>) {
-  const lookup = new Map(organizations.map((org) => [org.id, org]));
-  getOrganization.mockImplementation(({ id }: { id: string }) => {
-    const org = lookup.get(id);
-    return Promise.resolve({ organization: org ? create(OrganizationSchema, org) : undefined });
-  });
+  listAccessibleOrganizations.mockImplementation(() =>
+    Promise.resolve({ organizations: organizations.map((org) => create(OrganizationSchema, org)) }),
+  );
 }
 
 describe('OrganizationContext', () => {
@@ -104,7 +102,7 @@ describe('OrganizationContext', () => {
     window.localStorage.clear();
     listMyMemberships.mockReset();
     listOrganizations.mockReset();
-    getOrganization.mockReset();
+    listAccessibleOrganizations.mockReset();
   });
 
   it('migrates legacy selections into context mode storage', async () => {

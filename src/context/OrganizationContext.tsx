@@ -150,31 +150,22 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     () => pendingMembershipsQuery.data?.memberships ?? [],
     [pendingMembershipsQuery.data?.memberships],
   );
-  const organizationIds = useMemo(() => {
-    const ids = new Set<string>();
-    memberships.forEach((membership) => {
-      if (membership.organizationId) ids.add(membership.organizationId);
-    });
-    return Array.from(ids).sort((a, b) => a.localeCompare(b));
-  }, [memberships]);
-
   // Everyone, cluster admins included, sees only the organizations they are a
   // member of here; admins reach the rest through the administration section.
   const organizationsQuery = useQuery({
-    queryKey: ['organizations', 'by-membership', organizationIds],
+    queryKey: ['organizations', 'accessible', identityId],
+    // One call, not one per organization. Asked for individually, a member of
+    // a few hundred organizations opened the console on a few hundred requests
+    // -- repeated whenever the membership list grew a page -- and the browser
+    // spent longer on them than on anything the person came to see.
     queryFn: async () => {
-      if (organizationIds.length === 0) {
+      if (!identityId) {
         return { organizations: [] };
       }
-      const responses = await Promise.all(
-        organizationIds.map((id) => organizationsClient.getOrganization({ id })),
-      );
-      const organizations = responses.flatMap((response) =>
-        response.organization ? [response.organization] : [],
-      );
-      return { organizations };
+      const response = await organizationsClient.listAccessibleOrganizations({ identityId });
+      return { organizations: response.organizations };
     },
-    enabled: userStatus === 'ready' && Boolean(identityId) && membershipsQuery.isSuccess,
+    enabled: userStatus === 'ready' && Boolean(identityId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
