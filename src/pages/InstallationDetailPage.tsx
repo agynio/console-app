@@ -10,6 +10,9 @@ import { UpdateInstallationDialog } from '@/components/UpdateInstallationDialog'
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { ConfigurationForm } from '@/components/ConfigurationForm';
+import { configurationMismatch, readConfigurationSchema } from '@/lib/configurationSchema';
+import type { JsonObject } from '@bufbuild/protobuf';
 import { InstallationAuditLogLevel } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatDateOnly, formatInstallationAuditLogLevel, formatTimestamp, timestampToMillis } from '@/lib/format';
@@ -93,6 +96,28 @@ export function InstallationDetailPage() {
       ? '—'
       : `${configurationCount} ${configurationCount === 1 ? 'key' : 'keys'}`;
 
+  const appQuery = useQuery({
+    queryKey: ['app', installation?.appId],
+    queryFn: () => appsClient.getApp({ id: installation?.appId ?? '' }),
+    enabled: Boolean(installation?.appId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const schema = useMemo(
+    () => readConfigurationSchema(appQuery.data?.app?.configurationSchema?.toJson() as JsonObject | undefined),
+    [appQuery.data?.app],
+  );
+  const storedValues = useMemo(
+    () => (installation?.configuration ? (installation.configuration as JsonObject) : {}),
+    [installation?.configuration],
+  );
+  const secretKeysSet = useMemo(() => installation?.secretKeysSet ?? [], [installation?.secretKeysSet]);
+  const mismatch = useMemo(
+    () => (schema ? configurationMismatch(schema, storedValues, secretKeysSet) : []),
+    [schema, storedValues, secretKeysSet],
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -170,10 +195,33 @@ export function InstallationDetailPage() {
                     {installation.organizationId || '—'}
                   </div>
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Configuration</div>
                   <div className="text-sm text-foreground" data-testid="installation-detail-configuration">
-                    {configurationCount === null ? '—' : <Badge variant="secondary">{configurationLabel}</Badge>}
+                    {schema && mismatch.length === 0 ? (
+                      <div className="mt-2" data-testid="installation-detail-configuration-form">
+                        <ConfigurationForm
+                          schema={schema}
+                          values={storedValues}
+                          onChange={() => undefined}
+                          secretKeysSet={secretKeysSet}
+                          organizationId={organizationId}
+                          disabled
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        {configurationCount === null ? '—' : <Badge variant="secondary">{configurationLabel}</Badge>}
+                        {mismatch.length > 0 ? (
+                          <p
+                            className="mt-2 text-xs text-destructive"
+                            data-testid="installation-detail-configuration-mismatch"
+                          >
+                            Does not match what the app now expects ({mismatch.join(', ')}). Configure it to repair it.
+                          </p>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 </div>
                 <div>
