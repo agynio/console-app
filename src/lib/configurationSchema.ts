@@ -206,3 +206,21 @@ export function toSubmittedConfiguration(schema: ConfigurationSchema, values: Js
   }
   return submitted;
 }
+
+/**
+ * Names the properties of a stored configuration that the app's current schema
+ * does not accept. A schema is not allowed to stop accepting what it already
+ * accepted, so this is never a deploy catching up with an installation: it is
+ * configuration written before the app ever reported a schema, or a reference
+ * whose target has since been deleted.
+ */
+export function configurationMismatch(
+  schema: ConfigurationSchema,
+  values: JsonObject,
+  secretKeysSet: string[],
+): string[] {
+  const declared = new Set(schema.properties.map((property) => property.name));
+  const undeclared = Object.keys(values).filter((name) => !declared.has(name));
+  const invalid = Object.keys(validateConfiguration(schema, values, secretKeysSet));
+  return [...new Set([...undeclared, ...invalid])].sort();
+}

@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { JsonEditor } from '@/components/JsonEditor';
+import { ConfigurationForm } from '@/components/ConfigurationForm';
+import {
+  configurationMismatch,
+  readConfigurationSchema,
+  toSubmittedConfiguration,
+  validateConfiguration,
+} from '@/lib/configurationSchema';
 import {
   Dialog,
   DialogClose,
@@ -37,23 +44,56 @@ export function UpdateInstallationDialog({
   const queryClient = useQueryClient();
   const [slug, setSlug] = useState('');
   const [configuration, setConfiguration] = useState('');
+  const [values, setValues] = useState<JsonObject>({});
+  const [propertyErrors, setPropertyErrors] = useState<Record<string, string>>({});
   const [slugError, setSlugError] = useState('');
   const [configurationError, setConfigurationError] = useState('');
+
+  const appQuery = useQuery({
+    queryKey: ['app', installation?.appId],
+    queryFn: () => appsClient.getApp({ id: installation?.appId ?? '' }),
+    enabled: open && Boolean(installation?.appId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const schema = useMemo(
+    () => readConfigurationSchema(appQuery.data?.app?.configurationSchema?.toJson() as JsonObject | undefined),
+    [appQuery.data?.app],
+  );
+
+  const storedValues = useMemo(
+    () => (installation?.configuration ? (installation.configuration as JsonObject) : {}),
+    [installation?.configuration],
+  );
+  const secretKeysSet = useMemo(() => installation?.secretKeysSet ?? [], [installation?.secretKeysSet]);
+
+  // Stored configuration the current schema does not accept is repaired
+  // through the JSON editor: the generated form cannot express it.
+  const mismatch = useMemo(
+    () => (schema ? configurationMismatch(schema, storedValues, secretKeysSet) : []),
+    [schema, storedValues, secretKeysSet],
+  );
+  const useForm = Boolean(schema) && mismatch.length === 0;
 
   useEffect(() => {
     if (open && installation) {
       setSlug(installation.slug);
       setConfiguration(installation.configuration ? JSON.stringify(installation.configuration, null, 2) : '');
+      setValues(storedValues);
+      setPropertyErrors({});
       setSlugError('');
       setConfigurationError('');
     }
     if (!open) {
       setSlug('');
       setConfiguration('');
+      setValues({});
+      setPropertyErrors({});
       setSlugError('');
       setConfigurationError('');
     }
-  }, [open, installation]);
+  }, [open, installation, storedValues]);
 
   const updateMutation = useMutation({
     mutationFn: (payload: { id: string; slug: string; configuration?: JsonObject }) =>
@@ -76,19 +116,31 @@ export function UpdateInstallationDialog({
       return;
     }
 
-    const trimmedConfig = configuration.trim();
     let parsedConfig: JsonObject | undefined;
-    if (trimmedConfig) {
-      try {
-        const parsed = JSON.parse(trimmedConfig);
-        if (!isJsonObject(parsed)) {
-          setConfigurationError('Configuration must be a JSON object.');
+    if (useForm && schema) {
+      const failures = validateConfiguration(schema, values, secretKeysSet);
+      if (Object.keys(failures).length > 0) {
+        setPropertyErrors(failures);
+        return;
+      }
+      setPropertyErrors({});
+      // A secret left untouched is absent from values, so it is absent from the
+      // write and the server keeps what is stored.
+      parsedConfig = toSubmittedConfiguration(schema, values);
+    } else {
+      const trimmedConfig = configuration.trim();
+      if (trimmedConfig) {
+        try {
+          const parsed = JSON.parse(trimmedConfig);
+          if (!isJsonObject(parsed)) {
+            setConfigurationError('Configuration must be a JSON object.');
+            return;
+          }
+          parsedConfig = parsed;
+        } catch {
+          setConfigurationError('Invalid JSON format.');
           return;
         }
-        parsedConfig = parsed;
-      } catch {
-        setConfigurationError('Invalid JSON format.');
-        return;
       }
     }
 
@@ -125,16 +177,42 @@ export function UpdateInstallationDialog({
             />
             {slugError && <p className="text-sm text-destructive">{slugError}</p>}
           </div>
-          <JsonEditor
-            label="Configuration"
-            value={configuration}
-            onChange={(nextValue) => {
-              setConfiguration(nextValue);
-              if (configurationError) setConfigurationError('');
-            }}
-            error={configurationError}
-            testId="update-installation-configuration"
-          />
+          {useForm && schema ? (
+            <div className="space-y-2" data-testid="update-installation-configuration-form">
+              <Label>Configuration</Label>
+              <ConfigurationForm
+                schema={schema}
+                values={values}
+                onChange={(next) => {
+                  setValues(next);
+                  setPropertyErrors({});
+                }}
+                secretKeysSet={secretKeysSet}
+                errors={propertyErrors}
+                organizationId={organizationId}
+                disabled={updateMutation.isPending}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {mismatch.length > 0 ? (
+                <p className="text-sm text-destructive" data-testid="update-installation-configuration-mismatch">
+                  This installation&apos;s configuration does not match what the app now expects (
+                  {mismatch.join(', ')}). Edit it directly to repair it.
+                </p>
+              ) : null}
+              <JsonEditor
+                label="Configuration"
+                value={configuration}
+                onChange={(nextValue) => {
+                  setConfiguration(nextValue);
+                  if (configurationError) setConfigurationError('');
+                }}
+                error={configurationError}
+                testId="update-installation-configuration"
+              />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <DialogClose asChild>
