@@ -5,6 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { JsonEditor } from '@/components/JsonEditor';
+import { ConfigurationForm } from '@/components/ConfigurationForm';
+import {
+  initialValues,
+  readConfigurationSchema,
+  toSubmittedConfiguration,
+  validateConfiguration,
+} from '@/lib/configurationSchema';
 import {
   Dialog,
   DialogClose,
@@ -33,6 +40,8 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
   const [appId, setAppId] = useState('');
   const [slug, setSlug] = useState('');
   const [configuration, setConfiguration] = useState('');
+  const [values, setValues] = useState<JsonObject>({});
+  const [propertyErrors, setPropertyErrors] = useState<Record<string, string>>({});
   const [appError, setAppError] = useState('');
   const [slugError, setSlugError] = useState('');
   const [configurationError, setConfigurationError] = useState('');
@@ -46,6 +55,13 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
   });
 
   const apps = useMemo(() => appsQuery.data?.apps ?? [], [appsQuery.data?.apps]);
+  const selectedApp = useMemo(() => apps.find((app) => app.meta?.id === appId), [apps, appId]);
+  // An app that has reported no schema gets the JSON editor, which is the only
+  // honest option when nothing describes what belongs in the configuration.
+  const schema = useMemo(
+    () => readConfigurationSchema(selectedApp?.configurationSchema?.toJson() as JsonObject | undefined),
+    [selectedApp],
+  );
   const appOptions = useMemo(
     () => apps.flatMap((app) => (app.meta?.id ? [{ id: app.meta.id, slug: app.slug, name: app.name }] : [])),
     [apps],
@@ -62,12 +78,7 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
       toast.success('App installed.');
       void queryClient.invalidateQueries({ queryKey: ['installations', organizationId] });
       onOpenChange(false);
-      setAppId('');
-      setSlug('');
-      setConfiguration('');
-      setAppError('');
-      setSlugError('');
-      setConfigurationError('');
+      resetState();
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to install app.');
@@ -78,6 +89,8 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
     setAppId('');
     setSlug('');
     setConfiguration('');
+    setValues({});
+    setPropertyErrors({});
     setAppError('');
     setSlugError('');
     setConfigurationError('');
@@ -95,6 +108,15 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
     if (selected) {
       setSlug(selected.slug);
     }
+    // Each app asks for different configuration, so switching apps starts the
+    // form over rather than carrying the previous app's answers into it.
+    const nextSchema = readConfigurationSchema(
+      apps.find((app) => app.meta?.id === value)?.configurationSchema?.toJson() as JsonObject | undefined,
+    );
+    setValues(nextSchema ? initialValues(nextSchema) : {});
+    setPropertyErrors({});
+    setConfiguration('');
+    setConfigurationError('');
   };
 
   const handleInstall = () => {
@@ -109,19 +131,29 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
     }
     if (!trimmedAppId || !trimmedSlug) return;
 
-    const trimmedConfig = configuration.trim();
     let parsedConfig: JsonObject | undefined;
-    if (trimmedConfig) {
-      try {
-        const parsed = JSON.parse(trimmedConfig);
-        if (!isJsonObject(parsed)) {
-          setConfigurationError('Configuration must be a JSON object.');
+    if (schema) {
+      const failures = validateConfiguration(schema, values, []);
+      if (Object.keys(failures).length > 0) {
+        setPropertyErrors(failures);
+        return;
+      }
+      setPropertyErrors({});
+      parsedConfig = toSubmittedConfiguration(schema, values);
+    } else {
+      const trimmedConfig = configuration.trim();
+      if (trimmedConfig) {
+        try {
+          const parsed = JSON.parse(trimmedConfig);
+          if (!isJsonObject(parsed)) {
+            setConfigurationError('Configuration must be a JSON object.');
+            return;
+          }
+          parsedConfig = parsed;
+        } catch {
+          setConfigurationError('Invalid JSON format.');
           return;
         }
-        parsedConfig = parsed;
-      } catch {
-        setConfigurationError('Invalid JSON format.');
-        return;
       }
     }
 
@@ -182,16 +214,33 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
             />
             {slugError && <p className="text-sm text-destructive">{slugError}</p>}
           </div>
-          <JsonEditor
-            label="Configuration"
-            value={configuration}
-            onChange={(nextValue) => {
-              setConfiguration(nextValue);
-              if (configurationError) setConfigurationError('');
-            }}
-            error={configurationError}
-            testId="install-app-configuration"
-          />
+          {schema ? (
+            <div className="space-y-2" data-testid="install-app-configuration-form">
+              <Label>Configuration</Label>
+              <ConfigurationForm
+                schema={schema}
+                values={values}
+                onChange={(next) => {
+                  setValues(next);
+                  setPropertyErrors({});
+                }}
+                errors={propertyErrors}
+                organizationId={organizationId}
+                disabled={installMutation.isPending}
+              />
+            </div>
+          ) : (
+            <JsonEditor
+              label="Configuration"
+              value={configuration}
+              onChange={(nextValue) => {
+                setConfiguration(nextValue);
+                if (configurationError) setConfigurationError('');
+              }}
+              error={configurationError}
+              testId="install-app-configuration"
+            />
+          )}
         </div>
         <DialogFooter>
           <DialogClose asChild>
