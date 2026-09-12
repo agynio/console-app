@@ -14,8 +14,6 @@ type ConfigurationFormProps = {
   schema: ConfigurationSchema;
   values: JsonObject;
   onChange: (values: JsonObject) => void;
-  /** Secret properties the installation already holds a value for. */
-  secretKeysSet?: string[];
   errors?: Record<string, string>;
   organizationId: string;
   disabled?: boolean;
@@ -30,15 +28,11 @@ export function ConfigurationForm({
   schema,
   values,
   onChange,
-  secretKeysSet = [],
   errors = {},
   organizationId,
   disabled = false,
 }: ConfigurationFormProps) {
-  const shown = useMemo(
-    () => visibleProperties(schema, values, secretKeysSet),
-    [schema, values, secretKeysSet],
-  );
+  const shown = useMemo(() => visibleProperties(schema, values), [schema, values]);
 
   if (schema.properties.length === 0) {
     return <p className="text-sm text-muted-foreground">This app needs no configuration.</p>;
@@ -59,7 +53,6 @@ export function ConfigurationForm({
           property={property}
           value={values[property.name]}
           onChange={(value) => set(property.name, value)}
-          alreadySet={secretKeysSet.includes(property.name)}
           error={errors[property.name]}
           organizationId={organizationId}
           disabled={disabled}
@@ -73,13 +66,12 @@ type PropertyFieldProps = {
   property: SchemaProperty;
   value: JsonValue | undefined;
   onChange: (value: JsonValue | undefined) => void;
-  alreadySet: boolean;
   error?: string;
   organizationId: string;
   disabled: boolean;
 };
 
-function PropertyField({ property, value, onChange, alreadySet, error, organizationId, disabled }: PropertyFieldProps) {
+function PropertyField({ property, value, onChange, error, organizationId, disabled }: PropertyFieldProps) {
   const id = `configuration-${property.name}`;
   return (
     <div className="space-y-1.5">
@@ -97,12 +89,11 @@ function PropertyField({ property, value, onChange, alreadySet, error, organizat
         property={property}
         value={value}
         onChange={onChange}
-        alreadySet={alreadySet}
         organizationId={organizationId}
         disabled={disabled}
       />
 
-      {property.deprecated && (value !== undefined || alreadySet) ? (
+      {property.deprecated && value !== undefined ? (
         <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onChange(undefined)}>
           Clear
         </Button>
@@ -117,34 +108,36 @@ function PropertyInput({
   property,
   value,
   onChange,
-  alreadySet,
   organizationId,
   disabled,
 }: PropertyFieldProps & { id: string }) {
-  const [replacing, setReplacing] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   if (property.secret) {
-    // A stored secret is never sent to the browser, so there is nothing to
-    // show. Leaving it untouched keeps what is stored.
-    if (alreadySet && !replacing && value === undefined) {
-      return (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Set</span>
-          <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => setReplacing(true)}>
-            Replace
-          </Button>
-        </div>
-      );
-    }
+    // The marker means "keep this off the screen by default", not "the platform
+    // withholds it": the value is stored and returned in plain text like any
+    // other. Masking keeps it out of a screen share; it is not protection, and
+    // the reveal exists so nobody has to guess what is in the field.
     return (
-      <Input
-        id={id}
-        type="password"
-        autoComplete="new-password"
-        disabled={disabled}
-        value={typeof value === 'string' ? value : ''}
-        onChange={(event) => onChange(event.target.value)}
-      />
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          type={revealed ? 'text' : 'password'}
+          autoComplete="off"
+          disabled={disabled}
+          value={typeof value === 'string' ? value : ''}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={() => setRevealed((shown) => !shown)}
+        >
+          {revealed ? 'Hide' : 'Show'}
+        </Button>
+      </div>
     );
   }
 

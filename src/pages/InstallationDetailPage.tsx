@@ -112,10 +112,9 @@ export function InstallationDetailPage() {
     () => (installation?.configuration ? (installation.configuration as JsonObject) : {}),
     [installation?.configuration],
   );
-  const secretKeysSet = useMemo(() => installation?.secretKeysSet ?? [], [installation?.secretKeysSet]);
   const mismatch = useMemo(
-    () => (schema ? configurationMismatch(schema, storedValues, secretKeysSet) : []),
-    [schema, storedValues, secretKeysSet],
+    () => (schema ? configurationMismatch(schema, storedValues) : []),
+    [schema, storedValues],
   );
 
   return (
@@ -204,7 +203,6 @@ export function InstallationDetailPage() {
                           schema={schema}
                           values={storedValues}
                           onChange={() => undefined}
-                          secretKeysSet={secretKeysSet}
                           organizationId={organizationId}
                           disabled
                         />

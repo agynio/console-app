@@ -48,12 +48,12 @@ describe('readConfigurationSchema', () => {
 
 describe('visibleProperties', () => {
   it('hides a deprecated property the installation does not carry', () => {
-    const shown = visibleProperties(schema(), {}, []).map((property) => property.name);
+    const shown = visibleProperties(schema(), {}).map((property) => property.name);
     expect(shown).not.toContain('old_field');
   });
 
   it('shows a deprecated property that still holds a value, so it can be cleared', () => {
-    const shown = visibleProperties(schema(), { old_field: 'legacy' }, []).map((property) => property.name);
+    const shown = visibleProperties(schema(), { old_field: 'legacy' }).map((property) => property.name);
     expect(shown).toContain('old_field');
   });
 });
@@ -66,37 +66,34 @@ describe('initialValues', () => {
 
 describe('validateConfiguration', () => {
   it('reports each property that fails', () => {
-    const errors = validateConfiguration(schema(), { retries: 9 }, []);
+    const errors = validateConfiguration(schema(), { retries: 9 });
     expect(Object.keys(errors).sort()).toEqual(['agent_id', 'bot_token', 'retries']);
   });
 
-  it('does not require a secret the installation already holds', () => {
-    const errors = validateConfiguration(
-      schema(),
-      { agent_id: '8f14e45f-ceea-467a-9575-6f2f0f1f0f0f' },
-      ['bot_token'],
-    );
-    expect(errors).toEqual({});
+  it('requires a secret-marked property like any other', () => {
+    // The marker only asks the Console to mask the field; the value is stored
+    // and returned in plain text, so a required secret is required.
+    const errors = validateConfiguration(schema(), { agent_id: '8f14e45f-ceea-467a-9575-6f2f0f1f0f0f' });
+    expect(errors.bot_token).toBe('Required');
   });
 
   it('checks the declared format', () => {
-    const errors = validateConfiguration(schema(), { bot_token: 'x', agent_id: 'not-a-uuid' }, []);
+    const errors = validateConfiguration(schema(), { bot_token: 'x', agent_id: 'not-a-uuid' });
     expect(errors.agent_id).toBe('Must be a UUID');
   });
 });
 
 describe('toSubmittedConfiguration', () => {
-  it('omits an untouched secret so the server keeps the stored value', () => {
+  it('sends every value the form holds, secrets included', () => {
     const submitted = toSubmittedConfiguration(schema(), {
+      bot_token: 'xoxb-1',
       agent_id: '8f14e45f-ceea-467a-9575-6f2f0f1f0f0f',
       retries: 3,
     });
-    expect(submitted).toEqual({ agent_id: '8f14e45f-ceea-467a-9575-6f2f0f1f0f0f', retries: 3 });
-    expect('bot_token' in submitted).toBe(false);
-  });
-
-  it('sends a replaced secret', () => {
-    const submitted = toSubmittedConfiguration(schema(), { bot_token: 'new', agent_id: 'x' });
-    expect(submitted.bot_token).toBe('new');
+    expect(submitted).toEqual({
+      bot_token: 'xoxb-1',
+      agent_id: '8f14e45f-ceea-467a-9575-6f2f0f1f0f0f',
+      retries: 3,
+    });
   });
 });

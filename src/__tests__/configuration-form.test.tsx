@@ -1,7 +1,7 @@
 import { create } from '@bufbuild/protobuf';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UpdateInstallationDialog } from '@/components/UpdateInstallationDialog';
 import { EntityMetaSchema, InstallationSchema } from '@/gen/agynio/api/apps/v1/apps_pb';
 
@@ -39,7 +39,13 @@ const schema = {
   required: ['bot_token', 'agent_id'],
 };
 
-function renderDialog(configuration: Record<string, unknown> = {}, secretKeysSet: string[] = []) {
+// The stored configuration carries every key the app declared, secrets
+// included — the platform does not withhold them.
+function stored(extra: Record<string, unknown> = {}) {
+  return { agent_id: AGENT_ID, bot_token: 'xoxb-stored', ...extra };
+}
+
+function renderDialog(configuration: Record<string, unknown> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -52,7 +58,6 @@ function renderDialog(configuration: Record<string, unknown> = {}, secretKeysSet
           organizationId: 'org-1',
           slug: 'demo',
           configuration,
-          secretKeysSet,
         })}
         organizationId="org-1"
       />
@@ -72,7 +77,7 @@ describe('generated configuration form', () => {
   });
 
   it('renders a field per declared property instead of a JSON editor', async () => {
-    renderDialog({ agent_id: AGENT_ID }, ['bot_token']);
+    renderDialog(stored());
 
     await waitFor(() => {
       expect(screen.getByTestId('update-installation-configuration-form')).toBeTruthy();
@@ -84,17 +89,26 @@ describe('generated configuration form', () => {
     expect(screen.queryByTestId('update-installation-configuration')).toBeNull();
   });
 
-  it('shows a stored secret as Set rather than as a value', async () => {
-    renderDialog({ agent_id: AGENT_ID }, ['bot_token']);
+  it('masks a secret-marked field and reveals it on request', async () => {
+    // The marker is a display hint: the value is stored and returned in plain
+    // text, so the field holds it and the reveal shows it.
+    renderDialog(stored({ bot_token: 'xoxb-visible-value' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Set')).toBeTruthy();
+      expect(screen.getByTestId('update-installation-configuration-form')).toBeTruthy();
     });
-    expect(screen.getByRole('button', { name: 'Replace' })).toBeTruthy();
+    const field = screen.getByLabelText(/Bot token/) as HTMLInputElement;
+    expect(field.type).toBe('password');
+    expect(field.value).toBe('xoxb-visible-value');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    await waitFor(() => {
+      expect((screen.getByLabelText(/Bot token/) as HTMLInputElement).type).toBe('text');
+    });
   });
 
   it('resolves a reference to the entity name, not a UUID field', async () => {
-    renderDialog({ agent_id: AGENT_ID }, ['bot_token']);
+    renderDialog(stored());
 
     await waitFor(() => {
       expect(screen.getByText('support-agent')).toBeTruthy();
@@ -102,7 +116,7 @@ describe('generated configuration form', () => {
   });
 
   it('hides a deprecated property until the installation carries it', async () => {
-    renderDialog({ agent_id: AGENT_ID }, ['bot_token']);
+    renderDialog(stored());
     await waitFor(() => {
       expect(screen.getByTestId('update-installation-configuration-form')).toBeTruthy();
     });
@@ -110,7 +124,7 @@ describe('generated configuration form', () => {
 
     cleanup();
 
-    renderDialog({ agent_id: AGENT_ID, legacy: 'old value' }, ['bot_token']);
+    renderDialog(stored({ legacy: 'old value' }));
     await waitFor(() => {
       expect(screen.getByText('Legacy')).toBeTruthy();
     });
@@ -119,7 +133,7 @@ describe('generated configuration form', () => {
 
   it('falls back to the JSON editor when the stored configuration does not match the schema', async () => {
     // An undeclared key can only predate the schema; the form cannot express it.
-    renderDialog({ agent_id: AGENT_ID, gone: 'x' }, ['bot_token']);
+    renderDialog(stored({ gone: 'x' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('update-installation-configuration-mismatch')).toBeTruthy();

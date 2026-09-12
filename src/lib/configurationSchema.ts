@@ -105,11 +105,8 @@ export function readConfigurationSchema(document: JsonObject | undefined): Confi
  * installation actually carries a value for it — then it appears so an admin
  * can clear it, which is what eventually lets the app drop it.
  */
-export function visibleProperties(schema: ConfigurationSchema, values: JsonObject, secretKeysSet: string[]): SchemaProperty[] {
-  const set = new Set(secretKeysSet);
-  return schema.properties.filter(
-    (property) => !property.deprecated || property.name in values || set.has(property.name),
-  );
+export function visibleProperties(schema: ConfigurationSchema, values: JsonObject): SchemaProperty[] {
+  return schema.properties.filter((property) => !property.deprecated || property.name in values);
 }
 
 /** Prefills a form for a new installation from the schema's declared defaults. */
@@ -174,17 +171,9 @@ export function validateProperty(property: SchemaProperty, value: JsonValue | un
   return undefined;
 }
 
-export function validateConfiguration(
-  schema: ConfigurationSchema,
-  values: JsonObject,
-  secretKeysSet: string[],
-): Record<string, string> {
-  const alreadySet = new Set(secretKeysSet);
+export function validateConfiguration(schema: ConfigurationSchema, values: JsonObject): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const property of schema.properties) {
-    // A secret the installation already holds needs no value in the form:
-    // leaving it untouched keeps what is stored.
-    if (property.secret && alreadySet.has(property.name) && values[property.name] === undefined) continue;
     const message = validateProperty(property, values[property.name]);
     if (message) errors[property.name] = message;
   }
@@ -192,9 +181,8 @@ export function validateConfiguration(
 }
 
 /**
- * Strips the entries a write should not carry: a secret left untouched is
- * omitted so the server keeps the stored value, and an empty optional is
- * omitted rather than sent as an empty string.
+ * Strips the entries a write should not carry: an empty optional is omitted
+ * rather than sent as an empty string.
  */
 export function toSubmittedConfiguration(schema: ConfigurationSchema, values: JsonObject): JsonObject {
   const submitted: JsonObject = {};
@@ -214,13 +202,9 @@ export function toSubmittedConfiguration(schema: ConfigurationSchema, values: Js
  * configuration written before the app ever reported a schema, or a reference
  * whose target has since been deleted.
  */
-export function configurationMismatch(
-  schema: ConfigurationSchema,
-  values: JsonObject,
-  secretKeysSet: string[],
-): string[] {
+export function configurationMismatch(schema: ConfigurationSchema, values: JsonObject): string[] {
   const declared = new Set(schema.properties.map((property) => property.name));
   const undeclared = Object.keys(values).filter((name) => !declared.has(name));
-  const invalid = Object.keys(validateConfiguration(schema, values, secretKeysSet));
+  const invalid = Object.keys(validateConfiguration(schema, values));
   return [...new Set([...undeclared, ...invalid])].sort();
 }

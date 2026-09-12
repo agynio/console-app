@@ -66,13 +66,12 @@ export function UpdateInstallationDialog({
     () => (installation?.configuration ? (installation.configuration as JsonObject) : {}),
     [installation?.configuration],
   );
-  const secretKeysSet = useMemo(() => installation?.secretKeysSet ?? [], [installation?.secretKeysSet]);
 
   // Stored configuration the current schema does not accept is repaired
   // through the JSON editor: the generated form cannot express it.
   const mismatch = useMemo(
-    () => (schema ? configurationMismatch(schema, storedValues, secretKeysSet) : []),
-    [schema, storedValues, secretKeysSet],
+    () => (schema ? configurationMismatch(schema, storedValues) : []),
+    [schema, storedValues],
   );
   const useForm = Boolean(schema) && mismatch.length === 0;
 
@@ -118,14 +117,12 @@ export function UpdateInstallationDialog({
 
     let parsedConfig: JsonObject | undefined;
     if (useForm && schema) {
-      const failures = validateConfiguration(schema, values, secretKeysSet);
+      const failures = validateConfiguration(schema, values);
       if (Object.keys(failures).length > 0) {
         setPropertyErrors(failures);
         return;
       }
       setPropertyErrors({});
-      // A secret left untouched is absent from values, so it is absent from the
-      // write and the server keeps what is stored.
       parsedConfig = toSubmittedConfiguration(schema, values);
     } else {
       const trimmedConfig = configuration.trim();
@@ -187,7 +184,6 @@ export function UpdateInstallationDialog({
                   setValues(next);
                   setPropertyErrors({});
                 }}
-                secretKeysSet={secretKeysSet}
                 errors={propertyErrors}
                 organizationId={organizationId}
                 disabled={updateMutation.isPending}
