@@ -171,14 +171,17 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent data-testid="install-app-dialog">
-        <DialogHeader>
+      <DialogContent
+        data-testid="install-app-dialog"
+        className="flex max-h-[85dvh] flex-col overflow-y-hidden"
+      >
+        <DialogHeader className="shrink-0">
           <DialogTitle data-testid="install-app-title">Install app</DialogTitle>
           <DialogDescription data-testid="install-app-description">
             Install a registered app into this organization.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           <div className="space-y-2">
             <Label htmlFor="install-app-select">App</Label>
             <Select value={appId} onValueChange={handleAppChange}>
@@ -242,7 +245,7 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
             />
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <DialogClose asChild>
             <Button variant="outline" size="sm" data-testid="install-app-cancel">
               Cancel

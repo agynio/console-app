@@ -153,14 +153,17 @@ export function UpdateInstallationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="update-installation-dialog">
-        <DialogHeader>
+      <DialogContent
+        data-testid="update-installation-dialog"
+        className="flex max-h-[85dvh] flex-col overflow-y-hidden"
+      >
+        <DialogHeader className="shrink-0">
           <DialogTitle data-testid="update-installation-title">Configure installation</DialogTitle>
           <DialogDescription data-testid="update-installation-description">
             Update installation slug and configuration.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           <div className="space-y-2">
             <Label htmlFor="update-installation-slug">Slug</Label>
             <Input
@@ -210,7 +213,7 @@ export function UpdateInstallationDialog({
             </div>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <DialogClose asChild>
             <Button variant="outline" size="sm" data-testid="update-installation-cancel">
               Cancel
