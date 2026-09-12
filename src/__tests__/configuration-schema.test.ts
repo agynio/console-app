@@ -11,7 +11,7 @@ import {
 const telegram = {
   type: 'object',
   properties: {
-    bot_token: { type: 'string', title: 'Bot token', 'x-agyn-secret': true },
+    bot_token: { type: 'string', title: 'Bot token', format: 'password' },
     agent_id: { type: 'string', format: 'uuid', 'x-agyn-ref': 'agent' },
     retries: { type: 'integer', minimum: 0, maximum: 5, default: 3 },
     old_field: { type: 'string', deprecated: true },
@@ -30,10 +30,10 @@ describe('readConfigurationSchema', () => {
     expect(readConfigurationSchema(undefined)).toBeUndefined();
   });
 
-  it('reads the agyn keywords', () => {
+  it('reads the display format and the agyn reference keyword', () => {
     const parsed = schema();
     const byName = Object.fromEntries(parsed.properties.map((property) => [property.name, property]));
-    expect(byName.bot_token.secret).toBe(true);
+    expect(byName.bot_token.format).toBe('password');
     expect(byName.bot_token.required).toBe(true);
     expect(byName.agent_id.ref).toBe('agent');
     expect(byName.old_field.deprecated).toBe(true);

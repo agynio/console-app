@@ -113,11 +113,10 @@ function PropertyInput({
 }: PropertyFieldProps & { id: string }) {
   const [revealed, setRevealed] = useState(false);
 
-  if (property.secret) {
-    // The marker means "keep this off the screen by default", not "the platform
-    // withholds it": the value is stored and returned in plain text like any
-    // other. Masking keeps it out of a screen share; it is not protection, and
-    // the reveal exists so nobody has to guess what is in the field.
+  if (property.format === 'password') {
+    // format: password says how to draw the field — obscured — and nothing
+    // about the value. The platform stores and returns it in plain text, so
+    // this keeps a token off a screen share and claims nothing more.
     return (
       <div className="flex gap-2">
         <Input

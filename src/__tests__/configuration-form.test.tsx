@@ -28,7 +28,7 @@ const AGENT_ID = '8f14e45f-ceea-467a-9575-6f2f0f1f0f0f';
 const schema = {
   type: 'object',
   properties: {
-    bot_token: { type: 'string', title: 'Bot token', 'x-agyn-secret': true },
+    bot_token: { type: 'string', title: 'Bot token', format: 'password' },
     agent_id: { type: 'string', title: 'Agent', format: 'uuid', 'x-agyn-ref': 'agent' },
     retries: { type: 'integer', title: 'Retries', minimum: 0, maximum: 5 },
     verbose: { type: 'boolean', title: 'Verbose' },

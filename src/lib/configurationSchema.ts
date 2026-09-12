@@ -20,14 +20,13 @@ export type SchemaProperty = {
   required: boolean;
   enum?: JsonValue[];
   pattern?: string;
-  format?: 'uri' | 'email' | 'uuid';
+  format?: 'uri' | 'email' | 'uuid' | 'password';
   minLength?: number;
   maxLength?: number;
   minimum?: number;
   maximum?: number;
   minItems?: number;
   maxItems?: number;
-  secret: boolean;
   ref?: RefKind;
 };
 
@@ -84,14 +83,15 @@ export function readConfigurationSchema(document: JsonObject | undefined): Confi
         enum: Array.isArray(property.enum) ? (property.enum as JsonValue[]) : undefined,
         pattern: typeof property.pattern === 'string' ? property.pattern : undefined,
         format:
-          format === 'uri' || format === 'email' || format === 'uuid' ? (format as SchemaProperty['format']) : undefined,
+          format === 'uri' || format === 'email' || format === 'uuid' || format === 'password'
+            ? (format as SchemaProperty['format'])
+            : undefined,
         minLength: asNumber(property.minLength),
         maxLength: asNumber(property.maxLength),
         minimum: asNumber(property.minimum),
         maximum: asNumber(property.maximum),
         minItems: asNumber(property.minItems),
         maxItems: asNumber(property.maxItems),
-        secret: property['x-agyn-secret'] === true,
         ref: ref && REF_KINDS.includes(ref) ? ref : undefined,
       },
     ];
