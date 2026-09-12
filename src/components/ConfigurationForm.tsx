@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { JsonObject, JsonValue } from '@bufbuild/protobuf';
 import { agentsClient, llmClient } from '@/api/client';
@@ -111,32 +112,17 @@ function PropertyInput({
   organizationId,
   disabled,
 }: PropertyFieldProps & { id: string }) {
-  const [revealed, setRevealed] = useState(false);
-
   if (property.format === 'password') {
     // format: password says how to draw the field — obscured — and nothing
     // about the value. The platform stores and returns it in plain text, so
     // this keeps a token off a screen share and claims nothing more.
     return (
-      <div className="flex gap-2">
-        <Input
-          id={id}
-          type={revealed ? 'text' : 'password'}
-          autoComplete="off"
-          disabled={disabled}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          onClick={() => setRevealed((shown) => !shown)}
-        >
-          {revealed ? 'Hide' : 'Show'}
-        </Button>
-      </div>
+      <PasswordInput
+        id={id}
+        disabled={disabled}
+        value={typeof value === 'string' ? value : ''}
+        onChange={onChange}
+      />
     );
   }
 
@@ -211,6 +197,51 @@ function PropertyInput({
       value={typeof value === 'string' ? value : ''}
       onChange={(event) => onChange(event.target.value)}
     />
+  );
+}
+
+/**
+ * An obscured field with the reveal inside it, so the control sits with the
+ * value it acts on rather than crowding the row beside it.
+ */
+function PasswordInput({
+  id,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: JsonValue | undefined) => void;
+  disabled: boolean;
+}) {
+  const [revealed, setRevealed] = useState(false);
+
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={revealed ? 'text' : 'password'}
+        autoComplete="off"
+        // Room for the button, so a long token does not run underneath it.
+        className="pr-10"
+        disabled={disabled}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <button
+        type="button"
+        // The icon carries no text, so the control needs its own name — and it
+        // names the action, not the state, which is what a reader expects.
+        aria-label={revealed ? 'Hide value' : 'Show value'}
+        aria-pressed={revealed}
+        disabled={disabled}
+        onClick={() => setRevealed((shown) => !shown)}
+        className="absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+      >
+        {revealed ? <EyeOffIcon className="size-4" aria-hidden /> : <EyeIcon className="size-4" aria-hidden />}
+      </button>
+    </div>
   );
 }
 

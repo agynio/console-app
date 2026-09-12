@@ -101,9 +101,15 @@ describe('generated configuration form', () => {
     expect(field.type).toBe('password');
     expect(field.value).toBe('xoxb-visible-value');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    // The reveal is an icon button inside the field, named by its action.
+    fireEvent.click(screen.getByRole('button', { name: 'Show value' }));
     await waitFor(() => {
       expect((screen.getByLabelText(/Bot token/) as HTMLInputElement).type).toBe('text');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide value' }));
+    await waitFor(() => {
+      expect((screen.getByLabelText(/Bot token/) as HTMLInputElement).type).toBe('password');
     });
   });
 
