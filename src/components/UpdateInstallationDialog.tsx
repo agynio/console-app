@@ -58,7 +58,7 @@ export function UpdateInstallationDialog({
   });
 
   const schema = useMemo(
-    () => readConfigurationSchema(appQuery.data?.app?.configurationSchema?.toJson() as JsonObject | undefined),
+    () => readConfigurationSchema(appQuery.data?.app?.configurationSchema),
     [appQuery.data?.app],
   );
 

@@ -210,7 +210,7 @@ export function AppDetailPage() {
                       className="mt-2 max-h-80 overflow-auto rounded bg-muted p-3 text-xs"
                       data-testid="app-detail-schema"
                     >
-                      {JSON.stringify(app.configurationSchema.toJson(), null, 2)}
+                      {JSON.stringify(app.configurationSchema, null, 2)}
                     </pre>
                   </>
                 ) : (

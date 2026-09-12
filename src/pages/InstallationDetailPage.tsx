@@ -105,7 +105,7 @@ export function InstallationDetailPage() {
   });
 
   const schema = useMemo(
-    () => readConfigurationSchema(appQuery.data?.app?.configurationSchema?.toJson() as JsonObject | undefined),
+    () => readConfigurationSchema(appQuery.data?.app?.configurationSchema),
     [appQuery.data?.app],
   );
   const storedValues = useMemo(

@@ -59,7 +59,7 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
   // An app that has reported no schema gets the JSON editor, which is the only
   // honest option when nothing describes what belongs in the configuration.
   const schema = useMemo(
-    () => readConfigurationSchema(selectedApp?.configurationSchema?.toJson() as JsonObject | undefined),
+    () => readConfigurationSchema(selectedApp?.configurationSchema),
     [selectedApp],
   );
   const appOptions = useMemo(
@@ -111,7 +111,7 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
     // Each app asks for different configuration, so switching apps starts the
     // form over rather than carrying the previous app's answers into it.
     const nextSchema = readConfigurationSchema(
-      apps.find((app) => app.meta?.id === value)?.configurationSchema?.toJson() as JsonObject | undefined,
+      apps.find((app) => app.meta?.id === value)?.configurationSchema,
     );
     setValues(nextSchema ? initialValues(nextSchema) : {});
     setPropertyErrors({});
