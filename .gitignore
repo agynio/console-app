@@ -1,35 +1,34 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
+!.vscode/extensions.json
+# Editor directories and files
+# Lint reports
+# Logs
+# Playwright
+*.local
+*.log
+*.njsproj
+*.ntvs*
+*.sln
+*.suo
+*.sw?
+.DS_Store
+.devspace/
+.idea
+.playwright/
+.pnpm-store/
+.vscode/*
+Dockerfile.localtest
+Dockerfile.localtest.dockerignore
 dist
 dist-ssr
-src/gen/
-*.local
-.pnpm-store/
-.devspace/
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Lint reports
 eslint-report.json
-
-# Playwright
+lerna-debug.log*
+logs
+node_modules
+npm-debug.log*
 playwright-report/
+pnpm-debug.log*
+src/gen/
 test-results/
-.playwright/
+yarn-debug.log*
+yarn-error.log*
