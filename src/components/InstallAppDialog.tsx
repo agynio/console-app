@@ -133,7 +133,7 @@ export function InstallAppDialog({ open, onOpenChange, organizationId }: Install
 
     let parsedConfig: JsonObject | undefined;
     if (schema) {
-      const failures = validateConfiguration(schema, values, []);
+      const failures = validateConfiguration(schema, values);
       if (Object.keys(failures).length > 0) {
         setPropertyErrors(failures);
         return;
