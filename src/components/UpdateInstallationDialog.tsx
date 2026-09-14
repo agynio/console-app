@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { appsClient } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { JsonEditor } from '@/components/JsonEditor';
+import { ConfigurationForm } from '@/components/ConfigurationForm';
+import {
+  configurationMismatch,
+  readConfigurationSchema,
+  toSubmittedConfiguration,
+  validateConfiguration,
+} from '@/lib/configurationSchema';
 import {
   Dialog,
   DialogClose,
@@ -37,23 +44,55 @@ export function UpdateInstallationDialog({
   const queryClient = useQueryClient();
   const [slug, setSlug] = useState('');
   const [configuration, setConfiguration] = useState('');
+  const [values, setValues] = useState<JsonObject>({});
+  const [propertyErrors, setPropertyErrors] = useState<Record<string, string>>({});
   const [slugError, setSlugError] = useState('');
   const [configurationError, setConfigurationError] = useState('');
+
+  const appQuery = useQuery({
+    queryKey: ['app', installation?.appId],
+    queryFn: () => appsClient.getApp({ id: installation?.appId ?? '' }),
+    enabled: open && Boolean(installation?.appId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const schema = useMemo(
+    () => readConfigurationSchema(appQuery.data?.app?.configurationSchema),
+    [appQuery.data?.app],
+  );
+
+  const storedValues = useMemo(
+    () => (installation?.configuration ? (installation.configuration as JsonObject) : {}),
+    [installation?.configuration],
+  );
+
+  // Stored configuration the current schema does not accept is repaired
+  // through the JSON editor: the generated form cannot express it.
+  const mismatch = useMemo(
+    () => (schema ? configurationMismatch(schema, storedValues) : []),
+    [schema, storedValues],
+  );
+  const useForm = Boolean(schema) && mismatch.length === 0;
 
   useEffect(() => {
     if (open && installation) {
       setSlug(installation.slug);
       setConfiguration(installation.configuration ? JSON.stringify(installation.configuration, null, 2) : '');
+      setValues(storedValues);
+      setPropertyErrors({});
       setSlugError('');
       setConfigurationError('');
     }
     if (!open) {
       setSlug('');
       setConfiguration('');
+      setValues({});
+      setPropertyErrors({});
       setSlugError('');
       setConfigurationError('');
     }
-  }, [open, installation]);
+  }, [open, installation, storedValues]);
 
   const updateMutation = useMutation({
     mutationFn: (payload: { id: string; slug: string; configuration?: JsonObject }) =>
@@ -76,19 +115,29 @@ export function UpdateInstallationDialog({
       return;
     }
 
-    const trimmedConfig = configuration.trim();
     let parsedConfig: JsonObject | undefined;
-    if (trimmedConfig) {
-      try {
-        const parsed = JSON.parse(trimmedConfig);
-        if (!isJsonObject(parsed)) {
-          setConfigurationError('Configuration must be a JSON object.');
+    if (useForm && schema) {
+      const failures = validateConfiguration(schema, values);
+      if (Object.keys(failures).length > 0) {
+        setPropertyErrors(failures);
+        return;
+      }
+      setPropertyErrors({});
+      parsedConfig = toSubmittedConfiguration(schema, values);
+    } else {
+      const trimmedConfig = configuration.trim();
+      if (trimmedConfig) {
+        try {
+          const parsed = JSON.parse(trimmedConfig);
+          if (!isJsonObject(parsed)) {
+            setConfigurationError('Configuration must be a JSON object.');
+            return;
+          }
+          parsedConfig = parsed;
+        } catch {
+          setConfigurationError('Invalid JSON format.');
           return;
         }
-        parsedConfig = parsed;
-      } catch {
-        setConfigurationError('Invalid JSON format.');
-        return;
       }
     }
 
@@ -104,14 +153,17 @@ export function UpdateInstallationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="update-installation-dialog">
-        <DialogHeader>
+      <DialogContent
+        data-testid="update-installation-dialog"
+        className="flex max-h-[85dvh] flex-col overflow-y-hidden"
+      >
+        <DialogHeader className="shrink-0">
           <DialogTitle data-testid="update-installation-title">Configure installation</DialogTitle>
           <DialogDescription data-testid="update-installation-description">
             Update installation slug and configuration.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           <div className="space-y-2">
             <Label htmlFor="update-installation-slug">Slug</Label>
             <Input
@@ -125,18 +177,43 @@ export function UpdateInstallationDialog({
             />
             {slugError && <p className="text-sm text-destructive">{slugError}</p>}
           </div>
-          <JsonEditor
-            label="Configuration"
-            value={configuration}
-            onChange={(nextValue) => {
-              setConfiguration(nextValue);
-              if (configurationError) setConfigurationError('');
-            }}
-            error={configurationError}
-            testId="update-installation-configuration"
-          />
+          {useForm && schema ? (
+            <div className="space-y-2" data-testid="update-installation-configuration-form">
+              <Label>Configuration</Label>
+              <ConfigurationForm
+                schema={schema}
+                values={values}
+                onChange={(next) => {
+                  setValues(next);
+                  setPropertyErrors({});
+                }}
+                errors={propertyErrors}
+                organizationId={organizationId}
+                disabled={updateMutation.isPending}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {mismatch.length > 0 ? (
+                <p className="text-sm text-destructive" data-testid="update-installation-configuration-mismatch">
+                  This installation&apos;s configuration does not match what the app now expects (
+                  {mismatch.join(', ')}). Edit it directly to repair it.
+                </p>
+              ) : null}
+              <JsonEditor
+                label="Configuration"
+                value={configuration}
+                onChange={(nextValue) => {
+                  setConfiguration(nextValue);
+                  if (configurationError) setConfigurationError('');
+                }}
+                error={configurationError}
+                testId="update-installation-configuration"
+              />
+            </div>
+          )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <DialogClose asChild>
             <Button variant="outline" size="sm" data-testid="update-installation-cancel">
               Cancel

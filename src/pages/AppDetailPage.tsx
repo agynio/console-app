@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AppVisibility } from '@/gen/agynio/api/apps/v1/apps_pb';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { formatAppVisibility, formatDateOnly } from '@/lib/format';
+import { formatAppVisibility, formatDateOnly, formatTimestamp } from '@/lib/format';
 import { MAX_PAGE_SIZE } from '@/lib/pagination';
 import { toast } from 'sonner';
 
@@ -197,6 +197,27 @@ export function AppDetailPage() {
                   </div>
                 ) : (
                   <div className="text-sm text-foreground">—</div>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Configuration schema</div>
+                {app.configurationSchema ? (
+                  <>
+                    <p className="mt-1 text-xs text-muted-foreground" data-testid="app-detail-schema-reported">
+                      Reported by the app {formatTimestamp(app.schemaReportedAt)}.
+                    </p>
+                    <pre
+                      className="mt-2 max-h-80 overflow-auto rounded bg-muted p-3 text-xs"
+                      data-testid="app-detail-schema"
+                    >
+                      {JSON.stringify(app.configurationSchema, null, 2)}
+                    </pre>
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground" data-testid="app-detail-schema-absent">
+                    The app has not reported one. It reports its schema at startup, so this stays empty until it first
+                    runs — and its installations are configured through a JSON editor until then.
+                  </p>
                 )}
               </div>
             </div>

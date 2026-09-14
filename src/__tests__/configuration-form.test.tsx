@@ -1,0 +1,159 @@
+import { create } from '@bufbuild/protobuf';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { UpdateInstallationDialog } from '@/components/UpdateInstallationDialog';
+import { EntityMetaSchema, InstallationSchema } from '@/gen/agynio/api/apps/v1/apps_pb';
+
+// Renders the generated form for real, against the shape the API actually
+// returns. The previous dialog test mocked only updateInstallation, so the
+// schema path never ran and a bad read of App.configurationSchema reached the
+// browser.
+const { updateInstallation, getApp, listAgents } = vi.hoisted(() => ({
+  updateInstallation: vi.fn(),
+  getApp: vi.fn(),
+  listAgents: vi.fn(),
+}));
+
+vi.mock('@/api/client', () => ({
+  appsClient: { updateInstallation, getApp },
+  agentsClient: { listAgents },
+  llmClient: { listModels: vi.fn() },
+}));
+
+const AGENT_ID = '8f14e45f-ceea-467a-9575-6f2f0f1f0f0f';
+
+// google.protobuf.Struct fields are generated as plain JsonObject, so this is
+// exactly what the wire gives the component — no message wrapper, no toJson().
+const schema = {
+  type: 'object',
+  properties: {
+    bot_token: { type: 'string', title: 'Bot token', format: 'password' },
+    agent_id: { type: 'string', title: 'Agent', format: 'uuid', 'x-agyn-ref': 'agent' },
+    retries: { type: 'integer', title: 'Retries', minimum: 0, maximum: 5 },
+    verbose: { type: 'boolean', title: 'Verbose' },
+    mode: { type: 'string', title: 'Mode', enum: ['fast', 'slow'] },
+    channels: { type: 'array', title: 'Channels', items: { type: 'string' } },
+    legacy: { type: 'string', title: 'Legacy', deprecated: true },
+  },
+  required: ['bot_token', 'agent_id'],
+};
+
+// The stored configuration carries every key the app declared, secrets
+// included — the platform does not withhold them.
+function stored(extra: Record<string, unknown> = {}) {
+  return { agent_id: AGENT_ID, bot_token: 'xoxb-stored', ...extra };
+}
+
+function renderDialog(configuration: Record<string, unknown> = {}) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <UpdateInstallationDialog
+        open
+        onOpenChange={vi.fn()}
+        installation={create(InstallationSchema, {
+          meta: create(EntityMetaSchema, { id: 'installation-1' }),
+          appId: 'app-1',
+          organizationId: 'org-1',
+          slug: 'demo',
+          configuration,
+        })}
+        organizationId="org-1"
+      />
+    </QueryClientProvider>,
+  );
+}
+
+describe('generated configuration form', () => {
+  afterEach(cleanup);
+
+  beforeEach(() => {
+    updateInstallation.mockReset();
+    getApp.mockReset();
+    listAgents.mockReset();
+    getApp.mockResolvedValue({ app: { meta: { id: 'app-1' }, configurationSchema: schema } });
+    listAgents.mockResolvedValue({ agents: [{ meta: { id: AGENT_ID }, name: 'support-agent' }] });
+  });
+
+  it('renders a field per declared property instead of a JSON editor', async () => {
+    renderDialog(stored());
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-installation-configuration-form')).toBeTruthy();
+    });
+
+    for (const label of ['Bot token', 'Agent', 'Retries', 'Verbose', 'Mode', 'Channels']) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+    expect(screen.queryByTestId('update-installation-configuration')).toBeNull();
+  });
+
+  it('masks a secret-marked field and reveals it on request', async () => {
+    // The marker is a display hint: the value is stored and returned in plain
+    // text, so the field holds it and the reveal shows it.
+    renderDialog(stored({ bot_token: 'xoxb-visible-value' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-installation-configuration-form')).toBeTruthy();
+    });
+    const field = screen.getByLabelText(/Bot token/) as HTMLInputElement;
+    expect(field.type).toBe('password');
+    expect(field.value).toBe('xoxb-visible-value');
+
+    // The reveal is an icon button inside the field, named by its action.
+    fireEvent.click(screen.getByRole('button', { name: 'Show value' }));
+    await waitFor(() => {
+      expect((screen.getByLabelText(/Bot token/) as HTMLInputElement).type).toBe('text');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide value' }));
+    await waitFor(() => {
+      expect((screen.getByLabelText(/Bot token/) as HTMLInputElement).type).toBe('password');
+    });
+  });
+
+  it('resolves a reference to the entity name, not a UUID field', async () => {
+    renderDialog(stored());
+
+    await waitFor(() => {
+      expect(screen.getByText('support-agent')).toBeTruthy();
+    });
+  });
+
+  it('hides a deprecated property until the installation carries it', async () => {
+    renderDialog(stored());
+    await waitFor(() => {
+      expect(screen.getByTestId('update-installation-configuration-form')).toBeTruthy();
+    });
+    expect(screen.queryByText('Legacy')).toBeNull();
+
+    cleanup();
+
+    renderDialog(stored({ legacy: 'old value' }));
+    await waitFor(() => {
+      expect(screen.getByText('Legacy')).toBeTruthy();
+    });
+    expect(screen.getByText('Deprecated')).toBeTruthy();
+  });
+
+  it('falls back to the JSON editor when the stored configuration does not match the schema', async () => {
+    // An undeclared key can only predate the schema; the form cannot express it.
+    renderDialog(stored({ gone: 'x' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-installation-configuration-mismatch')).toBeTruthy();
+    });
+    expect(screen.getByTestId('update-installation-configuration')).toBeTruthy();
+  });
+
+  it('falls back to the JSON editor when the app has reported no schema', async () => {
+    getApp.mockResolvedValue({ app: { meta: { id: 'app-1' } } });
+    renderDialog({ anything: 'goes' });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-installation-configuration')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('update-installation-configuration-form')).toBeNull();
+  });
+});
